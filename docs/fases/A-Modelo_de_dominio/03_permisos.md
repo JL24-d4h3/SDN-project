@@ -37,24 +37,30 @@ Los permisos representan **acciones autorizadas**; no representan por sí mismos
 | P25 | Auditar operaciones | Consultar y revisar las acciones realizadas por usuarios y administradores. |
 | P26 | Gestionar configuración global | Modificar parámetros globales de la plataforma SDN y sus componentes críticos. |
 | P27 | Gestionar recuperación | Ejecutar o administrar procedimientos de restauración y recuperación de la plataforma. |
+| P28 | Solicitar elevación | Solicitar un perfil de acceso temporal (p. ej. LABORATORIO) con justificación, alcance y duración. |
+| P29 | Aprobar elevación | Aprobar o rechazar solicitudes de elevación temporal; definir su alcance y TTL. |
+| P30 | Registrar dispositivo privilegiado | Dar de alta, modificar o dar de baja dispositivos en el registro de dispositivos privilegiados, con su información completa (MAC, tipo, titular, rol, vigencia) y dejar constancia para auditoría. |
+
+> Nota: P28–P30 se incorporan con la introducción del modelo de perfiles de acceso y del registro de dispositivos privilegiados (ver [`01_actores-roles_y_agentes.md`](01_actores-roles_y_agentes.md)); su asignación a roles queda pendiente de la matriz Rol × Permiso.
 
 ## 3. Principios de asignación
 
 1. Un permiso debe concederse explícitamente a uno o más roles.
 2. La posesión de un rol no implica acceso irrestricto a todos los recursos.
-3. El acceso efectivo depende de **rol + permiso + recurso/servicio + política + contexto de seguridad**.
-4. Los permisos administrativos deben mantenerse separados de los permisos de usuario final.
-5. Las operaciones críticas deben quedar registradas mediante auditoría.
-6. Las acciones de mitigación deben poder estar sujetas a políticas y condiciones de seguridad.
-7. El Superadministrador posee control máximo, pero sus operaciones críticas también deben ser auditables.
-8. Un atacante interno o externo y un nodo comprometido **no reciben permisos autorizados**; son entidades cuyo acceso o comportamiento debe ser detectado, restringido o bloqueado.
+3. El acceso efectivo depende de **rol + permiso + recurso/servicio + política + contexto + vigencia**. Los privilegios concedidos mediante elevación son temporales: expiran por TTL o por cierre de sesión.
+4. El acceso base de la red (perfil BASE) no depende de ningún permiso otorgado a una persona: se concede al dispositivo por presencia física y cubre solo lo mínimo (deny by default).
+5. Los permisos administrativos deben mantenerse separados de los permisos de usuario final.
+6. Las operaciones críticas deben quedar registradas mediante auditoría.
+7. Las acciones de mitigación deben poder estar sujetas a políticas y condiciones de seguridad.
+8. El Superadministrador posee control máximo, pero sus operaciones críticas también deben ser auditables.
+9. Un atacante interno o externo y un nodo comprometido **no reciben permisos autorizados**; son entidades cuyo acceso o comportamiento debe ser detectado, restringido o bloqueado.
 
 ## 4. Niveles conceptuales
 
 ### Permisos de acceso
-P01–P05
+P01–P05, P28
 
-Permiten autenticarse, acceder a la red y utilizar recursos o servicios autorizados.
+Permiten autenticarse, acceder a la red, utilizar recursos o servicios autorizados y solicitar elevaciones temporales.
 
 ### Permisos de supervisión y seguridad
 P06–P13, P25
@@ -62,9 +68,9 @@ P06–P13, P25
 Permiten observar la red, investigar eventos y ejecutar acciones de respuesta.
 
 ### Permisos de administración
-P14–P23, P27
+P14–P23, P27, P29, P30
 
-Permiten administrar usuarios, políticas, infraestructura y mecanismos de seguridad.
+Permiten administrar usuarios, políticas, infraestructura y mecanismos de seguridad; aprobar elevaciones y registrar dispositivos privilegiados.
 
 ### Permisos de control maestro
 P24, P26

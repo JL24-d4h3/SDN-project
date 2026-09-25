@@ -19,10 +19,11 @@ Responde una sola pregunta: ¿dónde empieza y termina la solución? La respuest
 ```text
         ┌───────────────────────────┐        ┌────────────────────────────┐
         │  USUARIOS                 │        │  SISTEMAS EXTERNOS         │
-        │  Alumno · Docente         │        │  Internet / red externa    │
-        ├───────────────────────────┤        │  Identidad institucional   │
-        │  ADMINISTRADORES          │        │  Inteligencia de amenazas  │
-        │  Especialista de TI       │        └──────────────┬─────────────┘
+        │  Usuario académico        │        │  Internet / red externa    │
+        │  (perfil BASE)            │        │  Identidad (IdP/LDAP)      │
+        ├───────────────────────────┤        │  Inteligencia de amenazas  │
+        │  OPERADORES               │        └──────────────┬─────────────┘
+        │  Especialista de TI       │                       │
         │  Administrador de Red     │                       │
         │  Superadministrador       │                       │
         └─────────────┬─────────────┘                       │
@@ -35,8 +36,8 @@ Responde una sola pregunta: ¿dónde empieza y termina la solución? La respuest
         │                                                             │
         │              PLATAFORMA SDN DE SEGURIDAD                    │
         │                                                             │
-        │  control de acceso · autorización · detección · mitigación  │
-        │  administración de políticas · registro y auditoría         │
+        │  perfiles de acceso · portal cautivo · AAA · detección      │
+        │  mitigación · administración de políticas · auditoría       │
         │                                                             │
         └───────────────────────────────┬─────────────────────────────┘
                                         │
@@ -61,15 +62,16 @@ Responde una sola pregunta: ¿dónde empieza y termina la solución? La respuest
 
 | Origen | Destino | Qué fluye | Propósito |
 |---|---|---|---|
-| Alumno, Docente | Plataforma | Solicitud de acceso y de uso de servicios | Autenticación, autorización y registro (R1, R2) |
-| Plataforma | Alumno, Docente | Decisión de acceso y conectividad al servicio autorizado | Aplicar la política vigente |
-| Especialista de TI | Plataforma | Consultas de tráfico y de eventos; acciones de mitigación autorizadas | Supervisión y respuesta ante incidentes (R3, R4) |
-| Administrador de Red | Plataforma | Cambios de políticas, de reglas y de segmentación | Administración operativa de la red |
-| Superadministrador | Plataforma | Gestión de administradores, de roles y de configuración global | Control de la plataforma |
-| Plataforma | Administradores | Alertas, eventos, estado de red y registros | Operación y auditoría |
+| Usuario académico | Plataforma | Solicitud de configuración (DHCP) y de uso de servicios | Conectividad base y autorización por defecto (R1, R2) |
+| Plataforma | Usuario académico | Perfil BASE y conectividad al servicio autorizado | Aplicar la política vigente |
+| Usuario académico | Plataforma | Solicitud de elevación temporal | Elevación aprobada por el Administrador de Red, con TTL |
+| Especialista de TI | Plataforma | Login (portal cautivo); consultas de tráfico y de eventos; acciones de mitigación autorizadas | Supervisión y respuesta ante incidentes (R3, R4) |
+| Administrador de Red | Plataforma | Login (portal cautivo); cambios de políticas, de reglas y de segmentación; aprobación de elevaciones; altas en el registro de dispositivos | Administración operativa de la red |
+| Superadministrador | Plataforma | Login (portal cautivo o acceso remoto); gestión de operadores, de roles y de configuración global | Control de la plataforma |
+| Plataforma | Operadores | Alertas, eventos, estado de red y registros | Operación y auditoría |
 | Internet | Plataforma | Tráfico entrante | Servicio legítimo e inspección perimetral (R5) |
 | Plataforma | Internet | Tráfico saliente autorizado | Conectividad externa |
-| Identidad institucional | Plataforma | Verificación de credenciales y atributos | Autenticación (R1) |
+| Identidad institucional (IdP/LDAP) | Plataforma (AAA) | Verificación de credenciales y atributos de operadores | Autenticación de privilegiados (R1) |
 | Inteligencia de amenazas | Plataforma | Indicadores de IP, URL u otros | Determinar qué es malicioso (R5.6) |
 | Plataforma | Activos protegidos | Tráfico permitido; bloqueo del no autorizado | Protección de recursos (R2) |
 | Activos protegidos | Plataforma | Registros y eventos de servicio | Detección y trazabilidad |
@@ -89,4 +91,4 @@ Responde una sola pregunta: ¿dónde empieza y termina la solución? La respuest
 ## 5. Cuestiones abiertas
 
 - Si la inteligencia de amenazas proviene de un servicio externo, de listas propias o de ambos (R5.6).
-- Si la verificación de identidad es síncrona con cada acceso o se apoya en sesiones ya establecidas.
+- Si la verificación de identidad de los operadores es síncrona con cada elevación o se apoya en sesiones ya establecidas (idle_timeout).

@@ -1,10 +1,10 @@
 # 5. Casos de uso mínimos
 
 ## CU-01 — Acceso autorizado
-Un usuario con credenciales válidas solicita acceso y obtiene únicamente los permisos correspondientes a su rol.
+Un dispositivo se conecta y recibe el perfil BASE con privilegios mínimos; un operador con credenciales válidas se autentica y obtiene los permisos correspondientes a su rol, con vigencia acotada.
 
 ## CU-02 — Acceso no autorizado
-Un usuario no autorizado intenta acceder y el sistema rechaza la solicitud y registra el evento.
+Un dispositivo intenta alcanzar recursos por encima de su perfil y el sistema rechaza la solicitud y registra el evento.
 
 ## CU-03 — Acceso autorizado a recurso privilegiado
 Un usuario autorizado solicita un recurso privilegiado y el acceso es permitido y registrado.
@@ -36,11 +36,11 @@ Después de un incidente, el sistema elimina o modifica las reglas temporales y 
 
 ## 11.1 Operación normal
 
-**Usuario → identificación/autenticación → rol → política → recurso → monitoreo → registro.**
+**Dispositivo → perfil BASE (presencia física) → política por defecto → recurso → monitoreo → registro. Con elevación: autenticación → identidad/rol → política contextual → recurso.**
 
 ## 11.2 Acceso no autorizado
 
-**Solicitud → autenticación/autorización → rechazo → registro → alerta cuando corresponda.**
+**Solicitud por encima del perfil → política deniega → rechazo → registro → alerta cuando corresponda.**
 
 ## 11.3 Incidente de seguridad
 

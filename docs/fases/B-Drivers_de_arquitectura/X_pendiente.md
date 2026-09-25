@@ -13,6 +13,7 @@ En esta primera versión no se consideran definitivas las siguientes decisiones:
 - algoritmo/método de detección;
 - umbrales estáticos o dinámicos;
 - rate limiting;
+- honeypot
 - bloqueo;
 - segmentación;
 - ubicación de componentes de seguridad;

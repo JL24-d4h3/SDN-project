@@ -27,12 +27,12 @@ Los drivers se ordenan aplicando cuatro criterios, en este orden:
 
 | ID | Driver | Origen | Decisión arquitectónica que condiciona |
 |---|---|---|---|
-| D-01 | Control de acceso según identidad y rol | R1 | Modelo de autorización (RBAC, ABAC o combinación), mecanismo de autenticación y punto de la red donde se aplica la decisión. |
+| D-01 | Control de acceso por dispositivo, perfil y contexto | R1 | Modelo de perfiles de acceso, política contextual (identidad + atributos + contexto + vigencia), registro de dispositivos privilegiados, y punto de la red donde se aplica la decisión. |
 | D-02 | Protección diferenciada de recursos | R2 | Clasificación de recursos, segmentación y asociación recurso ↔ política. |
 | D-03 | Detección de ataques encubiertos internos | R3 | Ubicación y tipo de sensores, qué se observa y con qué analítica. |
-| D-04 | Mitigación de DDoS y brute-force | R4 | Mecanismos de contención (rate limiting, bloqueo, aislamiento), línea base y umbrales, y cómo se aplican desde el plano de control. |
+| D-04 | Mitigación de DDoS y brute-force | R4 | Cadena completa de detección → incidente → política → controlador → plano de datos; mecanismos de contención (meters para rate limiting, bloqueo, aislamiento), línea base y umbrales, y recuperación con timeouts. |
 | D-05 | Seguridad perimetral | R5 | Control del borde, inspección del tráfico externo y determinación de indicadores maliciosos. |
-| D-06 | Traducción de decisión a regla SDN | RT-03, RT-04, RT-05, R2.10 | Arquitectura northbound y southbound: cómo una decisión de seguridad se convierte en reglas sobre los dispositivos. |
+| D-06 | Traducción de decisión a regla SDN | RT-03, RT-04, RT-05, R2.10 | Arquitectura northbound y southbound: cómo una decisión de seguridad se convierte en reglas sobre los dispositivos, con las primitivas OpenFlow disponibles en PicOS (flows, meters, groups, counters). |
 | D-07 | Respuesta automatizada y reversible | RT-08, RT-10, PS-07 | Bucle detección → decisión → aplicación → reversión, y dónde reside el estado temporal. |
 | D-08 | Trazabilidad y auditoría | R1.9, R2.9, RNF-09, RT-07 | Modelo de eventos y registros: qué se registra, con qué identificadores y dónde se persiste. |
 | D-09 | Disponibilidad del servicio legítimo | RNF-02, R4.8 | Cómo se mitiga sin cortar el tráfico legítimo y con qué tolerancia a fallo del plano de control. |
@@ -50,9 +50,9 @@ Los drivers se ordenan aplicando cuatro criterios, en este orden:
 
 | Driver | Por qué |
 |---|---|
-| **D-01** Control de acceso según rol | R1 es obligatorio para todos los grupos. |
+| **D-01** Control de acceso por dispositivo, perfil y contexto | R1 es obligatorio para todos los grupos; su modelo (perfiles, registro de dispositivos privilegiados, elevación temporal) condiciona el resto de la arquitectura. |
 | **D-02** Protección de recursos | R2 es obligatorio para todos los grupos. |
-| **D-04** Mitigación de DDoS y brute-force | R4 es el requerimiento asignado a este grupo. |
+| **D-04** Mitigación de DDoS y brute-force | R4 es el requerimiento asignado a este grupo; es el caso de uso que demuestra la cadena completa de extremo a extremo. |
 | **D-06** Traducción de decisión a regla SDN | Habilitante: sin él, ninguno de los tres requerimientos puede aplicarse sobre la red ni satisfacer RP-02. |
 | **D-07** Respuesta automatizada y reversible | R4 exige mitigar y recuperar; sin reversión, la mitigación bloquea tráfico legítimo. |
 | **D-08** Trazabilidad mínima | R1.9 y R2.9 pertenecen a requerimientos obligatorios: hay que registrar autenticación, autorización y accesos a recursos privilegiados. |
@@ -85,12 +85,12 @@ Los entregables del proyecto se derivan de estos niveles; esta priorización ree
 
 | Driver | Decisiones pendientes que activa |
 |---|---|
-| D-01 | mecanismo de autenticación; RBAC, ABAC o combinación; gestión de identidad |
+| D-01 | perfiles de acceso; política contextual; registro de dispositivos privilegiados; portal cautivo y AAA |
 | D-02 | segmentación; ubicación de los componentes de seguridad |
 | D-03 | mecanismo de monitoreo; algoritmo o método de detección |
-| D-04 | umbrales estáticos o dinámicos; rate limiting; bloqueo; algoritmo de detección |
+| D-04 | umbrales estáticos o dinámicos; meters nativos de PicOS o degradación por controlador; bloqueo; algoritmo de detección |
 | D-05 | IDS, IPS o ambos; determinación de indicadores maliciosos |
-| D-06 | controlador SDN; protocolo southbound; diseño de la API northbound; virtualización o simulación |
+| D-06 | controlador SDN; protocolo southbound (OpenFlow sobre PicOS, RP-11); diseño de la API northbound; virtualización o simulación |
 | D-07 | estrategia de recuperación |
 | D-08 | almacenamiento de logs; visualización |
 | D-09 | estrategia de recuperación; tolerancia a fallo del plano de control |

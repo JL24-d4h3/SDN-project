@@ -1,0 +1,651 @@
+# Descripción del flujo completo
+
+**Proyecto:** Solución de seguridad para una red de campus académico
+**Área:** Diagramas — narrativa de flujo de extremo a extremo
+**Estado:** Borrador formal para revisión
+
+---
+
+Este documento describe, con el máximo detalle posible, qué ocurre exactamente en la red en cada paso de la solución, como si se estuviera exponiendo el flujo. Se presentan **tres escenarios** que comparten la misma infraestructura pero añaden capas sucesivas:
+
+1. **Escenario 1 — La red sin seguridad.** Encendido en frío de la infraestructura SDN y operación normal del plano de datos.
+2. **Escenario 2 — Con autenticación y autorización.** Cómo entran los perfiles de acceso, la autenticación de los operadores privilegiados y la elevación temporal.
+3. **Escenario 3 — Seguridad (R4).** El ciclo completo de detección y mitigación de DDoS/brute-force, desde la observación del tráfico hasta la restauración.
+
+Los tres escenarios usan las primitivas de OpenFlow definidas en la sección 1.
+
+---
+
+## 1. Primitivas OpenFlow que se usan en todos los escenarios
+
+Estas son las piezas del protocolo que el plano de datos ejecuta y que la explicación invoca repetidamente. Se definen aquí una sola vez.
+
+| Primitiva | Qué es | Qué hace en esta solución |
+|---|---|---|
+| **Tabla de flujos** | Pipeline del switch: lista de entradas con campos de coincidencia, prioridad, contadores, instrucciones y temporizadores. | Es el lugar donde aterrizan todas las decisiones: acceso, forwarding y mitigación. |
+| **Match** | Campos con los que un paquete se compara: puerto de entrada, MAC origen/destino, IP origen/destino, EtherType, puertos TCP/UDP, VLAN. | Determina a qué tráfico se aplica una regla (p. ej. `ip_dst = servidor`). |
+| **Prioridad** | Orden de evaluación de las entradas: gana la prioridad más alta. | Las reglas de mitigación entran con prioridad alta, por encima del forwarding normal. |
+| **Table-miss entry** | Entrada especial que coincide cuando ninguna otra entrada lo hace. | Única regla que el controlador instala al arranque: reenviar el paquete al controlador (`CONTROLLER`). Es el fundamento del comportamiento reactivo. |
+| **PACKET_IN** | Mensaje del switch al controlador con el paquete (o su referencia) y el motivo: `no_match`, `action`, `invalid_ttl`. | Se produce cuando el tráfico no tiene regla. Es la señal de "la red no sabe qué hacer con esto". |
+| **PACKET_OUT** | Mensaje del controlador que ordena al switch emitir un paquete por uno o varios puertos, ya sea reenviando el que está en el búfer del switch (`buffer_id`) o uno que viaja embebido en el mensaje. | Procesa el paquete *actual* sin instalar reglas nuevas; sirve también para emitir LLDP en el descubrimiento. |
+| **FLOW_MOD** | Mensaje del controlador que añade, modifica o elimina una entrada de la tabla de flujos. | Materializa cada decisión: el camino hacia el servidor DHCP, el permiso de un operador, la regla de mitigación y su retirada. |
+| **hard_timeout / idle_timeout** | Temporizadores de una entrada: expira por tiempo absoluto o por inactividad, y el switch la elimina solo. | Son el mecanismo nativo de reversión: la regla de mitigación no queda instalada para siempre. |
+| **Counters** | Contadores que OpenFlow mantiene por tabla, por flujo, por puerto y por medidor (bytes y paquetes). Se leen con mensajes MULTIPART (`OFPMP_FLOW`, `OFPMP_PORT_STATS`). | Son la única fuente de observación del escenario 3: sin ellos no hay línea base, ni detección, ni verificación. |
+| **Meters** | Tabla de medidores: cada medidor aplica **bandas de tasa** (p. ej. descartar todo lo que supere 10 Mbps). Un flujo se enlaza a un medidor con la instrucción `Meter`. | Implementan el rate limiting *dentro del plano de datos*: la restricción se ejecuta en el switch a velocidad de línea, sin consultar al controlador. |
+| **Groups** | Tabla de grupos: un grupo agrupa acciones en *buckets*. Tipos: `ALL` (ejecutar todos los buckets — inundación), `SELECT` (un bucket — balanceo), `INDIRECT`, `FAST_FAILOVER`. Un flujo invoca un grupo con la instrucción `Group`. | El tipo `ALL` inunda los broadcast (DHCPDISCOVER, ARP) por todos los puertos relevantes sin que el controlador enumere cada uno; `SELECT` habilita caminos alternativos. |
+| **ECHO** | Mensaje periódico switch ↔ controlador para verificar que el canal sigue vivo. | Detecta la caída del canal de control. |
+| **PORT_STATUS** | Notificación del switch al controlador cuando un puerto cambia de estado (sube, baja). | Alimenta el grafo de topología y dispara eventos de dispositivo nuevo. |
+
+### 1.1 Canal de control: out-of-band e in-band
+
+El canal de control es la red por la que hablan el controlador y los switches (OpenFlow, LLDP, estadísticas). Existen dos variantes:
+
+- **Out-of-band (asumida en este documento):** el canal usa una red de gestión separada físicamente de la red de datos. El tráfico de los usuarios no compite con el protocolo SDN, y un ataque volumétrico sobre el plano de datos no satura el canal de control.
+- **In-band (variante analizada en §2.6):** el canal viaja por la misma infraestructura que los datos, típicamente en una VLAN de gestión dedicada. Es más compleja —los switches deben priorizar el tráfico de control y el controlador debe instalar los flujos del canal antes de operar—, pero el profesor la valora por su mayor realismo y porque no exige cableado adicional. Se describe como objetivo aspiracional en §2.6.
+
+---
+
+## 2. Escenario 1 — La red sin seguridad
+
+Exposición del encendido en frío de la red SDN y de la aparición del primer tráfico, sin autenticación ni autorización. Es el flujo base sobre el que los otros dos escenarios añaden capas.
+
+Topología de referencia:
+
+```text
+                          ┌──────────────────────┐
+                          │  Controlador SDN     │
+                          │  (red de gestión,    │
+                          │   out-of-band)       │
+                          └──────────┬───────────┘
+                                     │ OpenFlow
+                        ┌────────────┴────────────┐
+                        │                         │
+                     ┌──┴──┐                   ┌──┴──┐
+                     │ S1  │───────────────────│ S2  │
+                     └──┬──┘                   └──┬──┘
+                        │                         │
+                     ┌──┴──┐                   ┌──┴──┐
+                     │HostA│                   │SRV-D│  (DHCP/DNS + servidor web)
+                     └─────┘                   └─────┘
+```
+
+### 2.1 Paso 1 — Estado inicial: cables puestos, todo apagado
+
+La conectividad física existe: los cables unen hosts, switches y controlador. La conectividad lógica no existe: no hay flujos OpenFlow, no hay topología conocida, no hay ARP, ni DNS, ni DHCP. Las tablas de flujos están vacías.
+
+Lo único configurado es el arranque de los equipos: cada switch conoce la dirección de su controlador y el controlador tiene su lógica de aplicaciones cargada.
+
+### 2.2 Paso 2 — El switch arranca
+
+Al encenderse, el switch ejecuta su secuencia de arranque:
+
+1. Inicializa sus puertos y detecta el estado de los enlaces.
+2. Inicializa su tabla de flujos: **vacía**, salvo lo que el fabricante haya precargado.
+3. Inicializa su agente OpenFlow (el proceso que hablará con el controlador).
+4. Intenta abrir una conexión TCP hacia el controlador configurado, típicamente en el puerto 6653.
+
+### 2.3 Paso 3 — Establecimiento del canal de control
+
+Por el canal de control (out-of-band, red de gestión) se produce el handshake OpenFlow:
+
+```text
+Switch                            Controlador
+   │───── TCP 6653 ──────────────────►│
+   │───── OFPT_HELLO ────────────────►│
+   │◄──── OFPT_HELLO ─────────────────│
+   │◄───── OFPT_FEATURES_REQUEST ─────│
+   │──── OFPT_FEATURES_REPLY ────────►│  (datapath_id, nº de tablas,
+   │                                   │   buffers, capacidades)
+   │                                   │
+   │◄══════════════════════════════════╪═►
+   │     canal establecido             │
+```
+
+En el `FEATURES_REPLY` el switch entrega su identificador único (`datapath_id`), el número de tablas que soporta y sus capacidades (p. ej. si soporta meters, groups y qué acciones). **Esto es decisivo para los escenarios 2 y 3**: si PicOS del switch no soportara meters, el rate limiting tendría que implementarse de otra forma.
+
+A partir de aquí, ambos lados intercambian mensajes `ECHO` periódicos como latido del canal. El controlador sabe que *existe* un switch con ciertas capacidades. Todavía no sabe nada de la topología.
+
+### 2.4 Paso 4 — Descubrimiento de topología con LLDP
+
+El controlador necesita responder: ¿quién está conectado con quién? 
+
+El procedimiento:
+
+1. El controlador construye un paquete LLDP con la identidad del switch y del puerto de salida (`chassis_id = S1`, `port_id = puerto 2`).
+2. Lo envía al switch mediante un `PACKET_OUT` con la instrucción de emitirlo por el puerto indicado.
+3. El switch vecino recibe ese LLDP por su propio puerto. Como no tiene una regla para él, lo reenvía al controlador con un `PACKET_IN` (motivo `no_match`).
+4. El controlador lee el `PACKET_IN` y deduce el enlace: **el LLDP dice "salí de S1:p2", y llegó por S2:p1; por tanto S1:p2 está conectado con S2:p1.**
+
+Repitiendo el proceso por cada puerto de cada switch, el controlador reconstruye todos los enlaces. Si un enlace cae o aparece, los mensajes `PORT_STATUS` actualizan el grafo en tiempo real.
+
+### 2.5 Paso 5 — El controlador construye el grafo
+
+Con los enlaces descubiertos, el controlador arma una representación de la red:
+
+```text
+G = (V, E)
+V = switches
+E = enlaces con atributos: capacidad, latencia, utilización, pérdida, estado, costo
+```
+
+Sobre ese grafo puede ejecutar el algoritmo de rutas (camino más corto u otro) cuando lo necesite. **Un punto crucial: calcular rutas no es lo mismo que instalarlas.** En este momento el controlador conoce la topología, pero no ha instalado ninguna ruta para hosts concretos; no sabe aún qué hosts existen.
+
+### 2.6 Paso 6 — Reglas base: la table-miss
+
+La única entrada que el controlador instala ahora en cada switch es la **table-miss**, con prioridad mínima:
+
+```text
+┌──────────────────────────────┬──────────────────┐
+│ Match                        │ Instrucción      │
+├──────────────────────────────┼──────────────────┤
+│ (ninguno — coincide con todo)│ OUTPUT:CONTROLLER│
+└──────────────────────────────┴──────────────────┘
+```
+
+Su significado: *cualquier paquete para el que no exista una regla específica se envía al controlador mediante `PACKET_IN`.* La red queda "lista para operar" en el sentido de que cualquier tráfico será atendido, pero nada ha fluido todavía.
+
+### 2.7 Paso 7 — Un host arranca: DHCPDISCOVER
+
+HostA se enciende con configuración dinámica. Sin que el usuario abra ninguna aplicación, el propio arranque del sistema genera el primer tráfico:
+
+```text
+HostA
+  │ DHCPDISCOVER
+  │   Ethernet dst = ff:ff:ff:ff:ff:ff (broadcast)
+  │   IP src = 0.0.0.0, IP dst = 255.255.255.255
+  │   UDP src = 68, dst = 67
+  ▼
+ S1
+```
+
+El frame llega al puerto de S1. El switch busca una entrada que coincida: no hay ninguna específica. La table-miss coincide.
+
+### 2.8 Paso 8 — PACKET_IN
+
+S1 encapsula el paquete (o lo deja en su búfer y referencia el `buffer_id`) y envía al controlador:
+
+```text
+PACKET_IN
+  switch   = S1
+  in_port  = p1 (donde está HostA)
+  reason   = no_match
+  payload  = DHCPDISCOVER (o buffer_id)
+```
+
+El controlador procesa este mensaje y aprende dos cosas a la vez:
+
+1. **Existe un host conectado a S1:p1** con MAC `AA:AA:…` — es su primera noticia de HostA. El plano de control SDN mantiene esta asociación host ↔ MAC ↔ IP ↔ switch ↔ puerto, que sustituye al "MAC learning" tradicional del switch: **el switch no aprende solo; el controlador construye y mantiene ese conocimiento**.
+2. **Ese host está solicitando configuración DHCP.**
+
+### 2.9 Paso 9 — La decisión del controlador: FLOW_MOD + PACKET_OUT
+
+El controlador debe resolver dos cosas: qué hacer con *este* paquete y qué hacer con los *siguientes*.
+
+**Para el paquete actual**, envía un `PACKET_OUT`. Como el DHCPDISCOVER es broadcast, el controlador debe inundarlo por los puertos relevantes. Tiene dos mecanismos:
+
+- *Opción 1 — PACKET_OUT directo:* el controlador enumera los puertos de salida en el propio mensaje.
+- *Opción 2 — Group ALL:* el controlador instala en S1 un grupo de tipo `ALL` cuyos buckets son los puertos de la red de acceso, y un flujo con la instrucción `Group` que apunta a él. A partir de ahí, **todos** los broadcast futuros (DHCP y ARP) se inundan en el plano de datos sin volver a consultar al controlador. Esta opción es la más SDN-pura y la más eficiente.
+
+**Para los paquetes futuros**, instala con `FLOW_MOD` el camino hacia el servidor DHCP (SRV-D, detrás de S2):
+
+```text
+S1:  match UDP dst=67, src=68  →  output p2   (prioridad 10)
+S2:  match UDP dst=67, src=68  →  output p1
+```
+
+El `FLOW_MOD` evita que el resto del diálogo DHCP vuelva a producir `PACKET_IN`; el `PACKET_OUT` (o el grupo) resuelve el paquete actual. La combinación de ambos es el patrón reactivo clásico.
+
+### 2.10 Paso 10 — El diálogo DHCP completa y el controlador asocia el host
+
+SRV-D responde con `DHCPOFFER`, HostA envía `DHCPREQUEST` y recibe `DHCPACK`. Esos tres paquetes ya viajan por los flujos instalados, sin pasar por el controlador.
+
+Al terminar, HostA tiene IP (p. ej. `10.0.1.25`) y el controlador ha completado la asociación:
+
+```text
+HostA:  MAC = AA:AA:AA:AA:AA:AA
+        IP  = 10.0.1.25
+        Switch = S1
+        Puerto = p1
+```
+
+Esta asociación es la materia prima del control de acceso del escenario 2.
+
+### 2.11 Paso 11 — ARP: resolver la MAC del destino
+
+HostA quiere hablar con `10.0.1.40` y no conoce su MAC. Genera un `ARP Request` (broadcast: "¿quién tiene 10.0.1.40?").
+
+Si el grupo `ALL` ya está instalado (opción 2 del paso 9), el ARP se inunda en el plano de datos y el controlador ni se entera. Si no, se repite el patrón: `PACKET_IN` → el controlador analiza el ARP, determina los puertos relevantes → `FLOW_MOD`/`PACKET_OUT`.
+
+El host destino responde con `ARP Reply` ("10.0.1.40 está en BB:BB:…"). HostA aprende la MAC en su caché ARP y ya puede enviar tráfico IP directo.
+
+### 2.12 Paso 12 — DNS y el primer tráfico de aplicación
+
+Cuando el usuario abre el navegador, la cadena es: DHCP (ya hecho) → DNS → ARP → TCP → TLS → HTTP. El primer `DNS Query` hacia el servidor DNS probablemente tampoco tiene regla: produce un `PACKET_IN`, el controlador instala el flujo correspondiente con `FLOW_MOD` y el resto del tráfico de la sesión sigue por el plano de datos.
+
+### 2.13 Paso 13 — Tráfico estable: el controlador sale del camino
+
+Una vez instaladas las reglas, el tráfico entre HostA y SRV-D circula exclusivamente por los switches:
+
+```text
+Controlador: decide y programa (una vez)
+Switches:    ejecutan el forwarding (todos los paquetes)
+```
+
+Que el controlador no vea cada paquete es el principio central de SDN: el plano de datos distribuido reenvía a velocidad de línea, y el controlador solo interviene ante novedades (tráfico sin regla, cambio de topología, eventos). Si cada paquete pasara por el controlador, este se convertiría en el cuello de botella de la red.
+
+### 2.14 Paso 14 — Dos procesos independientes, no una secuencia
+
+La corrección conceptual más importante para la exposición: **no existe una cadena causal "el controlador enciende la red → hace LLDP → descubre rutas → inicia ARP → comienza el tráfico".** Son dos procesos parcialmente independientes que se superponen en el tiempo:
+
+```text
+Proceso A — construcción del conocimiento de red
+  switches → canal con el controlador → LLDP → topología → grafo
+           → rutas/políticas → flujos iniciales (table-miss)
+
+Proceso B — aparición y procesamiento del tráfico
+  host/aplicación → DHCP/ARP/DNS → frame → switch
+                 → ¿existe flujo? → sí: forwarding
+                                 → no: PACKET_IN → controlador
+                                   → FLOW_MOD + PACKET_OUT → forwarding
+```
+
+B no espera a que A termine: un host puede generar tráfico mientras el controlador todavía descubre enlaces, y el controlador sigue descubriendo aunque ningún host transmita. Un host inactivo no genera ARP: **el controlador no provoca tráfico en los hosts; son los hosts y sus aplicaciones quienes lo generan.**
+
+### 2.15 Qué queda fuera de este escenario
+
+- **IPv4.** El flujo descrito usa ARP y DHCPv4. IPv6 (Neighbor Discovery, Router Advertisement, Duplicate Address Detection) queda fuera del alcance (RP-12): los hosts del prototipo se configuran solo con IPv4.
+- **Autenticación y autorización.** Aquí cualquier dispositivo que conecte obtiene conectividad; el escenario 2 la restringe.
+- **Seguridad.** Nada detecta ni mitiga; el escenario 3 lo añade.
+
+### 2.16 Variante in-band del canal de control
+
+Si el canal de control fuera in-band (objetivo aspiracional; el profesor valora la variante por su realismo), cambia lo siguiente:
+
+1. **VLAN de gestión dedicada.** El canal OpenFlow viaja por la misma infraestructura física que los datos, en una VLAN reservada (p. ej. VLAN 100) con su propio direccionamiento. El controlador debe instalar **antes que nada** los flujos que encaminan el tráfico de esa VLAN entre el puerto de gestión de cada switch y él mismo; si no, el primer `PACKET_IN` del switch que aún no tiene flujo no podría siquiera llegarle.
+2. **El tráfico de control nunca debe caer en la table-miss.** Los flujos del canal tienen prioridad máxima, por encima de cualquier regla de datos. De lo contrario, una regla mal priorizada podría enviar el propio tráfico OpenFlow al controlador por `PACKET_IN`, creando un bucle.
+3. **Riesgo de saturación.** En un DDoS volumétrico (escenario 3), el plano de datos comparte ancho de banda con el canal de control. Si el ataque satura los enlaces, el controlador puede perder el canal justo cuando más lo necesita. La mitigación in-band exige QoS (meters/colas) que priorice el tráfico de control, o riesgo de perder el control de la red durante el incidente.
+4. **LLDP por el mismo camino.** El descubrimiento de topología usa los mismos enlaces que los datos; el procedimiento es idéntico, pero los paquetes LLDP compiten con el tráfico de usuario.
+
+---
+
+## 3. Escenario 2 — Con autenticación y autorización
+
+Este escenario añade la capa de identidad sobre el escenario 1. La decisión central del modelo:
+
+> **La red no intenta identificar digitalmente a cada persona que consume servicios. Identifica y controla el dispositivo, su ubicación y su contexto. La identidad fuerte se exige únicamente cuando alguien pretende obtener privilegios superiores al perfil base.**
+
+### 3.1 Premisa de confianza: la presencia física
+
+El campus es de acceso controlado: para conectar un cable hay que haber entrado físicamente. El proyecto adopta como restricción (RP-13) que **la presencia física en el campus es condición de confianza inicial suficiente para el perfil base**. Por eso los usuarios académicos no pasan por 802.1X ni por RADIUS al conectar: su "autenticación" es haber entrado. La consecuencia aceptada es que la seguridad física del campus forma parte del perímetro de seguridad.
+
+Esta premisa elimina la distinción estudiante/profesor/investigador/practicante/etc. a nivel de red: ambos son **usuario académico**, un consumidor ordinario de servicios sin privilegios de infraestructura. Si la plataforma educativa distingue internamente entre alumno y docente o algún otro rol, es asunto de la aplicación, no de la red.
+
+### 3.2 El perfil base y el principio de mínimo privilegio
+
+Todo dispositivo que conecta recibe el **perfil BASE** — deny by default:
+
+```text
+PERMITIDO (perfil BASE)
+  DHCP, DNS
+  servicios académicos permitidos
+  Internet según política
+
+DENEGADO (por defecto)
+  SSH/Telnet/NETCONF hacia infraestructura
+  OpenFlow y cualquier acceso al controlador
+  SNMP administrativo y consolas de gestión
+  interfaces de administración
+  servicios sensibles
+```
+
+En el plano de datos, esto se materializa como flujos concretos. Por ejemplo, para el dispositivo recién conectado el controlador instala:
+
+```text
+S1:  match eth_src=MAC_host, ip_dst=red_de_gestion   →  DROP      (prioridad 100)
+S1:  match eth_src=MAC_host, UDP 67/68, 53, http/s   →  OUTPUT... (prioridad 10)
+```
+
+### 3.3 El registro de dispositivos y la regla del "no match"
+
+Aquí aparece una decisión de diseño clave: **no se registra a todos los dispositivos; se registra solo a los dispositivos de los operadores privilegiados.** Los dispositivos académicos no figuran en ningún catálogo de red.
+
+- El **registro de dispositivos privilegiados** guarda, por cada equipo de un Especialista de TI, Administrador de Red o Superadministrador: MAC, tipo de equipo, titular, rol asociado, vigencia y responsable del registro.
+- La regla de aplicación es la inversa de un catálogo total: **todo dispositivo que no haga match con este registro es usuario académico con perfil BASE.** No hay que dar de alta nada más; el default cubre al 99% de la población.
+- RADIUS **no** cataloga dispositivos: autentica a las *personas* privilegiadas (credenciales). El registro de dispositivos vive en un servicio de base de datos propio, separado, que además sirve de auditoría: quién registró qué equipo, cuándo y con qué vigencia.
+- El registro no concede privilegios por sí solo: un dispositivo registrado **y** sin login sigue teniendo perfil BASE (§3.4). El match con el registro solo habilita la posibilidad de elevar.
+
+### 3.4 La PC del operador sin login es una PC cualquiera
+
+El punto más demostrable del modelo: la laptop del Administrador de Red, conectada en la sala de administración, **antes del login tiene perfil BASE**. La ubicación física no concede privilegios; la MAC tampoco (la MAC es un atributo del dispositivo, no una credencial: cualquiera puede falsificarla).
+
+```text
+PC-ADMIN conectada → S1 → controlador aprende el dispositivo
+   identidad = desconocida
+   perfil = BASE
+   → SSH a switches: DROP · OpenFlow: DROP · consola: DROP
+```
+
+### 3.5 El login privilegiado: portal cautivo → RADIUS → Policy Engine
+
+Cuando el operador necesita sus privilegios, se autentica a través del **portal cautivo** (o acceso remoto equivalente, para el SA):
+
+```text
+PC-ADMIN
+  │ credenciales (usuario + contraseña + MFA si aplica)
+  ▼
+Portal cautivo
+  │ RADIUS (Authentication, Authorization, Accounting)
+  ▼
+Servidor AAA / RADIUS
+  │ consulta al backend de identidad
+  ▼
+IdP institucional (LDAP / AD / BD)
+  │ identidad válida + atributos
+  ▼
+Policy Engine
+  identidad autenticada + dispositivo (match con el registro)
+  + ubicación + contexto + vigencia
+  ▼
+Decisión: perfil ADMIN_RED para esta sesión, desde esta MAC, en este puerto
+```
+
+El Policy Engine combina **identidad + atributos + contexto + recurso + acción + vigencia** — más ABAC que RBAC puro: el rol es solo uno de los atributos de la decisión.
+
+### 3.6 Traducción a la red: FLOW_MOD
+
+Con la decisión tomada, el controlador la materializa en el switch donde está conectada la PC:
+
+```text
+S1:  match in_port=pX, eth_src=MAC_PC-ADMIN, ip_dst=red_gestion, tcp=22/443
+     →  OUTPUT pG        (prioridad 200, idle_timeout = duración de sesión)
+
+Antes (perfil BASE), el mismo tráfico:
+S1:  match eth_src=MAC_PC-ADMIN, ip_dst=red_gestion
+     →  DROP             (prioridad 100)
+```
+
+La regla nueva tiene **mayor prioridad** que el DROP del perfil base, y un `idle_timeout` ligado a la sesión: si el operador cierra sesión o queda inactivo, el switch elimina la regla solo y el dispositivo regresa a BASE. El mismo mecanismo sirve para el usuario académico:
+
+```text
+S1:  match eth_src=MAC_academico, ip_dst=red_gestion  →  DROP  (siempre activo)
+```
+
+### 3.7 Elevación temporal de un usuario académico
+
+El usuario académico puede pedir más de lo que le corresponde si lo justifica — por ejemplo, un estudiante del Pabellón V necesita acceder al servidor de laboratorio durante una práctica de dos horas:
+
+```text
+BASE
+  │ solicitud: acceso LABORATORIO, 2 h, recursos X/Y/Z
+  ▼
+PENDING  (el Administrador de Red revisa la solicitud)
+  │ aprobación
+  ▼
+ELEVATED (TTL = 2 h)   ← perfil BASE + LABORATORIO temporal
+  │ expiración
+  ▼
+BASE
+```
+
+La política temporal se modela como condición (ABAC-like):
+
+```text
+SI  identity = usuario X
+Y  device ∈ dispositivos autorizados del pabellón
+Y  location = Pabellón V
+Y  time ∈ [14:00, 16:00]
+Y  destination = LAB-01
+Y  protocol = SSH
+ENTONCES  ALLOW (con TTL)
+SINO  DENY
+```
+
+El TTL es esencial: un permiso excepcional concedido para una práctica no puede convertirse en un privilegio permanente por olvido. Los **perfiles de acceso** resultantes del modelo:
+
+| Perfil | Quién | Cómo se obtiene | Duración |
+|---|---|---|---|
+| BASE | Cualquier dispositivo conectado | Automático (presencia física) | Indefinida mientras esté conectado |
+| LABORATORIO / INVESTIGACIÓN / PRACTICANTE_DTI | Usuarios académicos con necesidad justificada | Solicitud + aprobación | Temporal (TTL) |
+| TI / ADMIN_RED / SUPER_ADMIN | Operadores privilegiados | Dispositivo registrado + login (portal/AAA) | Sesión (idle_timeout) |
+
+### 3.8 El registro de los operadores privilegiados
+
+La existencia de una persona en el registro no significa que su PC tenga privilegios. Son tres cosas distintas: la **identidad** (quién es), el **rol** (qué puede hacer) y la **sesión/dispositivo** (desde dónde y bajo qué contexto lo ejerce). El flujo de registro tiene tres fases:
+
+**Fase A — Solicitud.** Un alta o cambio de privilegios se pide con: persona, identificación institucional, rol solicitado, área, justificación, vigencia y solicitante/aprobador. No existe el "crear usuario → elegir rol → guardar": tiene que haber una decisión de autorización.
+
+**Fase B — Aprobación.** La jerarquía define quién registra a quién:
+
+| Acción | Especialista de TI | Administrador de Red | Superadministrador |
+|---|---|---|---|
+| Registrar Especialista de TI | — | ✓* | ✓ |
+| Registrar Administrador de Red | — | — | ✓ |
+| Registrar Superadministrador | — | — | ✓ |
+| Registrar dispositivo en el registro privilegiado | — | ✓ | ✓ |
+
+`✓*` según se delegue la función. El registro resultante incluye `valid_from`/`valid_until`: la vigencia no es indefinida (p. ej. un Especialista de TI puede estar habilitado solo por un ciclo).
+
+**Fase C — Autenticación.** El registro **no modifica ningún flujo**. El operador solo obtiene sus privilegios cuando se autentica (§3.5) y el Policy Engine decide. La cadena completa:
+
+```text
+Registro (identidad + rol + dispositivo, con vigencia)
+        ≠
+Privilegios activos (solo tras login + decisión del Policy Engine
+                     + traducción a flujos por el controlador)
+```
+
+### 3.9 Suplantación de MAC: detectar, no confiar
+
+Desde SDN no se puede impedir que un usuario cambie la MAC de su interfaz. La MAC no es una credencial. Lo que sí se puede hacer es detectar la incoherencia y reaccionar:
+
+```text
+MAC X vista en S1:p3  →  luego vista en S5:p8       →  evento MAC_MOVE
+MAC X con IP distinta a la asociada                 →  evento de incoherencia
+MAC X con identidad distinta a la asociada          →  evento de incoherencia
+```
+
+Según la severidad, la respuesta escala: alerta → bloqueo del puerto → VLAN de cuarentena → investigación. Para puertos sensibles (infraestructura, zonas restringidas) se añaden mecanismos de puerto: **port security** (puerto → MACs permitidas) y **802.1X** en los accesos administrativos. Ninguno demuestra quién es la persona: controlan el dispositivo; la identidad la demuestra el login.
+
+### 3.10 Dispositivo nuevo: el default lo cubre
+
+La topología es rígida por diseño, pero la solución debe tolerar la aparición de un dispositivo nuevo. El flujo es exactamente el del default: el controlador detecta la MAC por el `PACKET_IN` del primer tráfico, el dispositivo **no hace match con el registro privilegiado** y recibe perfil BASE. Si ese dispositivo va a ser de un operador, se lo registra (§3.8) y desde entonces puede elevar. No hay configuración adicional para el caso académico: es el camino por defecto.
+
+### 3.11 La jerarquía de confianza completa
+
+```text
+Sin presencia en campus           →  sin acceso
+Presencia física en campus        →  perfil BASE (confianza inicial)
+Registro privilegiado + login     →  identidad + rol
+Policy Engine (contexto, vigencia) →  autorización contextual
+                                      → privilegios adicionales (con TTL/sesión)
+```
+
+**Entrar físicamente al campus jamás justifica privilegios elevados; solo el perfil mínimo.** Todo lo demás exige autenticación y autorización.
+
+---
+
+## 4. Escenario 3 — Seguridad: el flujo completo de R4
+
+R4: **detectar y mitigar ataques DDoS/brute-force en la intranet cuando el tráfico hacia un servidor o nodo se dispara.** El escenario muestra la cadena completa detección → decisión → enforcement → verificación → recuperación, con los operadores privilegiados del escenario 2 participando donde corresponde.
+
+```text
+H1 ──── S1 ──── S2 ──── S3 ──── SERVIDOR (activo protegido)
+H2 ──────┘
+H3 ──────────┘
+```
+
+### 4.1 Paso 1 — Tráfico normal
+
+La red opera en estado estable. Los flujos instalados reenvían el tráfico legítimo:
+
+```text
+S1: match H1→SERVER  →  output p2
+S2: match H1→SERVER  →  output p4
+S3: match H1→SERVER  →  output p7
+```
+
+El controlador no ve paquetes; solo recibe estadísticas (paso 2).
+
+### 4.2 Paso 2 — Monitoreo: lectura de counters
+
+El monitor consulta periódicamente los **counters** OpenFlow: por puerto (`OFPMP_PORT_STATS`) y por flujo (`OFPMP_FLOW`), mediante mensajes MULTIPART. Con ellos construye la línea base del servidor:
+
+```text
+Destino 10.0.0.50 (SERVER):
+  normal:   100 Mbps · 1 000 pkt/s · 40 fuentes
+  observado: 900 Mbps · 12 000 pkt/s · 143 fuentes
+```
+
+Un aumento no significa ataque: puede ser una clase virtual, una transferencia grande o un laboratorio. Por eso la condición de detección nunca es un único umbral aislado.
+
+### 4.3 Paso 3 — Detección
+
+El Detection Engine analiza: tasa de paquetes y bytes, número de fuentes, conexiones nuevas, duración, distribución de orígenes y puerto destino. Distingue dos fenómenos:
+
+- **Flood/DDoS volumétrico:** busca saturar ancho de banda, pps o capacidad del servidor.
+- **Brute-force de solicitudes:** cantidad excesiva de intentos/conexiones por segundo desde un origen.
+
+Al superar los umbrales produce el evento:
+
+```text
+DDoSDetected
+  destination = SERVER
+  traffic_rate = 950 Mbps · 18 000 pkt/s
+  sources = 143 (línea base: 40)
+  deviation = anomalía sostenida
+```
+
+### 4.4 Paso 4 — Incidente
+
+El detector **no bloquea**: genera un incidente en el Incident Manager. La separación es deliberada — el detector observa, no decide:
+
+```text
+Incidente INC-0042
+  type:     TRAFFIC_FLOOD
+  target:   SERVER
+  sources:  H1, H2, H3, …
+  severity: HIGH
+  status:   DETECTED
+```
+
+El incidente es además el objeto que la auditoría seguirá de principio a fin.
+
+### 4.5 Paso 5 — El Policy Engine decide
+
+El Policy Engine recibe: incidente + estado de red + política de seguridad + contexto. Decide **qué hacer**, con una escalera de respuestas según severidad:
+
+```text
+NORMAL ──► RATE_LIMIT ──► BLOCK_SOURCE ──► ISOLATE_DEVICE ──► QUARANTINE
+```
+
+Ejemplo: 5 000 pkt/s sostenidos de H1 → `RATE_LIMIT`. 50 000 pkt/s multi-puerto persistente → `BLOCK_SOURCE`. La decisión sale como `MitigationRequested`, no como un bloqueo directo.
+
+### 4.6 Paso 6 — El controlador decide dónde intervenir
+
+El controlador conoce: topología + ubicación de los hosts + flujos existentes + política. El punto clave de la exposición: **mitiga cerca del origen, no cerca de la víctima.**
+
+```text
+H1 ── S1:p5 ── X ── S2 ── S3 ── SERVER
+              ↑
+   la regla se instala en el switch de ingreso de H1
+```
+
+Así, el tráfico malicioso se descarta antes de atravesar la red. Si el ataque entra por varios switches (H1 por S1, H2 por S2, H3 por S4), el controlador instala la regla **en cada switch de ingreso correspondiente** — control centralizado sobre una red distribuida, imposible con configuración manual por dispositivo.
+
+### 4.7 Paso 7 — FLOW_MOD: la regla y el meter
+
+El controlador construye la entrada de mitigación según la decisión:
+
+```text
+Decisión RATE_LIMIT:
+  Meter  m1: bandas → hasta 10 Mbps permitido, el exceso se descarta
+  S1: match ip_src=H1, ip_dst=SERVER
+      →  Meter(m1)            (prioridad 1000)
+
+Decisión BLOCK:
+  S1: match in_port=p5, eth_src=MAC_H1, ip_dst=SERVER
+      →  DROP                 (prioridad 1000)
+```
+
+Dos detalles importantes:
+
+- **Prioridad 1000:** por encima del forwarding normal (prioridad ~10) y del perfil base (prioridad 100). La mitigación manda sobre todo lo demás.
+- **Meter vs controlador:** con el medidor, la limitación de tasa se ejecuta **dentro del switch**, a velocidad de línea, sin que el controlador procese paquetes. Si PicOS no soportara meters, el rate limiting tendría que degradarse a muestreo + reglas periódicas desde el controlador — una alternativa peor que conviene evitar.
+
+### 4.8 Paso 8 — Verificación: releer los counters
+
+La mitigación no se da por buena sin evidencia. El monitor vuelve a leer los counters del flujo y del puerto:
+
+```text
+Antes:  900 Mbps hacia SERVER
+Después: 35 Mbps hacia SERVER (tráfico legítimo residual)
+```
+
+`MitigationVerified` → el incidente cambia de estado: `DETECTED → MITIGATING → MITIGATED`.
+
+### 4.9 Paso 9 — Recuperación: reglas que no se quedan para siempre
+
+Una regla de DROP permanente bloquearía al usuario legítimo cuando el ataque termine. Dos mecanismos, combinados:
+
+1. **Temporizadores nativos:** la entrada se instala con `hard_timeout`/`idle_timeout` (p. ej. 300 s). El switch la elimina solo al expirar.
+2. **Verificación periódica del controlador:** antes de dejar expirar, el controlador relee los counters del flujo. Si el ataque continúa, renueva; si terminó, retira.
+
+El segundo es mejor que depender solo del timeout: la regla vive exactamente lo que vive el ataque.
+
+### 4.10 Paso 10 — Restauración
+
+El controlador envía `FLOW_MOD DELETE` para la regla de mitigación. Vuelve a quedar la política normal:
+
+```text
+FLOW_MOD DELETE (S1, prioridad 1000)
+  → H1 ── S1 ── S2 ── S3 ── SERVER  (por los flujos originales)
+
+Incidente: MITIGATED → RECOVERED → CLOSED
+```
+
+### 4.11 Paso 11 — Los operadores en R4
+
+El sistema no depende de una persona para cada ataque: sería demasiado lento. La intervención humana escala con la severidad y el impacto:
+
+| Situación | Respuesta | Interviene |
+|---|---|---|
+| Anomalía leve | `RATE_LIMIT` automático | Sistema (sin intervención) |
+| DDoS severo | `BLOCK` automático + notificación | Sistema + Especialista de TI supervisa |
+| Aislar un segmento completo | Propuesta de aislamiento | **Requiere aprobación** del Administrador de Red |
+| Operaciones excepcionales (política global) | — | Superadministrador |
+
+### 4.12 Paso 12 — Accounting: quién hizo qué
+
+Cada acción queda registrada, conectando R4 con el registro del escenario 2:
+
+```text
+2026-09-24 10:32  INC-0042  detección automática  RATE_LIMIT  actor: SYSTEM
+2026-09-24 10:35  INC-0042  jperez (ADMIN_RED)    BLOCK_SOURCE  target: H1  motivo: continued_attack
+2026-09-24 10:48  INC-0042  jperez (ADMIN_RED)    REMOVE_MITIGATION  motivo: incident_recovered
+```
+
+Esto responde las preguntas de auditoría: ¿quién modificó qué regla, en qué switch, cuándo, por qué, y qué incidente lo originó? La cadena de responsabilidades queda explícita:
+
+| Componente | Responsabilidad |
+|---|---|
+| Monitor | Obtener métricas (counters) |
+| Detection Engine | Determinar si hay anomalía |
+| Incident Manager | Registrar y gestionar el incidente |
+| Policy Engine | Decidir la respuesta |
+| SDN Controller | Traducir la decisión a FLOW_MOD/meters |
+| Switch | Ejecutar la política en el plano de datos |
+| Operador (TI/Admin/SA) | Supervisar y autorizar acciones de alto impacto |
+| AAA/Identidad | Determinar quién puede actuar |
+| Auditoría | Registrar acciones y resultados |
+
+R4 es el caso de uso donde se ve toda la cadena de extremo a extremo: detección, política, SDN, OpenFlow, enforcement, privilegios y recuperación.
+
+---
+
+## 5. Cuestiones abiertas
+
+- **Canal in-band.** Es la variante valorada por el profesor y más compleja (§2.6). Decidir si el prototipo la implementa y en qué fase: exige VLAN de gestión, priorización del tráfico de control y prueba de supervivencia durante un ataque volumétrico.
+- **Umbrales y línea base.** Los valores concretos (pps, Mbps, nº de fuentes, ventana temporal) dependen de mediciones en el entorno del prototipo, que aún no existe.
+- **Soporte de meters/groups en PicOS.** La variante exacta de OpenFlow que el hardware expone determina si el rate limiting usa meters nativos o degrada a controlador. Se fija en la Fase G.
+- **MFA en el portal.** Si el login privilegiado exige segundo factor y con qué mecanismo.
+- **Port security y 802.1X.** Alcance exacto de su despliegue en puertos sensibles del prototipo.

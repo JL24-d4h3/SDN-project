@@ -27,13 +27,31 @@ Una restricción es una condición impuesta al proyecto que la arquitectura no p
 
 ---
 
-## 2. Arquitectura
+## 2. Arquitectura y hardware
 
 ### RP-02 — Paradigma SDN
 
 **Restricción:** la solución deberá ser coherente con el paradigma SDN y con la separación entre plano de control y plano de datos.
 
 **Implicación:** las decisiones de seguridad deben expresarse como políticas aplicables desde el plano de control, no como configuración manual dispositivo por dispositivo.
+
+### RP-11 — Hardware del laboratorio
+
+**Restricción:** la solución deberá ejecutarse sobre los switches disponibles en el laboratorio del curso, de hardware **Pica8** con **PicOS**, y sobre las capacidades OpenFlow que ese sistema expone.
+
+**Implicación:** el protocolo southbound es OpenFlow, y las capacidades del plano de datos (meters, groups, tipos de acción y tamaño de las tablas) quedan condicionadas a lo que PicOS soporte. Ningún mecanismo puede darse por disponible sin verificarlo contra el dispositivo: si una primitiva no está soportada, el diseño debe degradarla explícitamente (p. ej. rate limiting sin meters, por muestreo y reglas del controlador).
+
+### RP-12 — Alcance de protocolo IPv4
+
+**Restricción:** el flujo de operación de la solución considera exclusivamente IPv4. IPv6, Neighbor Discovery y sus protocolos asociados quedan fuera del alcance.
+
+**Implicación:** los escenarios de inicialización se describen con ARP y DHCPv4; no se modela tráfico de control IPv6.
+
+### RP-13 — Confianza física como condición de acceso base
+
+**Restricción:** el acceso físico controlado al campus se considera condición de confianza inicial suficiente para la obtención del perfil mínimo de red (perfil BASE), sin autenticación digital.
+
+**Implicación:** la seguridad física del campus forma parte del perímetro de seguridad. La autenticación digital se reserva para la elevación de privilegios (operadores y elevaciones temporales); la presencia física jamás justifica privilegios elevados.
 
 ### RP-09 — Coherencia tecnológica
 

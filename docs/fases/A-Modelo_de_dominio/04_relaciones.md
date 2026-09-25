@@ -2,7 +2,7 @@
 
 ## 1. Objetivo
 
-Definir las relaciones estructurales entre actores, roles, permisos, recursos y servicios de la solución SDN.
+Definir las relaciones estructurales entre actores, roles, perfiles de acceso, permisos, recursos y servicios de la solución SDN.
 
 ## 2. Relaciones principales
 
@@ -17,18 +17,28 @@ Actor ── desempeña ──> Rol
 Ejemplos:
 
 ```text
-Alumno ──> Alumno
-Docente ──> Docente
-Especialista de TI ──> Especialista de TI
-Administrador de Red ──> Administrador de Red
-Superadministrador ──> Superadministrador
+Usuario académico ──> Usuario académico (nivel 0, perfil BASE por defecto)
+Especialista de TI ──> Especialista de TI (nivel 1, requiere registro + login)
+Administrador de Red ──> Administrador de Red (nivel 2, requiere registro + login)
+Superadministrador ──> Superadministrador (nivel 3, requiere registro + login)
 ```
 
 Un mismo individuo podría tener más de un rol si la política de la plataforma lo permite, pero los privilegios efectivos deben determinarse de manera explícita.
 
----
+### 2.2 Dispositivo → Perfil de acceso
 
-### 2.2 Rol → Permiso
+**Todo dispositivo conectado recibe un perfil de acceso; el perfil determina las reglas de red que se le aplican.**
+
+```text
+Dispositivo ── recibe ──> Perfil de acceso (BASE, LABORATORIO, TI, ADMIN_RED, …)
+```
+
+- **Perfil BASE:** automático por presencia física (RP-13). Todo dispositivo que **no hace match con el registro de dispositivos privilegiados** lo recibe. Deny by default: DHCP, DNS, servicios académicos e Internet; el resto, denegado.
+- **Perfiles elevados (LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN):** requieren justificación. Los temporales de usuario académico exigen solicitud aprobada y TTL; los de operadores exigen dispositivo registrado + autenticación.
+
+La relación entre dispositivo y perfil no es permanente: los perfiles temporales expiran y las sesiones privilegiadas se cierran (idle_timeout).
+
+### 2.3 Rol → Permiso
 
 **Un rol posee uno o más permisos.**
 
@@ -39,26 +49,25 @@ Rol ── posee/concede ──> Permiso
 Ejemplos:
 
 ```text
-Alumno ──> Autenticarse
-Alumno ──> Acceder a la red
-Alumno ──> Acceder a servicio
+Usuario académico ──> Acceder a la red
+Usuario académico ──> Acceder a servicio
+Usuario académico ──> Solicitar elevación (P28)
 
 Especialista de TI ──> Consultar alertas
 Especialista de TI ──> Analizar incidente
-Especialista de TI ──> Gestionar alerta
+Especialista de TI ──> Ejecutar mitigación autorizada
 
 Administrador de Red ──> Gestionar políticas de acceso
 Administrador de Red ──> Gestionar reglas de red
-Administrador de Red ──> Gestionar dispositivos
+Administrador de Red ──> Aprobar elevación (P29)
+Administrador de Red ──> Registrar dispositivo privilegiado (P30)
 
 Superadministrador ──> Gestionar administradores
 Superadministrador ──> Gestionar permisos
 Superadministrador ──> Gestionar configuración global
 ```
 
----
-
-### 2.3 Permiso → Recurso
+### 2.4 Permiso → Recurso
 
 **Un permiso determina qué acción puede realizarse sobre un recurso.**
 
@@ -70,17 +79,16 @@ Ejemplos:
 
 ```text
 Consultar recurso ──> Servidor de notas
-Gestionar reglas de red ──> Reglas de red
+Gestionar reglas de red ──> Reglas de flujo
 Gestionar dispositivos de red ──> Switch SDN
 Gestionar controlador SDN ──> Controlador SDN
+Registrar dispositivo privilegiado ──> Registro de dispositivos privilegiados
 Consultar logs ──> Logs de seguridad
 ```
 
 La relación debe especificar, cuando corresponda, el alcance del recurso.
 
----
-
-### 2.4 Permiso → Servicio
+### 2.5 Permiso → Servicio
 
 **Un permiso puede habilitar una acción sobre un servicio.**
 
@@ -94,12 +102,11 @@ Ejemplos:
 Acceder a servicio ──> Servicio académico
 Ejecutar operación ──> Servicio de notas
 Consultar alertas ──> Servicio de monitoreo
+Autenticarse ──> Portal cautivo
 Gestionar políticas de acceso ──> Servicio de administración SDN
 ```
 
----
-
-### 2.5 Rol → Recurso/Servicio
+### 2.6 Rol → Recurso/Servicio
 
 Esta relación no debe utilizarse como sustituto de Rol → Permiso.
 
@@ -122,14 +129,12 @@ Rol + Permiso + Recurso/Servicio
 Esto evita modelar simplemente:
 
 ```text
-Alumno ──> Servidor de notas
+Usuario académico ──> Servidor de notas
 ```
 
-sin especificar qué puede hacer el alumno sobre dicho servidor.
+sin especificar qué puede hacer sobre dicho servidor.
 
----
-
-### 2.6 Recurso → Servicio
+### 2.7 Recurso → Servicio
 
 **Un servicio puede depender de uno o más recursos, y un recurso puede soportar uno o más servicios.**
 
@@ -150,29 +155,32 @@ Servicio de notas
 
 ## 3. Relaciones de seguridad y administración
 
-### 3.1 Actor → Recurso/Servicio
+### 3.1 Actor/Dispositivo → Recurso/Servicio
 
-El acceso de un actor a un recurso o servicio **no debe considerarse una relación directa permanente**.
-
-Debe resolverse mediante autorización:
+El acceso de un actor o dispositivo a un recurso o servicio **no debe considerarse una relación directa permanente**. Debe resolverse mediante autorización:
 
 ```text
-Actor
+Actor / Dispositivo
   ↓
-Rol
+Perfil de acceso
+  ↓
+Rol (si la identidad está autenticada)
   ↓
 Permiso
   ↓
 Recurso/Servicio
   ↓
-Política de acceso
+Política de acceso (contexto + vigencia)
   ↓
 Decisión: PERMITIR / DENEGAR
 ```
 
----
+La cadena tiene dos entradas, según el caso:
 
-### 3.2 Evento/Alerta → Incidente
+- **Sin autenticación:** Dispositivo → perfil BASE → políticas por defecto (deny by default).
+- **Con autenticación:** Dispositivo + identidad → rol → permisos → políticas contextuales, con vigencia explícita (TTL o sesión).
+
+### 3.2 Evento → Alerta → Incidente
 
 Cuando un evento de seguridad satisface las condiciones definidas por las políticas de detección:
 
@@ -181,7 +189,13 @@ Evento ── puede generar ──> Alerta
 Alerta ── puede derivar en ──> Incidente
 ```
 
----
+La cadena técnica completa (R3, R4):
+
+```text
+Tráfico ──> Switch (counters) ──> Monitor ──> Detection Engine
+     ──> Incident Manager (incidente) ──> Policy Engine (decisión)
+     ──> Controlador SDN (FLOW_MOD) ──> Switch (enforcement)
+```
 
 ### 3.3 Incidente → Mitigación
 
@@ -194,16 +208,14 @@ Incidente ── desencadena ──> Mitigación
 Ejemplo:
 
 ```text
-Detección de port scanning
+Detección de flood hacia el servidor
         ↓
-      Alerta
+     Incidente
         ↓
-    Incidente
+RATE_LIMIT / BLOCK / ISOLATE / QUARANTINE
         ↓
- Aislar nodo / bloquear tráfico
+Regla temporal con prioridad alta (+ meter), con hard/idle_timeout
 ```
-
----
 
 ### 3.4 Nodo → Tráfico
 
@@ -211,21 +223,35 @@ Detección de port scanning
 Nodo ── genera ──> Tráfico
 ```
 
-El tráfico puede ser observado y analizado por los mecanismos de seguridad.
+El tráfico puede ser observado y analizado por los mecanismos de seguridad:
 
 ```text
 Tráfico
    ↓
-IDS/IPS / mecanismos de monitoreo
+Switch (counters por puerto y por flujo)
+   ↓
+Monitor → Detection Engine
    ↓
 Evento / Alerta
+```
+
+### 3.5 Sesión privilegiada → Reglas de red
+
+La sesión de un operador autenticado produce reglas concretas y reversibles:
+
+```text
+Sesión (identidad + dispositivo + contexto)
+   ↓
+Controlador instala FLOW_MOD con prioridad alta
+   ↓
+Al cerrar la sesión (logout o idle_timeout), las reglas se retiran
 ```
 
 ---
 
 ## 4. Relación de administración jerárquica
 
-La administración de privilegios debe reflejar la jerarquía definida:
+La administración de privilegios refleja la jerarquía definida:
 
 ```text
 Superadministrador
@@ -239,10 +265,11 @@ El Administrador de Red administra principalmente:
 
 ```text
 Administrador de Red
-       ├── administra ──> Usuarios
        ├── administra ──> Políticas
        ├── administra ──> Reglas de red
-       └── administra ──> Dispositivos
+       ├── administra ──> Dispositivos
+       ├── registra ────> Dispositivos privilegiados (P30)
+       └── aprueba ─────> Elevaciones temporales (P29)
 ```
 
 El Especialista de TI administra principalmente el ciclo de seguridad:
@@ -254,6 +281,8 @@ Especialista de TI
        ├── gestiona ──> Incidentes
        └── ejecuta ──> Mitigaciones autorizadas
 ```
+
+---
 
 ## 5. Modelo integrado
 
@@ -269,47 +298,64 @@ La relación conceptual completa puede representarse como:
                      posee/concede
                            ▼
                         PERMISO
-                       /                        se aplica a     habilita
-                    /                                 ▼                ▼
-               RECURSO          SERVICIO
-                   ▲                │
-                   │                │
-                   └──── depende ───┘
+                       /         \
+                    /               \
+                   ▼                 ▼
+        se aplica a RECURSO       habilita SERVICIO
+                   ▲                  │
+                   │                  │
+                   └──── depende ─────┘
+
+          DISPOSITIVO ── recibe ──> PERFIL DE ACCESO
+                                        │
+                                        ▼
+                                  REGLAS DE RED
+                                        │
+                                     aplica el
+                                   CONTROLADOR
 
 NODO ── genera ──> TRÁFICO
                      │
-                  analiza
+               observado por
                      ▼
-             IDS/IPS / MONITOREO
+          SWITCH (counters) → MONITOR
+                     │
+                     ▼
+              DETECTION ENGINE
                      │
                   genera
                      ▼
-                  ALERTA
+             INCIDENT MANAGER
                      │
-                  deriva en
                      ▼
-                 INCIDENTE
+               POLICY ENGINE
                      │
-                 desencadena
+                  decide
                      ▼
-                 MITIGACIÓN
+               CONTROLADOR
                      │
-             modifica/restringe
+                  FLOW_MOD
                      ▼
-               RED / NODO / TRÁFICO
+                  SWITCH
+                     │
+                     ▼
+        MITIGACIÓN / RESTAURACIÓN
 ```
+
+---
 
 ## 6. Regla central de autorización
 
 La relación fundamental del modelo debe entenderse como:
 
 ```text
-Actor
-  → Rol
+Actor / Dispositivo
+  → Perfil de acceso
+  → Rol (si hay identidad autenticada)
   → Permiso
   → Recurso/Servicio
-  → Política/Condiciones
+  → Política (contexto + vigencia)
   → Decisión de acceso
 ```
 
-Por tanto, **tener un rol no significa tener acceso absoluto**. El acceso efectivo resulta de la combinación entre el rol, los permisos asignados, el recurso o servicio solicitado y las políticas y condiciones de seguridad vigentes.
+Por tanto, **tener un rol no significa tener acceso absoluto, y estar conectado no significa tener privilegios**. El acceso efectivo resulta de la combinación entre el perfil vigente, el rol, los permisos asignados, el recurso o servicio solicitado, el contexto y la vigencia de la política. Todo lo que no esté explícitamente permitido queda denegado.

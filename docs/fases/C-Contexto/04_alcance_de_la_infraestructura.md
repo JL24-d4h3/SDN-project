@@ -19,12 +19,12 @@ RP-05 exige un entorno controlado y representativo: la segunda debe representar 
 
 | Elemento | Descripción | Relación con los requerimientos |
 |---|---|---|
-| Segmento de usuarios finales | Alumnos y docentes conectados | Origen de R1 y del tráfico observado en R3 y R4 |
+| Segmento de usuarios finales | Usuarios académicos conectados con perfil BASE | Origen de R1 y del tráfico observado en R3 y R4 |
 | Segmento de servidores | Servicios académicos y administrativos | Objeto de R2 |
 | Segmento de administración | Consola, controlador y planos de gestión | Protegido según RA-09 |
 | Segmento perimetral | Borde con redes externas | Punto de aplicación de R5 |
 | Servicios institucionales | Académicos, notas, administrativos y base de datos | Activos protegidos (ver [`03_sistemas_externos.md`](03_sistemas_externos.md)) |
-| Dispositivos de usuario final | Equipos de alumnos, docentes y administradores | Origen del tráfico; candidatos a aislamiento |
+| Dispositivos de usuario final | Equipos de usuarios académicos y de operadores | Origen del tráfico; candidatos a aislamiento |
 
 La segmentación anterior es una propuesta de referencia. Su definición definitiva pertenece a la arquitectura lógica (fases D y E) y a la topología (Fase H).
 
@@ -35,12 +35,15 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 | Elemento | Se despliega o se simula | Nota |
 |---|---|---|
 | Controlador SDN | Se despliega | Decisión tecnológica pendiente (Fase G) |
-| Switches SDN | Se despliegan (virtuales o físicos) | Deben soportar la instalación dinámica de reglas |
-| Hosts de usuario | Se simulan | Representan alumnos y docentes; generan tráfico legítimo |
+| Switches SDN | Se despliegan (virtuales o físicos) | Hardware del laboratorio: **Pica8 con PicOS** (RP-11); deben soportar la instalación dinámica de reglas y las primitivas OpenFlow que el diseño exija (meters, groups, counters) |
+| Canal de control | Se configura | Out-of-band (red de gestión); la variante in-band es un objetivo aspiracional (ver flujo §2.6) |
+| Hosts de usuario | Se simulan | Representan al usuario académico; generan tráfico legítimo; no se registran en ningún catálogo |
 | Servidores de servicio | Se simulan | Representan los activos protegidos |
+| Portal cautivo y AAA/RADIUS | Se despliegan | Autenticación de operadores; el backend de identidad (IdP) se simula o se integra (SE-02) |
+| Registro de dispositivos privilegiados | Se despliega | Base de datos propia: dispositivos de operadores y su auditoría |
+| Cadena de detección (Monitor, Detection, Incident, Policy) | Se despliega | Lee counters del plano de datos y alimenta al controlador |
 | Segmentación | Se configura | Necesaria para R2 y para separar poblaciones |
 | Tráfico de ataque | Se genera de forma controlada | Solo dentro del entorno del proyecto (RP-06, RP-08) |
-| Sistema de identidad | Se simula o se integra | Depende de SE-02 |
 | Perímetro | Se representa | Alcance por definir (ver cuestiones abiertas) |
 
 ---
@@ -65,7 +68,10 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 ## 5. Supuestos
 
 - El entorno disponible admite virtualización de hosts, switches y controlador.
-- Los dispositivos SDN del prototipo soportan la instalación dinámica de reglas.
+- Los switches del prototipo son Pica8/PicOS (RP-11) y soportan la instalación dinámica de reglas; las primitivas OpenFlow concretas (meters, groups, counters) se verifican contra el dispositivo antes de comprometer el diseño.
+- El canal de control es out-of-band (RP-02); si el prototipo adopta la variante in-band, exige VLAN de gestión y priorización del tráfico de control.
+- El prototipo opera solo con IPv4 (RP-12).
+- La topología es rígida por diseño, pero el sistema tolera la aparición de dispositivos nuevos: todo dispositivo que no haga match con el registro de dispositivos privilegiados recibe perfil BASE (RP-13).
 - Existe conectividad de laboratorio suficiente para generar tráfico de carga y de ataque sin salir del entorno.
 
 ---
@@ -73,6 +79,7 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 ## 6. Cuestiones abiertas
 
 - Número de switches y de hosts del prototipo: depende de la capacidad disponible y de los escenarios que se quieran reproducir.
-- Capacidad de las tablas de flujo del dispositivo elegido: condiciona cuántas reglas simultáneas admite la solución (riesgo de exceso de reglas SDN).
+- Capacidad de las tablas de flujo de PicOS: condiciona cuántas reglas simultáneas admite la solución (riesgo de exceso de reglas SDN) y si meters/groups están disponibles.
 - Representación del perímetro: firewall simulado, componente del propio entorno o solo reglas en el borde.
 - Si habrá acceso a hardware físico o el prototipo será íntegramente virtual.
+- Si el canal in-band se implementa en el prototipo y en qué fase: es más complejo (VLAN de gestión, priorización, prueba de supervivencia ante un ataque volumétrico), pero valorado por el profesor.

@@ -2,7 +2,7 @@
 
 **Proyecto:** Solución de seguridad para una red de campus académico
 **Fase:** A — Modelo de dominio
-**Estado:** Borrador inicial — la delimitación de recursos requiere validación
+**Estado:** Borrador formal para revisión
 
 ---
 
@@ -12,7 +12,13 @@
 
 **Servicio:** recurso que se ofrece a un actor a través de la red. Un servicio es, por tanto, un recurso con consumidores identificables.
 
-El nivel de protección se asigna según el impacto de su compromiso:
+El catálogo se organiza en **tres clases de destino** —según quién los consume y qué privilegio exigen— y cada recurso recibe además un nivel de protección según el impacto de su compromiso:
+
+| Clase de destino | Definición |
+|---|---|
+| **Recursos de usuario** | Servicios que consume el usuario académico con su perfil BASE: conectividad, servicios académicos e Internet. |
+| **Recursos restringidos** | Servicios que exigen una elevación aprobada: laboratorios, repositorios e investigación. |
+| **Infraestructura** | Los componentes que sostienen la propia solución: plano de control, gestión de identidad y observabilidad. El usuario académico tiene el acceso denegado por defecto. |
 
 | Nivel | Significado | Equivalencia con R2.2 |
 |---|---|---|
@@ -25,26 +31,28 @@ El nivel de protección se asigna según el impacto de su compromiso:
 
 ## 2. Catálogo
 
-### 2.1 Acceso y conectividad
+### 2.1 Recursos de usuario
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Intranet general | Servicio | Conectividad base y servicios institucionales de uso común. | Bajo |
+| Conectividad base (intranet general) | Servicio | Conectividad inicial del perfil BASE: DHCP, ARP y segmento de acceso. | Bajo |
 | Acceso a Internet | Servicio | Salida a redes externas, si la arquitectura lo contempla. | Bajo |
-| Segmentos de red (VLAN) | Recurso | Dominios de segmentación que separan poblaciones y recursos. | Alto |
-
-### 2.2 Servicios y servidores institucionales
-
-| Recurso o servicio | Tipo | Descripción | Nivel |
-|---|---|---|---|
+| Resolución de nombres (DNS) | Servicio | Servicio de nombres para el tráfico legítimo. | Bajo |
 | Servicios públicos e institucionales | Servicio | Servicios abiertos a toda la comunidad. | Medio |
-| Servicios y servidores académicos | Servicio | Plataformas de apoyo a la docencia y al estudio. | Medio |
-| Recursos compartidos docentes | Servicio | Servidores y almacenamiento de uso docente. | Medio |
+| Servicios y servidores académicos | Servicio | Plataformas de apoyo a la docencia y al estudio (LMS y equivalentes). | Medio |
 | Servidor de notas y sistemas de calificaciones | Servicio | Información académica sensible de los estudiantes. | Alto |
 | Servicios administrativos | Servicio | Sistemas de gestión institucional. | Alto |
 | Base de datos institucional | Recurso | Almacenamiento de la información de los servicios anteriores. | Crítico |
 
-### 2.3 Infraestructura SDN
+### 2.2 Recursos restringidos
+
+| Recurso o servicio | Tipo | Descripción | Nivel |
+|---|---|---|---|
+| Servidores de laboratorio | Servicio | Entornos de prácticas de los pabellones técnicos; acceso mediante elevación temporal. | Alto |
+| Repositorios y recursos de investigación | Servicio | Repositorios especiales y recursos de los grupos de investigación. | Alto |
+| Servicios técnicos internos | Servicio | Servicios internos no disponibles para el perfil BASE. | Alto |
+
+### 2.3 Infraestructura
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
@@ -52,12 +60,17 @@ El nivel de protección se asigna según el impacto de su compromiso:
 | Consola de administración SDN | Servicio | Interfaz de gestión del controlador y de las políticas. | Crítico |
 | Dispositivos de red (switches) | Recurso | Plano de datos; ejecutan las reglas instaladas. | Crítico |
 | Reglas de flujo y configuración de segmentación | Recurso | Estado de forwarding y aislamiento vigente en la red. | Alto |
+| Segmentos de red (VLAN) | Recurso | Dominios de segmentación que separan poblaciones y recursos. | Alto |
+| Canal de control (red de gestión) | Recurso | Conectividad entre controlador y switches; out-of-band, con la variante in-band como objetivo (ver flujo §2.6). | Crítico |
 
 ### 2.4 Seguridad y observabilidad
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Sistema IDS/IPS | Recurso | Detección y prevención de amenazas. | Crítico |
+| Monitor | Recurso | Recopila counters y estadísticas del plano de datos. | Alto |
+| Detection Engine | Recurso | Determina si existe comportamiento anómalo (R3, R4). | Crítico |
+| Incident Manager | Recurso | Registra y gestiona los incidentes de seguridad. | Alto |
+| Policy Engine | Recurso | Decide la respuesta ante incidentes y solicitudes de elevación. | Crítico |
 | Políticas de seguridad | Recurso | Reglas que definen el comportamiento permitido de la red. | Crítico |
 | Consola de monitoreo | Servicio | Visualización de estado de red, eventos y alertas. | Alto |
 | Logs de seguridad | Recurso | Registro de eventos y decisiones de seguridad. | Alto |
@@ -68,15 +81,19 @@ El nivel de protección se asigna según el impacto de su compromiso:
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Credenciales y base de identidad | Recurso | Identidades de usuarios y su autenticación. | Crítico |
+| Perfiles de acceso | Recurso | Definición de los perfiles (BASE, LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN) y sus reglas de red asociadas. | Crítico |
+| Registro de dispositivos privilegiados | Recurso | Base de datos de los dispositivos de operadores (MAC, tipo, titular, rol, vigencia, responsable). Solo los dispositivos privilegiados se registran; lo que no hace match recibe perfil BASE. Sirve además de auditoría del alta de dispositivos. | Crítico |
+| AAA / RADIUS | Recurso | Autenticación, autorización y accounting de los operadores privilegiados. No cataloga dispositivos: autentica personas. | Crítico |
+| Portal cautivo | Servicio | Punto de autenticación de los operadores en la red. | Alto |
+| Sistema de identidad institucional (IdP/LDAP) | Recurso externo | Backend de identidad consultado por AAA; no lo administra el proyecto. | Crítico |
 | Roles y permisos | Recurso | Definición de autorizaciones del sistema. | Crítico |
-| Sesiones y estado de acceso | Recurso | Sesiones activas y estado de conexión de los usuarios. | Alto |
+| Sesiones y estado de acceso | Recurso | Sesiones activas, perfiles vigentes y su TTL. | Alto |
 
 ### 2.6 Dispositivos de usuario final
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Dispositivos de usuario | Recurso | Equipos que se conectan a la red; origen de los flujos. | Medio |
+| Dispositivos de usuario | Recurso | Equipos que se conectan a la red; origen de los flujos. Los académicos no se registran; los de operadores figuran en el registro de dispositivos privilegiados. | Medio |
 
 ---
 
@@ -89,12 +106,18 @@ Los siguientes recursos concentran el mayor impacto y son los candidatos natural
 | Controlador SDN | Crítico |
 | Consola de administración SDN | Crítico |
 | Dispositivos de red | Crítico |
-| Sistema IDS/IPS | Crítico |
+| Canal de control | Crítico |
+| Detection Engine | Crítico |
+| Policy Engine | Crítico |
 | Políticas de seguridad | Crítico |
 | Base de datos institucional | Crítico |
-| Credenciales y base de identidad | Crítico |
+| Registro de dispositivos privilegiados | Crítico |
+| AAA / RADIUS | Crítico |
+| Sistema de identidad institucional | Crítico |
+| Perfiles de acceso | Crítico |
 | Roles y permisos | Crítico |
 | Servidor de notas | Alto |
+| Servidores de laboratorio | Alto |
 | Logs de seguridad | Alto |
 | Segmentos de red (VLAN) | Alto |
 
@@ -102,12 +125,12 @@ Los siguientes recursos concentran el mayor impacto y son los candidatos natural
 
 ## 4. Cuestiones abiertas
 
-- **Frontera entre niveles.** El catálogo propone un nivel por recurso, pero la distinción exacta entre *medio* y *alto* —es decir, qué convierte a un recurso en privilegiado en el sentido de R2— todavía no está fijada.
-- **Límite del sistema.** Si el firewall perimetral, el IDS/IPS y la base de identidad institucional forman parte de la solución o son sistemas externos con los que se integra es materia de la Fase C (límite del sistema). De esa decisión depende si se clasifican como recursos propios o como dependencias.
+- **Frontera entre niveles.** La distinción exacta entre *medio* y *alto* —es decir, qué convierte a un recurso en privilegiado en el sentido de R2— todavía no está fijada.
+- **Límite del sistema.** Si el firewall perimetral es parte de la solución o un sistema externo es materia de la Fase C. La cadena de detección (Monitor, Detection, Incident, Policy) sí es parte del sistema; el IdP institucional es externo.
 - **Dispositivos de usuario final.** Definir si son recursos protegidos o únicamente orígenes de tráfico sujetos a observación.
 - **Red inalámbrica y red de invitados.** Confirmar si están dentro del alcance del prototipo.
 - **Retención de registros.** Dónde se almacenan los logs y por cuánto tiempo.
-- **Servicios administrativos.** Confirmar qué rol los consume (ver la cuestión abierta sobre *personal administrativo* en [`01_actores-roles_y_agentes.md`](01_actores-roles_y_agentes.md)).
+- **Acceso remoto.** Definir la política de acceso remoto de los operadores (contemplado para el Superadministrador).
 
 ---
 

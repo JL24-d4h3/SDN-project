@@ -22,7 +22,7 @@ Continúa en documentos separados:
 
 Diseñar una solución de seguridad basada en SDN para una red de campus académico, a partir de los cinco requerimientos del proyecto:
 
-- **R1:** Controlar el acceso a la red de los usuarios válidos, acorde con su rol.
+- **R1:** Controlar el acceso a la red: perfil mínimo por defecto para todo dispositivo conectado, y privilegios superiores solo mediante autenticación y autorización (acorde con el rol y el contexto).
 - **R2:** Restringir el acceso a recursos privilegiados solo a usuarios autorizados.
 - **R3:** Detectar y mitigar ataques encubiertos en la intranet.
 - **R4:** Detectar y mitigar ataques DDoS brute-force en la intranet.
@@ -38,7 +38,7 @@ Una red de campus académico integra numerosos usuarios, dispositivos y servicio
 
 La solución deberá proporcionar mecanismos para:
 
-1. controlar el acceso según identidad y rol;
+1. controlar el acceso según dispositivo, perfil y contexto, con identidad solo para elevar privilegios;
 2. proteger recursos privilegiados;
 3. detectar comportamientos maliciosos dentro de la intranet;
 4. preservar la disponibilidad ante ataques de saturación;

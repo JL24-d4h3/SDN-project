@@ -15,7 +15,7 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 | ID | Elemento externo | Categoría | Criticidad si falla |
 |---|---|---|---|
 | SE-01 | Internet y redes externas | Sistema externo y fuente de amenaza | Alta: sin él no hay servicio externo ni tráfico que inspeccionar |
-| SE-02 | Sistema de identidad institucional | Sistema externo | Alta: sin identidad no hay control de acceso (R1) |
+| SE-02 | Sistema de identidad institucional (IdP/LDAP) | Sistema externo | Alta: sin él no hay autenticación de operadores privilegiados (R1) |
 | SE-03 | Fuente de inteligencia de amenazas | Sistema externo | Media: degrada R5.6, no detiene la operación |
 | SE-04 | Servicio de nombres (DNS) | Sistema externo | Alta: su manipulación es un vector de ataque (R3.3) |
 | SE-05 | Sincronización de tiempo (NTP) | Sistema externo | Media: afecta la correlación de eventos y la auditoría |
@@ -33,13 +33,14 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 - **Condición de amenaza:** es el origen del atacante externo y de tráfico malicioso dirigido al perímetro.
 - **En el prototipo:** se representa mediante un segmento externo controlado; el tráfico ofensivo se genera dentro del entorno (RP-06, RP-08).
 
-### SE-02 — Sistema de identidad institucional
+### SE-02 — Sistema de identidad institucional (IdP/LDAP)
 
-- **Qué se intercambia:** verificación de credenciales y atributos del usuario que solicita acceso.
-- **Interfaz esperada:** consulta desde el mecanismo de autenticación de la plataforma.
-- **Condición de amenaza:** no ataca, pero es objetivo: si se compromete, se compromete la autorización derivada de él.
+- **Qué se intercambia:** verificación de credenciales y atributos de los **operadores privilegiados** (Especialista de TI, Administrador de Red, Superadministrador) cuando solicitan elevar privilegios.
+- **Interfaz esperada:** consulta desde el servidor AAA del sistema (portal cautivo).
+- **Qué no es:** no participa en la conexión del usuario académico. El perfil BASE se concede por presencia física (RP-13) sin consultar ningún sistema de identidad.
+- **Condición de amenaza:** no ataca, pero es objetivo: si se compromete, se compromete la autenticación de los privilegiados que dependen de él.
 - **En el prototipo:** se simula o se integra, según lo que exista en el entorno.
-- **Nota:** determina el límite del sistema en todo lo relativo a R1 (ver [`01_limite_del_sistema.md`](01_limite_del_sistema.md)).
+- **Nota:** determina el límite del sistema en la autenticación de R1 (ver [`01_limite_del_sistema.md`](01_limite_del_sistema.md)).
 
 ### SE-03 — Fuente de inteligencia de amenazas
 
@@ -72,7 +73,7 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 
 - **Qué se intercambia:** tráfico de los usuarios legítimos.
 - **Condición de amenaza:** un dispositivo comprometido se convierte en nodo comprometido, y su tráfico pasa a ser objeto de R3 y R4 aunque el usuario conserve credenciales válidas.
-- **En el prototipo:** hosts simulados que representan alumnos y docentes.
+- **En el prototipo:** hosts simulados que representan al usuario académico. Los dispositivos académicos **no se registran** en ningún catálogo: reciben perfil BASE por defecto; solo los dispositivos de operadores figuran en el registro de dispositivos privilegiados (parte del sistema).
 
 ---
 
@@ -80,7 +81,7 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 
 | Dependencia | Alternativa si no existe en el entorno |
 |---|---|
-| Identidad institucional | Directorio simulado con usuarios y roles de prueba |
+| Identidad institucional (IdP/LDAP) | Directorio simulado con los operadores privilegiados de prueba |
 | Inteligencia de amenazas | Conjunto de indicadores propio, definido por el proyecto |
 | Internet | Segmento externo controlado dentro del laboratorio |
 | Servicios institucionales | Servidores equivalentes desplegados en el prototipo |
@@ -90,6 +91,6 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 
 ## 4. Cuestiones abiertas
 
-- Si el IDS/IPS y el firewall son sistemas externos institucionales o componentes del propio sistema (ver [`01_limite_del_sistema.md`](01_limite_del_sistema.md)).
+- Si el firewall perimetral es un sistema externo institucional o un componente del propio sistema (ver [`01_limite_del_sistema.md`](01_limite_del_sistema.md)). La cadena de detección ya está resuelta: es parte del sistema.
 - Si la inteligencia de amenazas se alimenta de un servicio real, de listas propias o de ambos.
 - Si los dispositivos de usuario final se modelan como activos protegidos o solo como orígenes de tráfico sujetos a observación.
