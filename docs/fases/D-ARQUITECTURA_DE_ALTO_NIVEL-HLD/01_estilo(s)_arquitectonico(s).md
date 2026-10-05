@@ -43,7 +43,7 @@ La decisión responde a una observación sobre la naturaleza del problema: se co
 | **Microservicios** | Adoptado | La cadena de seguridad está compuesta por componentes con responsabilidades y ciclos de vida distintos (IAM, monitor, detección, incidentes, políticas, auditoría). El estilo habilita su independencia de despliegue y escalamiento (D-12). |
 | **Pipe-and-Filter** | Descartado como estilo | Describe la cadena captura → proceso → detección, pero no el sistema completo. La cadena de detección se modela mejor como flujo de eventos que como tubería de filtros. |
 | **Master-Slave** | Descartado como estilo | El controlador mantiene una relación centralizada con los switches, pero eso no convierte a toda la arquitectura en master-slave. Esa relación pertenece al modelo de control SDN, no al estilo global. |
-| **Message-Queueing** | No es un estilo | Es un mecanismo de transporte de eventos, candidato dentro del estilo orientado a eventos. Su elección es una decisión tecnológica de la Fase G. |
+| **Message-Queueing** | No es un estilo | Es un mecanismo de transporte de eventos, candidato dentro del estilo orientado a eventos. Su elección es una decisión tecnológica de la Fase F. |
 
 ---
 
@@ -133,7 +133,7 @@ Tráfico de red
 | `MitigationVerified` / `MitigationExpired` | Monitor | Policy Engine, Incident Manager |
 | `ElevationGranted` / `ElevationExpired` | Policy Engine | Controlador SDN, auditoría |
 
-**Qué no resuelve.** El estilo de eventos no define cómo se transportan los eventos (broker, colas, bus): eso es un mecanismo, no un estilo, y se decide en la Fase G. Tampoco define la estructura interna de los componentes.
+**Qué no resuelve.** El estilo de eventos no define cómo se transportan los eventos (broker, colas, bus): eso es un mecanismo, no un estilo, y se decide en la Fase F. Tampoco define la estructura interna de los componentes.
 
 ### 3.3 Cliente-Servidor — interacción externa
 
@@ -141,7 +141,7 @@ Los actores humanos y los sistemas externos interactúan con la plataforma media
 
 ```text
 Administrador ──► Consola / API ──► Servicios de seguridad
-Operador      ──► Portal cautivo ──► IAM/AAA
+Personas      ──► Portal cautivo ──► IAM/AAA
 Sistema externo (IdP, inteligencia) ──► Northbound API ──► Plataforma
 ```
 
@@ -154,7 +154,7 @@ Sistema externo (IdP, inteligencia) ──► Northbound API ──► Plataform
 La capa de aplicación y la capa de seguridad se descomponen en **servicios con responsabilidad única, despliegue independiente y datos propios**. Los componentes ya definidos en el modelo de dominio son los candidatos naturales:
 
 ```text
-Servicio IAM/AAA            (portal cautivo, autenticación de operadores)
+Servicio IAM/AAA            (portal cautivo, autenticación de poblaciones)
 Servicio de registro        (dispositivos privilegiados y su auditoría)
 Servicio de monitoreo       (counters, línea base)
 Servicio de detección       (anomalías, R3/R4)
@@ -166,7 +166,7 @@ Servicio de auditoría       (trazabilidad de acciones y eventos)
 **Justificación**
 
 - **Independencia de despliegue.** El detector puede actualizarse sin tocar el motor de políticas; el monitor puede escalar solo ante una red con más switches (D-12).
-- **Aislamiento de fallos.** Un fallo en la detección no arrastra a la autenticación de operadores; el incidente queda registrado aunque la consola caiga.
+- **Aislamiento de fallos.** Un fallo en la detección no arrastra a la autenticación; el incidente queda registrado aunque la consola caiga.
 - **Escalabilidad asimétrica.** La detección crece con el tráfico; el registro de dispositivos, con la cantidad de operadores: necesidades distintas, unidades distintas.
 - **Separación de datos.** Cada servicio es dueño de su estado (identidades, incidentes, políticas, eventos), sin bases de datos compartidas.
 
@@ -174,7 +174,7 @@ Servicio de auditoría       (trazabilidad de acciones y eventos)
 
 - Microservicios es el **estilo de descomposición**, no una lista cerrada: qué componentes se convierten en servicios y cuáles no se determina en [`04_descomposición_arquitectónica.md`](04_descomposición_arquitectónica.md), contra RP-07 (ninguna complejidad sin justificación).
 - El **controlador SDN** no se rige por las reglas de los microservicios: su relación con los switches pertenece al modelo de control SDN, y se trata como un componente especial de la capa de control.
-- El estilo no compromete tecnología: contenedores, orquestación y mecanismos de comunicación se deciden en la Fase G.
+- El estilo no compromete tecnología: contenedores, orquestación y mecanismos de comunicación se deciden en la Fase F.
 
 ---
 
@@ -214,7 +214,7 @@ Los cuatro estilos no compiten: ocupan dimensiones distintas y se superponen sin
 
 ## 5. Lo que esta decisión no resuelve
 
-- **Tecnología.** Ningún producto aparece aquí: broker de eventos, protocolos de servicio (REST, gRPC), controlador SDN concreto, contenedores u orquestación son decisiones de la Fase G. Confundir estilo con tecnología forzaría el dominio para justificar una herramienta.
+- **Tecnología.** Ningún producto aparece aquí: broker de eventos, protocolos de servicio (REST, gRPC), controlador SDN concreto, contenedores u orquestación son decisiones de la Fase F. Confundir estilo con tecnología forzaría el dominio para justificar una herramienta.
 - **Patrones internos.** Cómo se implementa cada estilo (publicador-suscriptor, sagas, API gateway) corresponde a [`02_patrones_arquitectonicos.md`](02_patrones_arquitectonicos.md).
 - **El modelo de control SDN.** La relación controlador-switch no es master-slave de la solución: es el paradigma SDN (RP-02), y su tratamiento corresponde a [`08_comunicacion.md`](08_comunicacion.md) y [`10_topología_lógica.md`](10_topología_lógica.md).
 - **La frontera síncrono/asíncrono.** Qué interacciones internas son peticiones y cuáles eventos se fija en [`08_comunicacion.md`](08_comunicacion.md).
@@ -225,4 +225,4 @@ Los cuatro estilos no compiten: ocupan dimensiones distintas y se superponen sin
 
 - **Granularidad de los microservicios.** Cuántos servicios y con qué fronteras exactas: el monitor y la detección podrían ser uno solo en el prototipo; la decisión se toma en [`04_descomposición_arquitectónica.md`](04_descomposición_arquitectónica.md), evaluando RP-07.
 - **Tratamiento del controlador SDN.** Si el controlador forma parte del catálogo de servicios o es un componente externo a la plataforma de software, con su propio ciclo de vida.
-- **Cadenas de eventos que requieren orden.** Si la cadena de mitigación exige entrega ordenada de eventos por incidente, y quién garantiza el orden (mecanismo, Fase G).
+- **Cadenas de eventos que requieren orden.** Si la cadena de mitigación exige entrega ordenada de eventos por incidente, y quién garantiza el orden (mecanismo, Fase F).

@@ -82,7 +82,7 @@ Los principios se agrupan en estructurales, de seguridad y operacionales. Toda d
 
 **Implicaciones**
 
-- El perfil BASE permite solo DHCP, DNS, servicios académicos e Internet según política; todo acceso a infraestructura tiene una entrada DROP por defecto con prioridad sobre el forwarding.
+- El perfil BASE permite solo DHCP, DNS y el portal; todo acceso a infraestructura tiene una entrada DROP por defecto con prioridad sobre el forwarding.
 - La regla del registro de dispositivos privilegiados es inversa a un catálogo total: **no match → BASE**. La población académica no requiere alta alguna.
 - Ningún rol hereda permisos por acumulación: cada permiso se concede explícitamente.
 
@@ -94,7 +94,7 @@ Los principios se agrupan en estructurales, de seguridad y operacionales. Toda d
 
 **Implicaciones**
 
-- El usuario académico no se autentica a nivel de red; los operadores sí, por portal cautivo / AAA contra el IdP institucional.
+- La comunidad se autentica en el portal contra el IdP institucional (perfil ACADÉMICO); los operadores, contra el repositorio propio con MFA (sesión de rol).
 - La elevación se decide en el Policy Engine con identidad + dispositivo registrado + contexto + vigencia; la presencia física jamás justifica privilegios.
 - La cadena de confianza es explícita: sin presencia → sin acceso; presencia → BASE; registro + login → identidad; política contextual → privilegios con TTL o sesión.
 
@@ -197,7 +197,7 @@ Cuando dos principios tiran en direcciones opuestas, la resolución es explícit
 | **P2** (decisión centralizada) vs **RNF-04** (latencia) | La ejecución se empuja al plano de datos: meters y timeouts nativos. El controlador decide en el plano de control; el switch aplica a velocidad de línea. |
 | **P9** (preservar el tráfico legítimo) vs **P8** (automatización) | La escalera de respuestas resuelve: la severidad baja se limita (RATE_LIMIT) sin intervención; el bloqueo total de alto impacto exige aprobación humana. |
 | **P12** (métricas primero) vs **RP-03** (tiempo del curso) | La instrumentación se acota a lo que R4.10 y RP-10 exigen: tiempos e impacto, no una plataforma de telemetría completa. |
-| **P4** (complejidad justificada) vs **P13** (comunicación por eventos) | El broker se introduce como patrón, no como producto: la tecnología se elige en la Fase G contra el tamaño real del prototipo, no contra un despliegue de producción. |
+| **P4** (complejidad justificada) vs **P13** (comunicación por eventos) | El broker se introduce como patrón, no como producto: la tecnología se elige en la Fase F contra el tamaño real del prototipo, no contra un despliegue de producción. |
 
 ---
 
@@ -224,4 +224,4 @@ Cuando dos principios tiran en direcciones opuestas, la resolución es explícit
 ## 7. Cuestiones abiertas
 
 - **Frontera síncrono/asíncrono.** Qué interacciones internas quedan fuera del broker y por qué: se fija en [`08_comunicacion.md`](08_comunicacion.md).
-- **Precedencia entre P9 y P12 en caso extremo.** Si una mitigación que preserva el servicio legítimo no alcanza las métricas exigidas, decidir si prima la disponibilidad (P9) o el resultado medido (P12); depende de los umbrales que se fijen en la Fase G.
+- **Precedencia entre P9 y P12 en caso extremo.** Si una mitigación que preserva el servicio legítimo no alcanza las métricas exigidas, decidir si prima la disponibilidad (P9) o el resultado medido (P12); depende de los umbrales que se fijen en la Fase F.

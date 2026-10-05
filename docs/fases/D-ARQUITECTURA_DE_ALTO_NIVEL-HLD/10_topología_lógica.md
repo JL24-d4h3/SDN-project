@@ -12,7 +12,7 @@ La topología lógica de referencia: los segmentos, el direccionamiento propuest
 
 | Segmento | Población | Propósito | Protección |
 |---|---|---|---|
-| **Acceso académico** | Usuarios académicos (perfil BASE) | Conectividad de consumo: DHCP, DNS, servicios académicos, Internet | Perfil BASE + deny by default |
+| **Acceso académico** | Usuarios académicos (BASE; ACADÉMICO tras el login) | Conectividad de consumo: en BASE, DHCP, DNS y portal; tras el login, servicios académicos e Internet | Perfil BASE + deny by default |
 | **Servidores** | Servicios institucionales y académicos | Alojar los activos protegidos (R2) | Acceso según política; objetivo de R3/R4 |
 | **Administración y gestión** | Controlador, servicios de la plataforma, consolas de operadores | Sostener el plano de control y de gestión | Solo operadores autenticados (RA-09) |
 | **Perimetral** | Borde con redes externas | Punto de aplicación de R5 | Por definir (fase C) |
@@ -45,27 +45,49 @@ El canal de control (OpenFlow) usa una **red de gestión separada** (out-of-band
                      └────────────────────┘
 ```
 
-- Los **hosts académicos** se conectan a puertos de acceso; reciben perfil BASE.
+- Los **hosts académicos** se conectan a puertos de acceso; reciben perfil BASE; tras el login en el portal, el perfil ACADÉMICO (o la sesión de rol, si son operadores).
 - El **host atacante** es tráfico controlado dentro del entorno (RP-06, RP-08): se conecta como un académico más y genera el tráfico de ataque de R3/R4.
 - **SRV-1** representa el activo protegido (destino de R2 y de los ataques).
 - Los **servicios base** (DHCP/DNS) sirven al flujo de arranque (serie de flujo, parte 2).
+
+### 2.1 Los tres niveles de la referencia
+
+La topología de referencia se organiza en **tres niveles**:
+
+```text
+        ACCESO                 DISTRIBUCIÓN                NÚCLEO
+   ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
+   │  switches    │        │  switches    │        │  switches    │
+   │  de acceso   │────────│  de distribu-│────────│  de núcleo   │──── servicios
+   │              │        │  ción        │        │              │     (portal · DHCP/DNS ·
+   └──────┬───────┘        └──────────────┘        └──────────────┘      servidores)
+          │
+       hosts
+   (BASE · ACADÉMICO)
+```
+
+- **Acceso** — donde se conectan los dispositivos; aloja la política: perfil BASE, escalera de prioridades, anti-spoofing y portal.
+- **Distribución** — agregación: une los accesos entre sí y con el núcleo; es el ámbito natural de los caminos.
+- **Núcleo** — la troncal: conecta los servicios de infraestructura y los caminos principales.
+
+Cuántos switches tiene cada nivel, cómo se conectan y qué redundancia existe quedó fijado en la Fase H: **ocho switches — dos núcleo, dos distribución, cuatro acceso — dual-homed, con 13 enlaces** ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3). El diagrama de arriba es la vista de niveles; las cantidades y los enlaces concretos viven en la Fase H. El cálculo de caminos por destino que opera sobre estos niveles está en la serie de flujo, parte 5.
 
 ## 3. Direccionamiento propuesto
 
 | Segmento | Subred propuesta | Nota |
 |---|---|---|
-| Acceso académico | 10.0.1.0/24 | Hosts con DHCP; el controlador aprende MAC/IP/puerto |
-| Servidores | 10.0.2.0/24 | SRV-1 y servicios institucionales |
+| Acceso académico | 10.1.0.0/24 | Hosts con IP estática en el prototipo; el controlador aprende MAC/IP/puerto |
+| Servidores | 10.2.0.0/24 | SRV-1 y servicios institucionales |
 | Administración y gestión | 10.0.0.0/24 | Controlador y servicios; inalcanzable desde BASE |
 | Canal de control (out-of-band) | red de gestión propia | Separada de las anteriores |
 
-El direccionamiento es una propuesta de trabajo: el diseño de reglas usa rangos por segmento (`ip_dst = 10.0.0.0/24` para denegar la gestión), no direcciones sueltas.
+El direccionamiento definitivo del prototipo quedó fijado en la Fase H ([`H-03`](../H-Despliegue/03_red.md)); el diseño de reglas usa rangos por segmento (`ip_dst = 10.0.0.0/24` para denegar la gestión), no direcciones sueltas.
 
 ## 4. El prototipo: qué se despliega
 
 | Elemento | Despliegue en el prototipo | Referencia |
 |---|---|---|
-| Controlador SDN | Se despliega (servidor de control) | Decisión tecnológica: Fase G |
+| Controlador SDN | Se despliega (servidor de control) | Decisión tecnológica: Fase F |
 | Switches | Se despliegan (Pica8/PicOS, virtuales o físicos) | RP-11 |
 | Servicios de la plataforma | Se despliegan consolidados en el servidor de control | doc 04 §6, RP-04 |
 | Hosts académicos | Se simulan (mínimo 2, para demostrar tráfico entre pares) | C-04 |
@@ -84,7 +106,7 @@ La topología rígida admite la aparición de dispositivos nuevos: todo lo que c
 
 ## 6. Cuestiones abiertas
 
-- **Número exacto de switches y hosts** (3 switches y 3–4 hosts es el mínimo propuesto; depende de la capacidad del laboratorio).
+- **Número de switches por nivel, conexiones y resiliencia** — cerrado en la Fase H: ocho switches dual-homed ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md)); el efecto de un fallo sobre los caminos instalados se resuelve con recálculo o grupos fast-failover ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §4).
 - **Hardware físico vs virtual.** La topología lógica es la misma; cambia el despliegue (Fase H).
 - **Perímetro.** Si el segmento perimetral se representa con un firewall, con reglas de borde o no se representa (fase C).
 - **In-band.** Si el canal de control adopta la VLAN de gestión sobre los enlaces de datos.

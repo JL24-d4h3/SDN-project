@@ -41,7 +41,7 @@ El **controlador SDN no es un microservicio**: es el componente que traduce deci
 
 | Servicio | Responsabilidad | Datos que posee (repositorio) | Eventos que publica | Eventos que consume |
 |---|---|---|---|---|
-| **IAM/AAA** | Autenticar y autorizar a los operadores privilegiados; gestionar sus sesiones | Identidades privilegiadas, sesiones, credenciales (consulta al IdP, no las almacena) | `SessionOpened`, `SessionClosed` | — |
+| **IAM/AAA** | Autenticar y autorizar a las poblaciones (la comunidad contra el IdP; los operadores contra el repositorio propio) y gestionar sus sesiones | Identidades privilegiadas con sus credenciales, sesiones y perfiles | `SessionOpened`, `SessionClosed` | — |
 | **Registro de dispositivos** | Mantener el catálogo de dispositivos privilegiados y su auditoría de altas | `DeviceRepository` (MAC, tipo, titular, rol, vigencia, responsable) | `DeviceRegistered`, `DeviceRevoked` | — |
 | **Monitor** | Leer contadores del plano de datos y mantener la línea base | Series de contadores y línea base | `AnomalyDetected` (materia prima), `MitigationVerified`, `MitigationExpired` | `MitigationApplied` (para verificar) |
 | **Detección** | Determinar si existe comportamiento anómalo y clasificarlo | Modelos de línea base y umbrales | `AnomalyDetected` | — (recibe métricas del Monitor por el broker) |
@@ -99,9 +99,9 @@ El **portal cautivo** es la interfaz web del servicio IAM/AAA, no un servicio ap
 
 La descomposición de esta sección es **lógica**. En el prototipo, los servicios pueden desplegarse consolidados en el servidor de control (RP-04, RP-07) sin que las fronteras cambien: lo que no puede consolidarse es la **responsabilidad** — un módulo desplegado junto a otro sigue teniendo su repositorio, su contrato de eventos y su límite de responsabilidad.
 
-La decisión de qué servicios se despliegan separados pertenece a la Fase G/H.
+La decisión de qué servicios se despliegan separados pertenece a la Fase H.
 
 ## 7. Cuestiones abiertas
 
 - **Monitor y Detección.** Se presentan como dos servicios con frontera clara (el Monitor observa; la Detección juzga); si el prototipo los consolida en un módulo, la frontera lógica se mantiene documentada.
-- **Despliegue físico.** Qué servicios corren en qué máquina del laboratorio (Fase G/H).
+- **Despliegue físico.** Qué servicios corren en qué máquina del laboratorio (Fase H).

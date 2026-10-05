@@ -6,7 +6,7 @@
 
 ---
 
-Cada interfaz define **qué fluye entre qué partes**, con qué sincronía y bajo qué contrato. Los protocolos concretos que no están decididos se marcan como Fase G; el único fijado hoy es el southbound (OpenFlow, por RP-11). El mapa completo de comunicación está en [`08_comunicacion.md`](08_comunicacion.md).
+Cada interfaz define **qué fluye entre qué partes**, con qué sincronía y bajo qué contrato. Los protocolos concretos que no están decididos se marcan como Fase F; los fijados son el southbound (OpenFlow, RP-11) y la identidad (I4 = RADIUS, contra el directorio del IdP). El mapa completo de comunicación está en [`08_comunicacion.md`](08_comunicacion.md).
 
 ## 1. Registro de interfaces
 
@@ -14,8 +14,8 @@ Cada interfaz define **qué fluye entre qué partes**, con qué sincronía y baj
 |---|---|---|---|---|
 | I1 | Southbound SDN | Controlador ↔ Switches | Protocolo de control (OpenFlow) | Mixta (petición-respuesta + asíncronos) |
 | I2 | Northbound | Servicios ↔ Controlador | API del controlador | Petición-respuesta |
-| I3 | Portal cautivo | Operador ↔ IAM/AAA | Interfaz web de autenticación | Petición-respuesta |
-| I4 | Identidad institucional | IAM/AAA ↔ IdP (externo) | Protocolo de directorio/AAA | Petición-respuesta |
+| I3 | Portal cautivo | Poblaciones ↔ IAM/AAA | Interfaz web de autenticación | Petición-respuesta |
+| I4 | Identidad institucional | IAM/AAA ↔ IdP (externo) | RADIUS (directorio LDAP detrás) | Petición-respuesta |
 | I5 | Broker de eventos | Servicios ↔ Servicios | Publicación-suscripción | Asíncrona |
 | I6 | Persistencia | Servicios ↔ Repositorios | Acceso a datos del propio servicio | Síncrona local |
 | I7 | API de administración | Consola ↔ Servicios | API de la plataforma | Petición-respuesta |
@@ -32,28 +32,28 @@ Cada interfaz define **qué fluye entre qué partes**, con qué sincronía y baj
 
 ### I2 — Northbound: Servicios ↔ Controlador
 
-- **Protocolo:** API del controlador (forma concreta en Fase G; típicamente REST o similar).
+- **Protocolo:** API del controlador (forma concreta en Fase F; típicamente REST o similar).
 - **Qué fluye:** órdenes de política —instalar/retirar reglas de acceso, de elevación y de mitigación— y consultas —topología, asociaciones host↔puerto, contadores, estado de reglas—.
 - **Contrato:** la orden expresa **qué** se quiere (bloquear tráfico de X hacia Y, limitar tasa a Z); el **cómo** (FLOW_MOD concreto, prioridades, meters) es responsabilidad del controlador (P2, P8).
 - **Sincronía:** petición-respuesta con confirmación de aplicación. La plataforma espera la confirmación antes de dar la acción por ejecutada.
 
-### I3 — Portal cautivo: Operador ↔ IAM/AAA
+### I3 — Portal cautivo: Poblaciones ↔ IAM/AAA
 
 - **Protocolo:** interfaz web de autenticación (HTTPS).
-- **Qué fluye:** credenciales del operador (usuario, contraseña, MFA si aplica) y la respuesta de sesión.
-- **Contrato:** el portal solo autentica **operadores privilegiados**; el usuario académico no pasa por él (RP-13). La sesión resultante habilita la elevación por el Policy Engine, no conecta nada por sí misma.
+- **Qué fluye:** credenciales de la población (usuario y contraseña; código TOTP para operadores) y la respuesta de sesión.
+- **Contrato:** el portal autentica a **las dos poblaciones**: la comunidad contra el IdP institucional (perfil ACADÉMICO); los operadores contra el repositorio propio con MFA (sesión de rol). La sesión resultante la decide el Policy Engine; el portal no conecta nada por sí mismo.
 - **Sincronía:** petición-respuesta.
 
 ### I4 — Identidad institucional: IAM/AAA ↔ IdP
 
-- **Protocolo:** diálogo AAA contra el backend de identidad (RADIUS/LDAP; producto en Fase G).
-- **Qué fluye:** verificación de credenciales y atributos del operador.
-- **Contrato:** el IdP es el dueño de la identidad (SE-02, fase C); el IAM/AAA la consume y no almacena credenciales. El resultado llega al Policy Engine como identidad + rol + atributos.
+- **Protocolo:** RADIUS contra el backend de identidad del IdP (directorio LDAP detrás; producto en Fase F).
+- **Qué fluye:** verificación de credenciales de la comunidad universitaria y atributos para el perfil.
+- **Contrato:** el IdP es el dueño de la identidad de la comunidad (SE-02, fase C); el IAM/AAA la consume y no almacena credenciales de usuarios. Las de operadores viven en el repositorio propio del IAM. El resultado llega al Policy Engine como identidad + atributos.
 - **Sincronía:** petición-respuesta.
 
 ### I5 — Broker de eventos: Servicios ↔ Servicios
 
-- **Protocolo:** publicación-suscripción con colas (producto en Fase G; patrón Broker, doc 02).
+- **Protocolo:** publicación-suscripción con colas (producto en Fase F; patrón Broker, doc 02).
 - **Qué fluye:** el catálogo de eventos (`DeviceConnected`, `AnomalyDetected`, `IncidentOpened`, `MitigationRequired`, `MitigationApplied`, `MitigationVerified`, `MitigationExpired`, `SessionOpened/Closed`, `ElevationGranted/Expired`, `DeviceRegistered/Revoked`).
 - **Contrato:** cada evento declara productor, consumidores y payload (ver [`08_comunicacion.md`](08_comunicacion.md) §3). Publicar no espera al consumidor; los eventos se encolan y no se pierden ante un consumidor caído (P13).
 - **Sincronía:** asíncrona, con desacoplamiento temporal.
@@ -67,7 +67,7 @@ Cada interfaz define **qué fluye entre qué partes**, con qué sincronía y baj
 
 ### I7 — API de administración: Consola ↔ Servicios
 
-- **Protocolo:** API de la plataforma (forma concreta en Fase G).
+- **Protocolo:** API de la plataforma (forma concreta en Fase F).
 - **Qué fluye:** consultas (incidentes, políticas, dispositivos, eventos, estado) y órdenes administrativas (aprobar elevación, registrar dispositivo, modificar política).
 - **Contrato:** la consola actúa con los permisos del rol de la sesión autenticada (P-catálogo); el servicio valida, no confía en la interfaz.
 - **Sincronía:** petición-respuesta.
@@ -83,10 +83,10 @@ Cada interfaz define **qué fluye entre qué partes**, con qué sincronía y baj
 
 - **Conexiones directas servicio ↔ switch:** prohibidas por P1; solo el controlador habla OpenFlow.
 - **Acceso de la consola a la base de datos:** prohibido por I6; todo pasa por la API.
-- **Autenticación del usuario académico:** no existe interfaz para ella, por diseño (RP-13).
+- **Autenticación en el enlace (802.1X/EAPOL).** Fuera del prototipo: la autenticación de personas vive en aplicación (I3/I4); 802.1X queda reservado a puertos sensibles del despliegue real.
 
 ## 4. Cuestiones abiertas
 
-- **Forma concreta de I2 e I7.** API REST, RPC o ambas: Fase G, con el controlador elegido.
-- **Producto del broker (I5).** Broker dedicado vs colas embebidas: Fase G, contra el tamaño del prototipo.
-- **Frecuencia de sondeo de I8.** Depende de los umbrales de detección que se fijen con mediciones del prototipo (Fase G).
+- **Forma concreta de I2 e I7.** API REST, RPC o ambas: Fase F, con el controlador elegido.
+- **Producto del broker (I5).** Broker dedicado vs colas embebidas: Fase F, contra el tamaño del prototipo.
+- **Frecuencia de sondeo de I8.** Depende de los umbrales de detección que se fijen con mediciones del prototipo (Fase F).

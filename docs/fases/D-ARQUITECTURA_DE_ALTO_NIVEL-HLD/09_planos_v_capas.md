@@ -84,5 +84,5 @@ La topología lógica que materializa estos planos está en [`10_topología_lóg
 
 ## 6. Cuestiones abiertas
 
-- **Ubicación de la consola.** Si la consola vive en la red de gestión (solo operadores) o es alcanzable desde la red académica con autenticación — la primera opción es la coherente con RA-09; decidir en Fase G/H.
+- **Ubicación de la consola.** Si la consola vive en la red de gestión (solo operadores) o es alcanzable desde la red académica con autenticación — la primera opción es la coherente con RA-09; decidir en Fase H.
 - **In-band.** Si el canal de control comparte la infraestructura de datos (VLAN de gestión), los planos de datos y control comparten enlaces físicos aunque sigan lógicamente separados.

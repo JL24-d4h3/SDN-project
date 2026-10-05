@@ -42,7 +42,7 @@ La regla (P13): **los eventos y las órdenes de reacción son asíncronos o de c
 | Orden de mitigación (Políticas → Controlador) | Síncrona (northbound) | La plataforma debe saber que la regla **se aplicó** antes de dar la acción por ejecutada (I2). |
 | Instalación de reglas (Controlador → Switch) | Comando con confirmación | OpenFlow es petición-respuesta con `xid`; el resultado se confirma. |
 | Consultas de consola (incidentes, políticas, dispositivos) | Síncrona (API) | El operador espera una respuesta; encolar preguntas no aporta nada (P4). |
-| Login de operador (portal → IAM → IdP) | Síncrona | El operador espera el resultado de su autenticación. |
+| Login en el portal (IAM → IdP para la comunidad; repositorio propio + TOTP para operadores) | Síncrona | La persona espera el resultado de su autenticación. |
 | Lectura de contadores (Monitor → Controlador → Switch) | Síncrona periódica | Sondeo con respuesta; no es un evento. |
 
 El broker transporta **eventos y órdenes de reacción**, nunca preguntas (doc 02).
@@ -64,7 +64,7 @@ Cada evento declara productor, consumidores y payload mínimo. El catálogo es e
 | `ElevationRequested` | IAM (solicitud del académico) | Políticas, Consola, Auditoría | solicitante, perfil pedido, alcance, duración |
 | `ElevationGranted` | Policy Engine | Controlador (comando), Auditoría | solicitante, perfil, TTL |
 | `ElevationExpired` | Policy Engine | Controlador (comando), Auditoría | solicitante, perfil, motivo |
-| `SessionOpened` / `SessionClosed` | IAM/AAA | Políticas, Auditoría | operador, rol, dispositivo, instante |
+| `SessionOpened` / `SessionClosed` | IAM/AAA | Políticas, Auditoría | identidad, perfil o rol, dispositivo, instante |
 | `DeviceRegistered` / `DeviceRevoked` | Registro | Auditoría, Consola | MAC, titular, rol, responsable, vigencia |
 
 **Nota sobre `MitigationRequired`, `ElevationGranted` y `ElevationExpired`:** son decisiones que deben **aplicarse con confirmación**, por eso además de publicarse (para que la Auditoría y la Consola los vean) viajan como comandos northbound al Controlador. El evento informa; el comando ejecuta.
@@ -75,7 +75,7 @@ La cadena de un incidente (INC-0042) puede emitir muchos eventos en poco tiempo.
 
 - El payload de cada evento lleva el **id del incidente** y un **número de secuencia** monotónico por incidente.
 - Los consumidores agregan por incidente y procesan en orden de secuencia; un evento fuera de orden se reordena o se descarta, nunca se aplica fuera de sitio.
-- El mecanismo de entrega ordenada (colas por incidente, particionado) es decisión de la Fase G; el contrato de secuencia es de este documento.
+- El mecanismo de entrega ordenada (colas por incidente, particionado) es decisión de la Fase F; el contrato de secuencia es de este documento.
 
 ## 5. Matriz de comunicación completa
 
@@ -88,12 +88,12 @@ La cadena de un incidente (INC-0042) puede emitir muchos eventos en poco tiempo.
 | Monitor → Controlador → Switch | I8 (vía I2+I1) | Síncrono periódico | Contadores |
 | Servicio → Broker → Servicios | Broker (I5) | Asíncrono | Eventos del catálogo (§3) |
 | Consola → Servicios | API (I7) | Síncrono | Consultas y órdenes administrativas |
-| Operador → Portal → IAM | I3 | Síncrono | Credenciales, sesión |
-| IAM → IdP | I4 | Síncrono | Verificación de identidad y atributos |
+| Poblaciones → Portal → IAM | I3 | Síncrono | Credenciales, sesión |
+| IAM → IdP | I4 | Síncrono | Verificación de identidad y atributos de la comunidad |
 | Servicio → Repositorio | I6 | Síncrono local | Lectura/escritura de datos propios |
 
 ## 6. Cuestiones abiertas
 
-- **Mecanismo de entrega ordenada** del broker (colas por incidente, particionado): Fase G.
+- **Mecanismo de entrega ordenada** del broker (colas por incidente, particionado): Fase F.
 - **Confirmación de los comandos northbound.** Si basta la confirmación de OpenFlow (regla instalada) o se exige además la verificación por contadores antes de declarar `MitigationApplied`.
 - **Retención de eventos en el broker.** Cuánto tiempo se conservan los eventos consumidos; ligado a la retención de logs (fase A, cuestión abierta).

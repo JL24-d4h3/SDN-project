@@ -16,7 +16,7 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 
 | Clase de destino | Definición |
 |---|---|
-| **Recursos de usuario** | Servicios que consume el usuario académico con su perfil BASE: conectividad, servicios académicos e Internet. |
+| **Recursos de usuario** | Servicios que consume el usuario académico con su perfil ACADÉMICO tras autenticarse: servicios académicos e Internet. Ninguno es alcanzable en BASE: allí solo existe la habilitación mínima del dispositivo (DHCP, DNS y portal). |
 | **Recursos restringidos** | Servicios que exigen una elevación aprobada: laboratorios, repositorios e investigación. |
 | **Infraestructura** | Los componentes que sostienen la propia solución: plano de control, gestión de identidad y observabilidad. El usuario académico tiene el acceso denegado por defecto. |
 
@@ -35,12 +35,11 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Conectividad base (intranet general) | Servicio | Conectividad inicial del perfil BASE: DHCP, ARP y segmento de acceso. | Bajo |
+| Conectividad base del dispositivo | Servicio | Habilitación inicial del perfil BASE, como lista cerrada: DHCP, ARP y el segmento de acceso. No da acceso a los servicios de la intranet — eso lo decide la autenticación. | Bajo |
 | Acceso a Internet | Servicio | Salida a redes externas, si la arquitectura lo contempla. | Bajo |
-| Resolución de nombres (DNS) | Servicio | Servicio de nombres para el tráfico legítimo. | Bajo |
-| Servicios públicos e institucionales | Servicio | Servicios abiertos a toda la comunidad. | Medio |
-| Servicios y servidores académicos | Servicio | Plataformas de apoyo a la docencia y al estudio (LMS y equivalentes). | Medio |
-| Servidor de notas y sistemas de calificaciones | Servicio | Información académica sensible de los estudiantes. | Alto |
+| Resolución de nombres (DNS) | Servicio | Servicio de nombres; forma parte de la lista cerrada del perfil BASE. | Bajo |
+| Servicios públicos e institucionales | Servicio | Servicios abiertos a toda la comunidad autenticada. | Medio |
+| Servicios y servidores académicos | Servicio | Plataformas de apoyo a la docencia y al estudio (LMS y equivalentes) y otros recursos de la universidad, como la nube privada. | Medio |
 | Servicios administrativos | Servicio | Sistemas de gestión institucional. | Alto |
 | Base de datos institucional | Recurso | Almacenamiento de la información de los servicios anteriores. | Crítico |
 
@@ -48,7 +47,6 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Servidores de laboratorio | Servicio | Entornos de prácticas de los pabellones técnicos; acceso mediante elevación temporal. | Alto |
 | Repositorios y recursos de investigación | Servicio | Repositorios especiales y recursos de los grupos de investigación. | Alto |
 | Servicios técnicos internos | Servicio | Servicios internos no disponibles para el perfil BASE. | Alto |
 
@@ -68,7 +66,7 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
 | Monitor | Recurso | Recopila counters y estadísticas del plano de datos. | Alto |
-| Detection Engine | Recurso | Determina si existe comportamiento anómalo (R3, R4). | Crítico |
+| Detection Engine | Recurso | Determina si existe comportamiento anómalo (R3, R4): la función de detección interna (IDS); la mitigación (función IPS) la ejecutan Policy Engine y controlador. El IDS/IPS perimetral de R5.2 es evaluación tecnológica. | Crítico |
 | Incident Manager | Recurso | Registra y gestiona los incidentes de seguridad. | Alto |
 | Policy Engine | Recurso | Decide la respuesta ante incidentes y solicitudes de elevación. | Crítico |
 | Políticas de seguridad | Recurso | Reglas que definen el comportamiento permitido de la red. | Crítico |
@@ -81,10 +79,10 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Perfiles de acceso | Recurso | Definición de los perfiles (BASE, LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN) y sus reglas de red asociadas. | Crítico |
+| Perfiles de acceso | Recurso | Definición de los perfiles (BASE, ACADÉMICO, LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN) y sus reglas de red asociadas. | Crítico |
 | Registro de dispositivos privilegiados | Recurso | Base de datos de los dispositivos de operadores (MAC, tipo, titular, rol, vigencia, responsable). Solo los dispositivos privilegiados se registran; lo que no hace match recibe perfil BASE. Sirve además de auditoría del alta de dispositivos. | Crítico |
-| AAA / RADIUS | Recurso | Autenticación, autorización y accounting de los operadores privilegiados. No cataloga dispositivos: autentica personas. | Crítico |
-| Portal cautivo | Servicio | Punto de autenticación de los operadores en la red. | Alto |
+| AAA / RADIUS | Recurso | Autenticación, autorización y accounting de las poblaciones: la comunidad (contra el IdP) y los operadores (contra el repositorio propio). No cataloga dispositivos: autentica personas. | Crítico |
+| Portal cautivo | Servicio | Punto de autenticación de la red: la comunidad obtiene el perfil ACADÉMICO; los operadores, su sesión de rol. | Alto |
 | Sistema de identidad institucional (IdP/LDAP) | Recurso externo | Backend de identidad consultado por AAA; no lo administra el proyecto. | Crítico |
 | Roles y permisos | Recurso | Definición de autorizaciones del sistema. | Crítico |
 | Sesiones y estado de acceso | Recurso | Sesiones activas, perfiles vigentes y su TTL. | Alto |
@@ -116,8 +114,6 @@ Los siguientes recursos concentran el mayor impacto y son los candidatos natural
 | Sistema de identidad institucional | Crítico |
 | Perfiles de acceso | Crítico |
 | Roles y permisos | Crítico |
-| Servidor de notas | Alto |
-| Servidores de laboratorio | Alto |
 | Logs de seguridad | Alto |
 | Segmentos de red (VLAN) | Alto |
 

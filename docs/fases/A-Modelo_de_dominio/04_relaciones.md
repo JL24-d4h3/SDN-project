@@ -17,7 +17,7 @@ Actor ── desempeña ──> Rol
 Ejemplos:
 
 ```text
-Usuario académico ──> Usuario académico (nivel 0, perfil BASE por defecto)
+Usuario académico ──> Usuario académico (nivel 0; BASE por defecto, ACADÉMICO con login)
 Especialista de TI ──> Especialista de TI (nivel 1, requiere registro + login)
 Administrador de Red ──> Administrador de Red (nivel 2, requiere registro + login)
 Superadministrador ──> Superadministrador (nivel 3, requiere registro + login)
@@ -30,11 +30,12 @@ Un mismo individuo podría tener más de un rol si la política de la plataforma
 **Todo dispositivo conectado recibe un perfil de acceso; el perfil determina las reglas de red que se le aplican.**
 
 ```text
-Dispositivo ── recibe ──> Perfil de acceso (BASE, LABORATORIO, TI, ADMIN_RED, …)
+Dispositivo ── recibe ──> Perfil de acceso (BASE, ACADÉMICO, LABORATORIO, TI, ADMIN_RED, …)
 ```
 
-- **Perfil BASE:** automático por presencia física (RP-13). Todo dispositivo que **no hace match con el registro de dispositivos privilegiados** lo recibe. Deny by default: DHCP, DNS, servicios académicos e Internet; el resto, denegado.
-- **Perfiles elevados (LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN):** requieren justificación. Los temporales de usuario académico exigen solicitud aprobada y TTL; los de operadores exigen dispositivo registrado + autenticación.
+- **Perfil BASE:** automático por presencia física (RP-13). Todo dispositivo que **no hace match con el registro de dispositivos privilegiados** lo recibe. Deny by default: DHCP, DNS y el portal — el mínimo del dispositivo; los servicios académicos e Internet llegan con el login.
+- **Perfil ACADÉMICO:** la comunidad universitaria lo obtiene al autenticarse en el portal contra el IdP institucional (sin MFA): servicios académicos e Internet.
+- **Perfiles elevados (LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN):** requieren justificación. Los temporales de usuario académico exigen solicitud aprobada y TTL; los de operadores exigen dispositivo registrado + autenticación con MFA.
 
 La relación entre dispositivo y perfil no es permanente: los perfiles temporales expiran y las sesiones privilegiadas se cierran (idle_timeout).
 
@@ -78,7 +79,7 @@ Permiso ── se aplica sobre ──> Recurso
 Ejemplos:
 
 ```text
-Consultar recurso ──> Servidor de notas
+Consultar recurso ──> Servidor académico
 Gestionar reglas de red ──> Reglas de flujo
 Gestionar dispositivos de red ──> Switch SDN
 Gestionar controlador SDN ──> Controlador SDN
@@ -100,7 +101,7 @@ Ejemplos:
 
 ```text
 Acceder a servicio ──> Servicio académico
-Ejecutar operación ──> Servicio de notas
+Ejecutar operación ──> Servidor de laboratorio
 Consultar alertas ──> Servicio de monitoreo
 Autenticarse ──> Portal cautivo
 Gestionar políticas de acceso ──> Servicio de administración SDN
@@ -129,7 +130,7 @@ Rol + Permiso + Recurso/Servicio
 Esto evita modelar simplemente:
 
 ```text
-Usuario académico ──> Servidor de notas
+Usuario académico ──> Servidor académico
 ```
 
 sin especificar qué puede hacer sobre dicho servidor.
@@ -145,9 +146,9 @@ Servicio ── utiliza/depende de ──> Recurso
 Ejemplo:
 
 ```text
-Servicio de notas
-    ├── depende de ──> Servidor de notas
-    ├── depende de ──> Base de datos académica
+Servicio académico
+    ├── depende de ──> Servidor académico
+    ├── depende de ──> Base de datos institucional
     └── depende de ──> Segmento de servidores
 ```
 
@@ -178,7 +179,7 @@ Decisión: PERMITIR / DENEGAR
 La cadena tiene dos entradas, según el caso:
 
 - **Sin autenticación:** Dispositivo → perfil BASE → políticas por defecto (deny by default).
-- **Con autenticación:** Dispositivo + identidad → rol → permisos → políticas contextuales, con vigencia explícita (TTL o sesión).
+- **Con autenticación:** Dispositivo + identidad → perfil ACADÉMICO (comunidad) o rol (operadores) → permisos → políticas contextuales, con vigencia explícita (TTL o sesión).
 
 ### 3.2 Evento → Alerta → Incidente
 

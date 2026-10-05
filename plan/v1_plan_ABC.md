@@ -98,9 +98,9 @@ El prototipo estará orientado a una red de campus académico representativa. No
 | Concepto | Definición |
 |---|---|
 | **Actor** | Entidad que interactúa con el sistema. Puede ser una persona, un dispositivo, un componente de infraestructura o una entidad maliciosa. |
-| **Identidad** | Quién es el actor, establecido mediante autenticación. Solo se exige cuando el actor pretende privilegios superiores al perfil base. |
+| **Identidad** | Quién es el actor, establecido mediante autenticación. Solo se exige para salir del perfil BASE: el login de la comunidad (perfil ACADÉMICO) o el de un operador (sesión de rol). |
 | **Rol** | Conjunto de permisos que el sistema concede a una identidad, definido por lo que puede hacer y sobre qué recursos. |
-| **Perfil de acceso** | Conjunto concreto de reglas de red asociadas a un dispositivo o sesión en un momento dado (BASE, LABORATORIO, TI, ADMIN_RED, …). Un perfil puede ser temporal y expirar. |
+| **Perfil de acceso** | Conjunto concreto de reglas de red asociadas a un dispositivo o sesión en un momento dado (BASE, ACADÉMICO, LABORATORIO, TI, ADMIN_RED, …). Un perfil puede ser temporal y expirar. |
 | **Nivel de privilegio** | Posición del rol dentro de la jerarquía de autoridad del sistema. |
 
 **Un atacante no es un rol.** Un rol es una etiqueta autorizada que el sistema concede; un atacante es una entidad cuyo comportamiento el sistema debe detectar y controlar. Por eso los actores se separan en dos categorías: actores con roles autorizados (sección 2) y agentes sin rol autorizado (sección 3).
@@ -117,7 +117,7 @@ El rol no define por sí solo el permiso efectivo: el acceso depende también de
 
 | Nivel | Rol | Propósito | Cómo obtiene privilegios | Acceso a recursos | Modifica la red |
 |---|---|---|---|---|---|
-| 0 | Usuario académico | Consumir servicios | Presencia física (perfil BASE); elevación temporal mediante solicitud aprobada | Públicos + académicos autorizados | No |
+| 0 | Usuario académico | Consumir servicios | Presencia física (perfil BASE); login con el IdP (perfil ACADÉMICO); elevación temporal mediante solicitud aprobada | Públicos + académicos autorizados | No |
 | 1 | Especialista de TI | Seguridad y monitoreo | Dispositivo registrado + autenticación | Recursos de monitoreo y seguridad | Limitado |
 | 2 | Administrador de Red | Administración operativa | Dispositivo registrado + autenticación | Recursos de red según autorización | Sí |
 | 3 | Superadministrador | Control de la plataforma | Dispositivo registrado + autenticación (acceso remoto contemplado) | Todos | Sí, sin restricciones operativas |
@@ -131,8 +131,8 @@ El rol no define por sí solo el permiso efectivo: el acceso depende también de
 **Puede**
 
 - Conectarse y obtener el perfil BASE sin autenticación digital (presencia física, RP-13).
-- Obtener configuración de red (DHCP), resolución de nombres (DNS) y acceso a Internet según política.
-- Acceder a los servicios académicos e institucionales permitidos.
+- Obtener configuración de red (DHCP), resolución de nombres (DNS) y acceso al portal.
+- Autenticarse en el portal contra el IdP institucional y obtener el perfil ACADÉMICO (servicios académicos e Internet).
 - Generar tráfico normal hacia servicios permitidos.
 - Solicitar una elevación temporal de privilegios (perfil LABORATORIO, INVESTIGACIÓN o similar) con justificación; la concesión depende del Administrador de Red y siempre expira.
 
@@ -151,7 +151,7 @@ El rol no define por sí solo el permiso efectivo: el acceso depende también de
 
 Este rol separa la seguridad de la infraestructura: el Administrador de Red administra la red; el Especialista de TI la vigila y responde ante incidentes.
 
-**Cómo accede:** su dispositivo figura en el registro de dispositivos privilegiados y, para ejercer el rol, debe autenticarse (portal cautivo / AAA). Sin login, su equipo tiene perfil BASE.
+**Cómo accede:** su dispositivo figura en el registro de dispositivos privilegiados y, para ejercer el rol, debe autenticarse (portal cautivo / AAA) con credenciales propias y código TOTP (MFA obligatorio). Sin login, su equipo tiene perfil BASE.
 
 **Puede**
 
@@ -175,7 +175,7 @@ Este rol separa la seguridad de la infraestructura: el Administrador de Red admi
 
 **Función:** configurar, mantener y administrar la red y sus políticas de acceso. Es el operador de la infraestructura.
 
-**Cómo accede:** dispositivo registrado + autenticación. Aplica el mismo principio: sin login, su PC es una PC con perfil BASE, aunque esté en la sala de administración.
+**Cómo accede:** dispositivo registrado + autenticación con credenciales propias y código TOTP (MFA obligatorio). Aplica el mismo principio: sin login, su PC es una PC con perfil BASE, aunque esté en la sala de administración.
 
 **Puede**
 
@@ -198,7 +198,7 @@ Este rol separa la seguridad de la infraestructura: el Administrador de Red admi
 
 **Función:** privilegios máximos sobre el plano de administración de la solución SDN, incluyendo la gestión de administradores, las políticas globales y los mecanismos de seguridad.
 
-**Cómo accede:** dispositivo registrado + autenticación; se contempla además el acceso remoto a la plataforma, sujeto a política.
+**Cómo accede:** dispositivo registrado + autenticación con MFA obligatorio; se contempla además el acceso remoto a la plataforma, sujeto a política.
 
 **Puede**
 
@@ -247,8 +247,8 @@ El sistema atiende dos poblaciones distintas, que conviene modelar por separado:
       PLANO DE DATOS        PLANO DE CONTROL
           │                     │
     Usuario académico        Operadores
-    (perfil BASE por        (registro + login)
-     presencia física)          │
+    (perfil BASE;           (registro + login)
+     ACADÉMICO con login)       │
           │                ┌────┴─────┐
           │                │          │
      elevación temporal   TI      Admin. Red
@@ -268,7 +268,7 @@ No posee identidad ni autorización válida dentro de la red. Origina actividad 
 
 ### 3.2 Atacante interno
 
-Dispone de acceso legítimo a la red —presencia física o un dispositivo con perfil BASE— pero genera actividad maliciosa. Es el caso que obliga a separar acceso de confianza: un actor con acceso legítimo puede convertirse en origen de tráfico malicioso en cualquier momento.
+Dispone de acceso legítimo a la red —presencia física; perfil BASE y, tras el login, ACADÉMICO— pero genera actividad maliciosa. Es el caso que obliga a separar acceso de confianza: un actor con acceso legítimo puede convertirse en origen de tráfico malicioso en cualquier momento.
 
 ### 3.3 Nodo comprometido
 
@@ -286,14 +286,14 @@ No son actores autorizados ni atacantes: son agentes del sistema que ejecutan de
 | Detection Engine | Determina si existe comportamiento anómalo. |
 | Incident Manager | Registra y gestiona los incidentes de seguridad. |
 | Policy Engine | Decide qué respuesta corresponde a cada incidente o solicitud. |
-| AAA / RADIUS | Autentica y autoriza a los operadores privilegiados. |
+| AAA / RADIUS | Autentica y autoriza a las poblaciones: la comunidad contra el IdP; los operadores contra su repositorio propio. |
 | Servicios y servidores | Origen y destino de los flujos protegidos; también generan registros. |
 
 ### 3.5 Resumen de entidades
 
 | Entidad | Naturaleza | Relación con el sistema |
 |---|---|---|
-| Usuario académico | Actor con rol | Rol autorizado (nivel 0); perfil BASE por defecto |
+| Usuario académico | Actor con rol | Rol autorizado (nivel 0); perfil BASE por defecto, ACADÉMICO con login |
 | Especialista de TI | Actor con rol | Rol autorizado (nivel 1); requiere registro + login |
 | Administrador de Red | Actor con rol | Rol autorizado (nivel 2); requiere registro + login |
 | Superadministrador | Actor con rol | Rol autorizado (nivel 3); requiere registro + login |
@@ -320,7 +320,7 @@ Combinaciones que el modelo debe admitir:
 
 | Actor | Recurso | Condición | Resultado |
 |---|---|---|---|
-| Usuario académico | Servidor académico | Perfil BASE, tráfico normal | Permitir |
+| Usuario académico | Servidor académico | Perfil ACADÉMICO, tráfico normal | Permitir |
 | Usuario académico | Red de gestión | Perfil BASE, sin elevación | Denegar |
 | Usuario académico | Servidor de laboratorio | Elevación temporal aprobada, dentro del TTL | Permitir |
 | Usuario académico | Servidor de laboratorio | Elevación expirada | Denegar |
@@ -336,7 +336,6 @@ Esto conecta R1 y R2 con R3–R5: la autorización habilita el acceso, pero no s
 
 ## 5. Cuestiones abiertas
 
-- **MFA.** Si el login privilegiado (portal cautivo / acceso remoto) exige segundo factor y con qué mecanismo.
 - **Delegación del registro de Especialistas de TI.** Si el Administrador de Red puede registrar Especialistas de TI o esa función queda solo en el Superadministrador.
 - **Matriz Actor → Recurso.** Se deriva de este documento y de [`02_recursos_y_servicios.md`](02_recursos_y_servicios.md); corresponde a `03_permisos.md`.
 
@@ -358,7 +357,7 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 
 | Clase de destino | Definición |
 |---|---|
-| **Recursos de usuario** | Servicios que consume el usuario académico con su perfil BASE: conectividad, servicios académicos e Internet. |
+| **Recursos de usuario** | Servicios que consume el usuario académico con su perfil ACADÉMICO tras autenticarse: servicios académicos e Internet. Ninguno es alcanzable en BASE: allí solo existe la habilitación mínima del dispositivo (DHCP, DNS y portal). |
 | **Recursos restringidos** | Servicios que exigen una elevación aprobada: laboratorios, repositorios e investigación. |
 | **Infraestructura** | Los componentes que sostienen la propia solución: plano de control, gestión de identidad y observabilidad. El usuario académico tiene el acceso denegado por defecto. |
 
@@ -377,12 +376,11 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Conectividad base (intranet general) | Servicio | Conectividad inicial del perfil BASE: DHCP, ARP y segmento de acceso. | Bajo |
+| Conectividad base del dispositivo | Servicio | Habilitación inicial del perfil BASE, como lista cerrada: DHCP, ARP y el segmento de acceso. No da acceso a los servicios de la intranet — eso lo decide la autenticación. | Bajo |
 | Acceso a Internet | Servicio | Salida a redes externas, si la arquitectura lo contempla. | Bajo |
-| Resolución de nombres (DNS) | Servicio | Servicio de nombres para el tráfico legítimo. | Bajo |
-| Servicios públicos e institucionales | Servicio | Servicios abiertos a toda la comunidad. | Medio |
-| Servicios y servidores académicos | Servicio | Plataformas de apoyo a la docencia y al estudio (LMS y equivalentes). | Medio |
-| Servidor de notas y sistemas de calificaciones | Servicio | Información académica sensible de los estudiantes. | Alto |
+| Resolución de nombres (DNS) | Servicio | Servicio de nombres; forma parte de la lista cerrada del perfil BASE. | Bajo |
+| Servicios públicos e institucionales | Servicio | Servicios abiertos a toda la comunidad autenticada. | Medio |
+| Servicios y servidores académicos | Servicio | Plataformas de apoyo a la docencia y al estudio (LMS y equivalentes) y otros recursos de la universidad, como la nube privada. | Medio |
 | Servicios administrativos | Servicio | Sistemas de gestión institucional. | Alto |
 | Base de datos institucional | Recurso | Almacenamiento de la información de los servicios anteriores. | Crítico |
 
@@ -390,7 +388,6 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Servidores de laboratorio | Servicio | Entornos de prácticas de los pabellones técnicos; acceso mediante elevación temporal. | Alto |
 | Repositorios y recursos de investigación | Servicio | Repositorios especiales y recursos de los grupos de investigación. | Alto |
 | Servicios técnicos internos | Servicio | Servicios internos no disponibles para el perfil BASE. | Alto |
 
@@ -410,7 +407,7 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
 | Monitor | Recurso | Recopila counters y estadísticas del plano de datos. | Alto |
-| Detection Engine | Recurso | Determina si existe comportamiento anómalo (R3, R4). | Crítico |
+| Detection Engine | Recurso | Determina si existe comportamiento anómalo (R3, R4): la función de detección interna (IDS); la mitigación (función IPS) la ejecutan Policy Engine y controlador. El IDS/IPS perimetral de R5.2 es evaluación tecnológica. | Crítico |
 | Incident Manager | Recurso | Registra y gestiona los incidentes de seguridad. | Alto |
 | Policy Engine | Recurso | Decide la respuesta ante incidentes y solicitudes de elevación. | Crítico |
 | Políticas de seguridad | Recurso | Reglas que definen el comportamiento permitido de la red. | Crítico |
@@ -423,11 +420,11 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Perfiles de acceso | Recurso | Definición de los perfiles (BASE, LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN) y sus reglas de red asociadas. | Crítico |
+| Perfiles de acceso | Recurso | Definición de los perfiles (BASE, ACADÉMICO, LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN) y sus reglas de red asociadas. | Crítico |
 | Registro de dispositivos privilegiados | Recurso | Base de datos de los dispositivos de operadores (MAC, tipo, titular, rol, vigencia, responsable). Solo los dispositivos privilegiados se registran; lo que no hace match recibe perfil BASE. Sirve además de auditoría del alta de dispositivos. | Crítico |
-| AAA / RADIUS | Recurso | Autenticación, autorización y accounting de los operadores privilegiados. No cataloga dispositivos: autentica personas. | Crítico |
-| Portal cautivo | Servicio | Punto de autenticación de los operadores en la red. | Alto |
-| Sistema de identidad institucional (IdP/LDAP) | Recurso externo | Backend de identidad consultado por AAA; no lo administra el proyecto. | Crítico |
+| AAA / RADIUS | Recurso | Autenticación, autorización y accounting de las poblaciones: la comunidad (contra el IdP) y los operadores (contra el repositorio propio). No cataloga dispositivos: autentica personas. | Crítico |
+| Portal cautivo | Servicio | Punto de autenticación de la red: la comunidad obtiene el perfil ACADÉMICO; los operadores, su sesión de rol. | Alto |
+| Sistema de identidad institucional (IdP/LDAP) | Recurso externo | Backend de identidad consultado por AAA para verificar a la comunidad universitaria; no lo administra el proyecto. | Crítico |
 | Roles y permisos | Recurso | Definición de autorizaciones del sistema. | Crítico |
 | Sesiones y estado de acceso | Recurso | Sesiones activas, perfiles vigentes y su TTL. | Alto |
 
@@ -458,8 +455,6 @@ Los siguientes recursos concentran el mayor impacto y son los candidatos natural
 | Sistema de identidad institucional | Crítico |
 | Perfiles de acceso | Crítico |
 | Roles y permisos | Crítico |
-| Servidor de notas | Alto |
-| Servidores de laboratorio | Alto |
 | Logs de seguridad | Alto |
 | Segmentos de red (VLAN) | Alto |
 
@@ -578,7 +573,7 @@ Actor ── desempeña ──> Rol
 Ejemplos:
 
 ```text
-Usuario académico ──> Usuario académico (nivel 0, perfil BASE por defecto)
+Usuario académico ──> Usuario académico (nivel 0; BASE por defecto, ACADÉMICO con login)
 Especialista de TI ──> Especialista de TI (nivel 1, requiere registro + login)
 Administrador de Red ──> Administrador de Red (nivel 2, requiere registro + login)
 Superadministrador ──> Superadministrador (nivel 3, requiere registro + login)
@@ -591,11 +586,12 @@ Un mismo individuo podría tener más de un rol si la política de la plataforma
 **Todo dispositivo conectado recibe un perfil de acceso; el perfil determina las reglas de red que se le aplican.**
 
 ```text
-Dispositivo ── recibe ──> Perfil de acceso (BASE, LABORATORIO, TI, ADMIN_RED, …)
+Dispositivo ── recibe ──> Perfil de acceso (BASE, ACADÉMICO, LABORATORIO, TI, ADMIN_RED, …)
 ```
 
-- **Perfil BASE:** automático por presencia física (RP-13). Todo dispositivo que **no hace match con el registro de dispositivos privilegiados** lo recibe. Deny by default: DHCP, DNS, servicios académicos e Internet; el resto, denegado.
-- **Perfiles elevados (LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN):** requieren justificación. Los temporales de usuario académico exigen solicitud aprobada y TTL; los de operadores exigen dispositivo registrado + autenticación.
+- **Perfil BASE:** automático por presencia física (RP-13). Todo dispositivo que **no hace match con el registro de dispositivos privilegiados** lo recibe. Deny by default: DHCP, DNS y el portal — el mínimo del dispositivo; los servicios académicos e Internet llegan con el login.
+- **Perfil ACADÉMICO:** la comunidad universitaria lo obtiene al autenticarse en el portal contra el IdP institucional (sin MFA): servicios académicos e Internet.
+- **Perfiles elevados (LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN):** requieren justificación. Los temporales de usuario académico exigen solicitud aprobada y TTL; los de operadores exigen dispositivo registrado + autenticación con MFA.
 
 La relación entre dispositivo y perfil no es permanente: los perfiles temporales expiran y las sesiones privilegiadas se cierran (idle_timeout).
 
@@ -639,7 +635,7 @@ Permiso ── se aplica sobre ──> Recurso
 Ejemplos:
 
 ```text
-Consultar recurso ──> Servidor de notas
+Consultar recurso ──> Servidor académico
 Gestionar reglas de red ──> Reglas de flujo
 Gestionar dispositivos de red ──> Switch SDN
 Gestionar controlador SDN ──> Controlador SDN
@@ -661,7 +657,7 @@ Ejemplos:
 
 ```text
 Acceder a servicio ──> Servicio académico
-Ejecutar operación ──> Servicio de notas
+Ejecutar operación ──> Servidor de laboratorio
 Consultar alertas ──> Servicio de monitoreo
 Autenticarse ──> Portal cautivo
 Gestionar políticas de acceso ──> Servicio de administración SDN
@@ -690,7 +686,7 @@ Rol + Permiso + Recurso/Servicio
 Esto evita modelar simplemente:
 
 ```text
-Usuario académico ──> Servidor de notas
+Usuario académico ──> Servidor académico
 ```
 
 sin especificar qué puede hacer sobre dicho servidor.
@@ -706,9 +702,9 @@ Servicio ── utiliza/depende de ──> Recurso
 Ejemplo:
 
 ```text
-Servicio de notas
-    ├── depende de ──> Servidor de notas
-    ├── depende de ──> Base de datos académica
+Servicio académico
+    ├── depende de ──> Servidor académico
+    ├── depende de ──> Base de datos institucional
     └── depende de ──> Segmento de servidores
 ```
 
@@ -739,7 +735,7 @@ Decisión: PERMITIR / DENEGAR
 La cadena tiene dos entradas, según el caso:
 
 - **Sin autenticación:** Dispositivo → perfil BASE → políticas por defecto (deny by default).
-- **Con autenticación:** Dispositivo + identidad → rol → permisos → políticas contextuales, con vigencia explícita (TTL o sesión).
+- **Con autenticación:** Dispositivo + identidad → perfil ACADÉMICO (comunidad) o rol (operadores) → permisos → políticas contextuales, con vigencia explícita (TTL o sesión).
 
 ### 3.2 Evento → Alerta → Incidente
 
@@ -926,7 +922,7 @@ Por tanto, **tener un rol no significa tener acceso absoluto, y estar conectado 
 # 5. Casos de uso mínimos
 
 ## CU-01 — Acceso autorizado
-Un dispositivo se conecta y recibe el perfil BASE con privilegios mínimos; un operador con credenciales válidas se autentica y obtiene los permisos correspondientes a su rol, con vigencia acotada.
+Un dispositivo se conecta y recibe el perfil BASE (el mínimo); un miembro de la comunidad se autentica en el portal y obtiene el perfil ACADÉMICO; un operador, con credenciales y segundo factor, obtiene los permisos correspondientes a su rol, con vigencia acotada.
 
 ## CU-02 — Acceso no autorizado
 Un dispositivo intenta alcanzar recursos por encima de su perfil y el sistema rechaza la solicitud y registra el evento.
@@ -961,7 +957,7 @@ Después de un incidente, el sistema elimina o modifica las reglas temporales y 
 
 ## 11.1 Operación normal
 
-**Dispositivo → perfil BASE (presencia física) → política por defecto → recurso → monitoreo → registro. Con elevación: autenticación → identidad/rol → política contextual → recurso.**
+**Dispositivo → perfil BASE (presencia física) → política por defecto → recurso → monitoreo → registro. Con login: autenticación → perfil ACADÉMICO (comunidad) o identidad/rol (operadores) → política contextual → recurso.**
 
 ## 11.2 Acceso no autorizado
 
@@ -1103,13 +1099,13 @@ Las acciones automáticas de mitigación deberán poder identificarse posteriorm
 
 ## R1 — Control de acceso según rol
 
-El control de acceso parte del **perfil BASE por defecto**: todo dispositivo conectado recibe privilegios mínimos por presencia física (RP-13), sin autenticación digital. La identidad solo se exige cuando alguien pretende privilegios superiores; esos privilegios se traducen en reglas de red concretas y reversibles.
+El control de acceso parte del **perfil BASE por defecto**: todo dispositivo conectado recibe privilegios mínimos por presencia física (RP-13), sin autenticación digital. La identidad solo se exige para salir de ese mínimo —el login de la comunidad (perfil ACADÉMICO) o el de un operador (sesión de rol)—; los privilegios resultantes se traducen en reglas de red concretas y reversibles.
 
 ### R1.1 Identificación
 El sistema deberá identificar el dispositivo que solicita acceso y su contexto de conexión: MAC, puerto, switch y ubicación. La MAC es un atributo del dispositivo, no una credencial.
 
 ### R1.2 Autenticación
-El sistema deberá exigir autenticación únicamente para elevar privilegios por encima del perfil base, mediante el mecanismo seleccionado (portal cautivo / AAA). El usuario académico no se autentica a nivel de red.
+El sistema deberá exigir autenticación para salir del perfil BASE, mediante el portal cautivo: el usuario académico se autentica contra el IdP institucional (perfil ACADÉMICO); los operadores, con credenciales propias y segundo factor (sesión de rol).
 
 ### R1.3 Asignación de perfil
 El sistema deberá asociar cada dispositivo con el perfil de acceso que le corresponde: BASE por defecto; perfiles elevados solo tras autenticación o elevación aprobada.
@@ -1427,7 +1423,7 @@ Una restricción es una condición impuesta al proyecto que la arquitectura no p
 
 **Restricción:** el acceso físico controlado al campus se considera condición de confianza inicial suficiente para la obtención del perfil mínimo de red (perfil BASE), sin autenticación digital.
 
-**Implicación:** la seguridad física del campus forma parte del perímetro de seguridad. La autenticación digital se reserva para la elevación de privilegios (operadores y elevaciones temporales); la presencia física jamás justifica privilegios elevados.
+**Implicación:** la seguridad física del campus forma parte del perímetro de seguridad. La autenticación digital se reserva para salir del perfil mínimo (el login de la comunidad o de un operador) y para las elevaciones temporales; la presencia física jamás justifica privilegios elevados.
 
 ### RP-09 — Coherencia tecnológica
 
@@ -1550,7 +1546,7 @@ Los drivers se ordenan aplicando cuatro criterios, en este orden:
 | **D-05** Seguridad perimetral | R5 no está asignado: se diseña la frontera y se demuestra el bloqueo si el entorno lo permite. |
 | **D-10** Latencia de las decisiones | Se mide sobre los tres requerimientos implementados; se optimiza si los resultados lo exigen. |
 | **D-11** Escalabilidad | Se evalúa con carga creciente; el resultado alimenta el análisis de riesgo del controlador. |
-| **D-12** Modularidad | Se materializa en la descomposición funcional y se evalúa en las fases D y E. |
+| **D-12** Modularidad | Se materializa en la descomposición funcional (Fase D) y se comprueba en la validación del HLD (Fase E). |
 | **D-13** Administración y observabilidad | Consola mínima para consultar políticas, eventos y registros. |
 
 ### P2 — Diferencial
@@ -1604,7 +1600,7 @@ D-10 y D-14 no activan decisiones de esa lista: fijan criterios de diseño (pres
 - **Alcance de R3 y R5.** Definir qué se considera suficiente: ¿diseño documentado, o diseño más un escenario demostrable en el prototipo?
 - **Umbrales y línea base.** Dependen de mediciones previas en el entorno del prototipo, que aún no existe.
 - **Presupuesto de latencia.** RNF-04 no fija un valor; hay que establecer el límite que se considerará aceptable.
-- **Capacidad de reglas.** Cuántas reglas simultáneas admite el dispositivo elegido es asunto de la Fase C y de la Fase G.
+- **Capacidad de reglas.** Cuántas reglas simultáneas admite el dispositivo elegido es asunto de la Fase C y de la Fase F.
 
 ----------------------------------------------------------------------------
 
@@ -1612,9 +1608,6 @@ D-10 y D-14 no activan decisiones de esa lista: fijan criterios de diseño (pres
 
 En esta primera versión no se consideran definitivas las siguientes decisiones:
 
-- mecanismo de autenticación;
-- RBAC, ABAC o combinación;
-- gestión de identidad;
 - controlador SDN;
 - protocolo southbound;
 - diseño de northbound API;
@@ -1717,11 +1710,11 @@ De ese criterio resultan cuatro categorías:
 | Cadena de detección (Monitor, Detection Engine, Incident Manager, Policy Engine) | Parte del sistema | La observación y la decisión de respuesta son propias del proyecto: se despliegan en el prototipo y se conectan al controlador. |
 | Dispositivos SDN administrados | Parte del sistema | Ejecutan las reglas que el plano de control instala. |
 | Consola de administración | Parte del sistema | Interfaz de operación de la plataforma. |
-| Portal cautivo | Parte del sistema | Punto de autenticación de los operadores privilegiados. |
-| AAA / RADIUS | Parte del sistema | El servidor AAA se despliega en el prototipo; autentica y autoriza a los operadores y registra sus acciones (accounting). |
+| Portal cautivo | Parte del sistema | Punto de autenticación de la red: la comunidad (perfil ACADÉMICO) y los operadores. |
+| AAA / RADIUS | Parte del sistema | El servidor AAA se despliega en el prototipo; autentica y autoriza a las poblaciones (comunidad contra el IdP; operadores contra el repositorio propio) y registra sus acciones (accounting). |
 | Registro de dispositivos privilegiados | Parte del sistema | Base de datos propia con la información de los dispositivos de operadores; sostiene la regla del "no match → perfil BASE" y la auditoría de altas. |
 | Registros y almacenamiento de logs | Parte del sistema | Sostienen la trazabilidad exigida por R1.9, R2.9 y RNF-09. |
-| Sistema de identidad institucional (IdP/LDAP) | Sistema externo | El AAA lo consulta para verificar credenciales y atributos de los operadores; el proyecto no lo administra. |
+| Sistema de identidad institucional (IdP/LDAP) | Sistema externo | El AAA lo consulta para verificar las credenciales de la comunidad universitaria; el proyecto no lo administra. |
 | Firewall perimetral | Sistema externo o parte del sistema | **Por definir**: si el proyecto lo despliega, es parte del sistema; si ya existe, es un punto de integración (R5 no está asignado a este grupo). |
 | Servidores y servicios institucionales | Activo protegido | El sistema no los administra: los protege. |
 | Dispositivos de usuario final | Activo protegido | Están fuera del sistema, pero son el origen del tráfico que se controla y el punto donde puede aplicarse un aislamiento. Los académicos no se registran; los de operadores figuran en el registro de dispositivos privilegiados. |
@@ -1732,7 +1725,7 @@ De ese criterio resultan cuatro categorías:
 
 ## 4. Consecuencias de esta delimitación
 
-- **El perfil base no depende de la identidad.** La autenticación es un sistema externo (IdP institucional) que solo se consulta al elevar privilegios; la concesión del perfil BASE se resuelve íntegramente dentro del sistema, por presencia física y por la regla del registro (no match → BASE).
+- **El perfil BASE no depende de la identidad.** Su concesión se resuelve íntegramente dentro del sistema, por presencia física y por la regla del registro (no match → BASE). El IdP institucional solo se consulta cuando la comunidad se autentica; los operadores se verifican contra el repositorio propio del sistema.
 - **R1 se satisface en el puerto de acceso.** La frontera entre *quién es* y *qué puede hacer* se traza en el switch de ingreso: el perfil por defecto niega todo lo que no esté explícitamente permitido, y las elevaciones instalan reglas adicionales, temporales y auditables.
 - **La detección es propia.** La cadena Monitor → Detection → Incident → Policy es parte del sistema y su salida se traduce a reglas SDN; no se consume un IDS/IPS institucional. Si el proyecto decide integrar un IPS externo, sería un punto de integración adicional, no un reemplazo de la cadena.
 - **R5 se satisface en el borde.** Si el firewall es externo, la solución debe integrarse con él, no sustituirlo.
@@ -1757,7 +1750,7 @@ De ese criterio resultan cuatro categorías:
 
 ## 1. Propósito y nivel
 
-El diagrama representa el sistema como una caja negra y muestra **quién y qué intercambia información con él**. No describe componentes internos: la descomposición funcional y la arquitectura lógica corresponden a las fases D y E.
+El diagrama representa el sistema como una caja negra y muestra **quién y qué intercambia información con él**. No describe componentes internos: la descomposición funcional y la arquitectura lógica corresponden a la Fase D.
 
 Responde una sola pregunta: ¿dónde empieza y termina la solución? La respuesta está en [`01_limite_del_sistema.md`](01_limite_del_sistema.md).
 
@@ -1769,7 +1762,7 @@ Responde una sola pregunta: ¿dónde empieza y termina la solución? La respuest
         ┌───────────────────────────┐        ┌────────────────────────────┐
         │  USUARIOS                 │        │  SISTEMAS EXTERNOS         │
         │  Usuario académico        │        │  Internet / red externa    │
-        │  (perfil BASE)            │        │  Identidad (IdP/LDAP)      │
+        │  (BASE → ACADÉMICO)       │        │  Identidad (IdP/LDAP)      │
         ├───────────────────────────┤        │  Inteligencia de amenazas  │
         │  OPERADORES               │        └──────────────┬─────────────┘
         │  Especialista de TI       │                       │
@@ -1812,6 +1805,7 @@ Responde una sola pregunta: ¿dónde empieza y termina la solución? La respuest
 | Origen | Destino | Qué fluye | Propósito |
 |---|---|---|---|
 | Usuario académico | Plataforma | Solicitud de configuración (DHCP) y de uso de servicios | Conectividad base y autorización por defecto (R1, R2) |
+| Usuario académico | Plataforma | Login en el portal (contra el IdP institucional) | Obtener el perfil ACADÉMICO: servicios académicos e Internet (R1) |
 | Plataforma | Usuario académico | Perfil BASE y conectividad al servicio autorizado | Aplicar la política vigente |
 | Usuario académico | Plataforma | Solicitud de elevación temporal | Elevación aprobada por el Administrador de Red, con TTL |
 | Especialista de TI | Plataforma | Login (portal cautivo); consultas de tráfico y de eventos; acciones de mitigación autorizadas | Supervisión y respuesta ante incidentes (R3, R4) |
@@ -1820,7 +1814,7 @@ Responde una sola pregunta: ¿dónde empieza y termina la solución? La respuest
 | Plataforma | Operadores | Alertas, eventos, estado de red y registros | Operación y auditoría |
 | Internet | Plataforma | Tráfico entrante | Servicio legítimo e inspección perimetral (R5) |
 | Plataforma | Internet | Tráfico saliente autorizado | Conectividad externa |
-| Identidad institucional (IdP/LDAP) | Plataforma (AAA) | Verificación de credenciales y atributos de operadores | Autenticación de privilegiados (R1) |
+| Identidad institucional (IdP/LDAP) | Plataforma (AAA) | Verificación de credenciales y atributos de la comunidad universitaria | Autenticación de la comunidad (R1) |
 | Inteligencia de amenazas | Plataforma | Indicadores de IP, URL u otros | Determinar qué es malicioso (R5.6) |
 | Plataforma | Activos protegidos | Tráfico permitido; bloqueo del no autorizado | Protección de recursos (R2) |
 | Activos protegidos | Plataforma | Registros y eventos de servicio | Detección y trazabilidad |
@@ -1831,16 +1825,15 @@ Responde una sola pregunta: ¿dónde empieza y termina la solución? La respuest
 
 ## 4. Qué no muestra el diagrama
 
-- Los componentes internos de la plataforma y sus interfaces (fases D y E).
+- Los componentes internos de la plataforma y sus interfaces (Fase D).
 - La topología física y la segmentación (Fase H; ver [`04_alcance_de_la_infraestructura.md`](04_alcance_de_la_infraestructura.md)).
-- Las decisiones tecnológicas: controlador, IDS/IPS, broker o persistencia (Fase G).
+- Las decisiones tecnológicas: controlador, IDS/IPS, broker o persistencia (Fase F).
 
 ---
 
 ## 5. Cuestiones abiertas
 
 - Si la inteligencia de amenazas proviene de un servicio externo, de listas propias o de ambos (R5.6).
-- Si la verificación de identidad de los operadores es síncrona con cada elevación o se apoya en sesiones ya establecidas (idle_timeout).
 
 # Sistemas externos
 
@@ -1859,7 +1852,7 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 | ID | Elemento externo | Categoría | Criticidad si falla |
 |---|---|---|---|
 | SE-01 | Internet y redes externas | Sistema externo y fuente de amenaza | Alta: sin él no hay servicio externo ni tráfico que inspeccionar |
-| SE-02 | Sistema de identidad institucional (IdP/LDAP) | Sistema externo | Alta: sin él no hay autenticación de operadores privilegiados (R1) |
+| SE-02 | Sistema de identidad institucional (IdP/LDAP) | Sistema externo | Alta: sin él no hay autenticación de la comunidad universitaria (R1) |
 | SE-03 | Fuente de inteligencia de amenazas | Sistema externo | Media: degrada R5.6, no detiene la operación |
 | SE-04 | Servicio de nombres (DNS) | Sistema externo | Alta: su manipulación es un vector de ataque (R3.3) |
 | SE-05 | Sincronización de tiempo (NTP) | Sistema externo | Media: afecta la correlación de eventos y la auditoría |
@@ -1879,10 +1872,10 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 
 ### SE-02 — Sistema de identidad institucional (IdP/LDAP)
 
-- **Qué se intercambia:** verificación de credenciales y atributos de los **operadores privilegiados** (Especialista de TI, Administrador de Red, Superadministrador) cuando solicitan elevar privilegios.
+- **Qué se intercambia:** verificación de credenciales y atributos de la **comunidad universitaria** (alumnos y profesores) cuando inician sesión en el portal.
 - **Interfaz esperada:** consulta desde el servidor AAA del sistema (portal cautivo).
-- **Qué no es:** no participa en la conexión del usuario académico. El perfil BASE se concede por presencia física (RP-13) sin consultar ningún sistema de identidad.
-- **Condición de amenaza:** no ataca, pero es objetivo: si se compromete, se compromete la autenticación de los privilegiados que dependen de él.
+- **Qué no es:** no participa en la conexión ni en el perfil BASE — se concede por presencia física (RP-13) sin consultar ningún sistema de identidad. Tampoco autentica a los operadores: su reino es el repositorio propio de la plataforma.
+- **Condición de amenaza:** no ataca, pero es objetivo: si se compromete, se compromete la autenticación de la comunidad que depende de él.
 - **En el prototipo:** se simula o se integra, según lo que exista en el entorno.
 - **Nota:** determina el límite del sistema en la autenticación de R1 (ver [`01_limite_del_sistema.md`](01_limite_del_sistema.md)).
 
@@ -1925,7 +1918,7 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 
 | Dependencia | Alternativa si no existe en el entorno |
 |---|---|
-| Identidad institucional (IdP/LDAP) | Directorio simulado con los operadores privilegiados de prueba |
+| Identidad institucional (IdP/LDAP) | Directorio simulado con cuentas de la comunidad de prueba |
 | Inteligencia de amenazas | Conjunto de indicadores propio, definido por el proyecto |
 | Internet | Segmento externo controlado dentro del laboratorio |
 | Servicios institucionales | Servidores equivalentes desplegados en el prototipo |
@@ -1960,14 +1953,14 @@ RP-05 exige un entorno controlado y representativo: la segunda debe representar 
 
 | Elemento | Descripción | Relación con los requerimientos |
 |---|---|---|
-| Segmento de usuarios finales | Usuarios académicos conectados con perfil BASE | Origen de R1 y del tráfico observado en R3 y R4 |
+| Segmento de usuarios finales | Usuarios académicos conectados (BASE; ACADÉMICO tras el login) | Origen de R1 y del tráfico observado en R3 y R4 |
 | Segmento de servidores | Servicios académicos y administrativos | Objeto de R2 |
 | Segmento de administración | Consola, controlador y planos de gestión | Protegido según RA-09 |
 | Segmento perimetral | Borde con redes externas | Punto de aplicación de R5 |
-| Servicios institucionales | Académicos, notas, administrativos y base de datos | Activos protegidos (ver [`03_sistemas_externos.md`](03_sistemas_externos.md)) |
+| Servicios institucionales | Académicos, administrativos y base de datos | Activos protegidos (ver [`03_sistemas_externos.md`](03_sistemas_externos.md)) |
 | Dispositivos de usuario final | Equipos de usuarios académicos y de operadores | Origen del tráfico; candidatos a aislamiento |
 
-La segmentación anterior es una propuesta de referencia. Su definición definitiva pertenece a la arquitectura lógica (fases D y E) y a la topología (Fase H).
+La segmentación anterior es una propuesta de referencia. Su definición definitiva pertenece a la arquitectura lógica (Fase D) y a la topología (Fase H).
 
 ---
 
@@ -1975,12 +1968,12 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 
 | Elemento | Se despliega o se simula | Nota |
 |---|---|---|
-| Controlador SDN | Se despliega | Decisión tecnológica pendiente (Fase G) |
+| Controlador SDN | Se despliega | Decisión tecnológica pendiente (Fase F) |
 | Switches SDN | Se despliegan (virtuales o físicos) | Hardware del laboratorio: **Pica8 con PicOS** (RP-11); deben soportar la instalación dinámica de reglas y las primitivas OpenFlow que el diseño exija (meters, groups, counters) |
 | Canal de control | Se configura | Out-of-band (red de gestión); la variante in-band es un objetivo aspiracional (ver flujo §2.6) |
 | Hosts de usuario | Se simulan | Representan al usuario académico; generan tráfico legítimo; no se registran en ningún catálogo |
 | Servidores de servicio | Se simulan | Representan los activos protegidos |
-| Portal cautivo y AAA/RADIUS | Se despliegan | Autenticación de operadores; el backend de identidad (IdP) se simula o se integra (SE-02) |
+| Portal cautivo y AAA/RADIUS | Se despliegan | Autenticación de la comunidad y de los operadores; el backend de identidad (IdP) se simula o se integra (SE-02) |
 | Registro de dispositivos privilegiados | Se despliega | Base de datos propia: dispositivos de operadores y su auditoría |
 | Cadena de detección (Monitor, Detection, Incident, Policy) | Se despliega | Lee counters del plano de datos y alimenta al controlador |
 | Segmentación | Se configura | Necesaria para R2 y para separar poblaciones |

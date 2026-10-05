@@ -2,9 +2,6 @@
 
 En esta primera versión no se consideran definitivas las siguientes decisiones:
 
-- mecanismo de autenticación;
-- RBAC, ABAC o combinación;
-- gestión de identidad;
 - controlador SDN;
 - protocolo southbound;
 - diseño de northbound API;

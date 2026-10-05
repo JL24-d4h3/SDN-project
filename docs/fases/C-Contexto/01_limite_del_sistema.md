@@ -38,11 +38,11 @@ De ese criterio resultan cuatro categorías:
 | Cadena de detección (Monitor, Detection Engine, Incident Manager, Policy Engine) | Parte del sistema | La observación y la decisión de respuesta son propias del proyecto: se despliegan en el prototipo y se conectan al controlador. |
 | Dispositivos SDN administrados | Parte del sistema | Ejecutan las reglas que el plano de control instala. |
 | Consola de administración | Parte del sistema | Interfaz de operación de la plataforma. |
-| Portal cautivo | Parte del sistema | Punto de autenticación de los operadores privilegiados. |
-| AAA / RADIUS | Parte del sistema | El servidor AAA se despliega en el prototipo; autentica y autoriza a los operadores y registra sus acciones (accounting). |
+| Portal cautivo | Parte del sistema | Punto de autenticación de la red: la comunidad (perfil ACADÉMICO) y los operadores. |
+| AAA / RADIUS | Parte del sistema | El servidor AAA se despliega en el prototipo; autentica y autoriza a las poblaciones (comunidad contra el IdP; operadores contra el repositorio propio) y registra sus acciones (accounting). |
 | Registro de dispositivos privilegiados | Parte del sistema | Base de datos propia con la información de los dispositivos de operadores; sostiene la regla del "no match → perfil BASE" y la auditoría de altas. |
 | Registros y almacenamiento de logs | Parte del sistema | Sostienen la trazabilidad exigida por R1.9, R2.9 y RNF-09. |
-| Sistema de identidad institucional (IdP/LDAP) | Sistema externo | El AAA lo consulta para verificar credenciales y atributos de los operadores; el proyecto no lo administra. |
+| Sistema de identidad institucional (IdP/LDAP) | Sistema externo | El AAA lo consulta para verificar las credenciales de la comunidad universitaria; el proyecto no lo administra. |
 | Firewall perimetral | Sistema externo o parte del sistema | **Por definir**: si el proyecto lo despliega, es parte del sistema; si ya existe, es un punto de integración (R5 no está asignado a este grupo). |
 | Servidores y servicios institucionales | Activo protegido | El sistema no los administra: los protege. |
 | Dispositivos de usuario final | Activo protegido | Están fuera del sistema, pero son el origen del tráfico que se controla y el punto donde puede aplicarse un aislamiento. Los académicos no se registran; los de operadores figuran en el registro de dispositivos privilegiados. |
@@ -53,7 +53,7 @@ De ese criterio resultan cuatro categorías:
 
 ## 4. Consecuencias de esta delimitación
 
-- **El perfil base no depende de la identidad.** La autenticación es un sistema externo (IdP institucional) que solo se consulta al elevar privilegios; la concesión del perfil BASE se resuelve íntegramente dentro del sistema, por presencia física y por la regla del registro (no match → BASE).
+- **El perfil BASE no depende de la identidad.** Su concesión se resuelve íntegramente dentro del sistema, por presencia física y por la regla del registro (no match → BASE). El IdP institucional solo se consulta cuando la comunidad se autentica; los operadores se verifican contra el repositorio propio del sistema.
 - **R1 se satisface en el puerto de acceso.** La frontera entre *quién es* y *qué puede hacer* se traza en el switch de ingreso: el perfil por defecto niega todo lo que no esté explícitamente permitido, y las elevaciones instalan reglas adicionales, temporales y auditables.
 - **La detección es propia.** La cadena Monitor → Detection → Incident → Policy es parte del sistema y su salida se traduce a reglas SDN; no se consume un IDS/IPS institucional. Si el proyecto decide integrar un IPS externo, sería un punto de integración adicional, no un reemplazo de la cadena.
 - **R5 se satisface en el borde.** Si el firewall es externo, la solución debe integrarse con él, no sustituirlo.

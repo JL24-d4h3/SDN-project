@@ -1,7 +1,7 @@
 # Primitivas OpenFlow
 
 **Proyecto:** Solución de seguridad para una red de campus académico
-**Serie:** Descripción del flujo — parte 1 de 5
+**Serie:** Descripción del flujo — parte 1 de 6
 **Estado:** Borrador formal para revisión
 
 ---
@@ -81,7 +81,7 @@ GROUP g3
 ```
 
 - Una flow entry referencia un grupo con la instrucción `Group(id)`.
-- **Uso principal en esta solución:** un grupo de tipo `ALL` con los puertos del segmento de acceso inunda los broadcast (DHCPDISCOVER, ARP) sin que el controlador enumere puertos en cada PACKET_OUT (parte 2). `SELECT` habilita caminos alternativos si el diseño lo exige.
+- **Uso principal en esta solución:** un grupo de tipo `ALL` implementa la **inundación de respaldo** —los destinos que el controlador no puede resolver— sin que enumere puertos en cada PACKET_OUT (partes 2 y 5 §6). En régimen, DHCP y ARP no se inundan: viajan por caminos calculados y por la respuesta del controlador. `SELECT` habilita caminos alternativos si el diseño lo exige.
 - El controlador administra los grupos con mensajes `GROUP_MOD`; el switch declara en FEATURES si soporta la tabla.
 
 ## 4. La meter table
@@ -96,7 +96,7 @@ METER m1
 
 - Una flow entry referencia un medidor con la instrucción `Meter(id)`.
 - **Uso principal:** el rate limiting de R4. Con el medidor, la restricción se ejecuta **dentro del switch**, a velocidad de línea, sin que el controlador procese paquetes (parte 4).
-- Si PicOS no soportara meters (RP-11), el rate limiting degrada a muestreo + reglas periódicas desde el controlador: una alternativa peor que conviene evitar. El soporte se verifica contra el dispositivo en la Fase G.
+- Si PicOS no soportara meters (RP-11), el rate limiting degrada a muestreo + reglas periódicas desde el controlador: una alternativa peor que conviene evitar. El soporte se verifica contra el dispositivo en la Fase F.
 
 ## 5. Contadores
 
@@ -160,4 +160,4 @@ Un mismo hecho se describe con las dos perspectivas: "el paquete de H1 fue desca
 ## 8. Cuestiones abiertas
 
 - **Número de tablas del pipeline** del switch Pica8 disponible: condiciona si el diseño usa una tabla plana con prioridades o un pipeline multi-tabla.
-- **Soporte de groups y meters en PicOS:** se verifica contra el dispositivo en la Fase G (RP-11).
+- **Soporte de groups y meters en PicOS:** se verifica contra el dispositivo en la Fase F (RP-11).

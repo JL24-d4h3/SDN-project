@@ -11,9 +11,9 @@
 | Concepto | Definición |
 |---|---|
 | **Actor** | Entidad que interactúa con el sistema. Puede ser una persona, un dispositivo, un componente de infraestructura o una entidad maliciosa. |
-| **Identidad** | Quién es el actor, establecido mediante autenticación. Solo se exige cuando el actor pretende privilegios superiores al perfil base. |
+| **Identidad** | Quién es el actor, establecido mediante autenticación. Solo se exige para salir del perfil BASE: el login de la comunidad (perfil ACADÉMICO) o el de un operador (sesión de rol). |
 | **Rol** | Conjunto de permisos que el sistema concede a una identidad, definido por lo que puede hacer y sobre qué recursos. |
-| **Perfil de acceso** | Conjunto concreto de reglas de red asociadas a un dispositivo o sesión en un momento dado (BASE, LABORATORIO, TI, ADMIN_RED, …). Un perfil puede ser temporal y expirar. |
+| **Perfil de acceso** | Conjunto concreto de reglas de red asociadas a un dispositivo o sesión en un momento dado (BASE, ACADÉMICO, LABORATORIO, TI, ADMIN_RED, …). Un perfil puede ser temporal y expirar. |
 | **Nivel de privilegio** | Posición del rol dentro de la jerarquía de autoridad del sistema. |
 
 **Un atacante no es un rol.** Un rol es una etiqueta autorizada que el sistema concede; un atacante es una entidad cuyo comportamiento el sistema debe detectar y controlar. Por eso los actores se separan en dos categorías: actores con roles autorizados (sección 2) y agentes sin rol autorizado (sección 3).
@@ -30,7 +30,7 @@ El rol no define por sí solo el permiso efectivo: el acceso depende también de
 
 | Nivel | Rol | Propósito | Cómo obtiene privilegios | Acceso a recursos | Modifica la red |
 |---|---|---|---|---|---|
-| 0 | Usuario académico | Consumir servicios | Presencia física (perfil BASE); elevación temporal mediante solicitud aprobada | Públicos + académicos autorizados | No |
+| 0 | Usuario académico | Consumir servicios | Presencia física (perfil BASE); login con el IdP (perfil ACADÉMICO); elevación temporal mediante solicitud aprobada | Públicos + académicos autorizados | No |
 | 1 | Especialista de TI | Seguridad y monitoreo | Dispositivo registrado + autenticación | Recursos de monitoreo y seguridad | Limitado |
 | 2 | Administrador de Red | Administración operativa | Dispositivo registrado + autenticación | Recursos de red según autorización | Sí |
 | 3 | Superadministrador | Control de la plataforma | Dispositivo registrado + autenticación (acceso remoto contemplado) | Todos | Sí, sin restricciones operativas |
@@ -39,13 +39,14 @@ El rol no define por sí solo el permiso efectivo: el acceso depende también de
 
 ### 2.2 Usuario académico — Nivel 0
 
-**Función:** consumir servicios de red y aplicaciones institucionales. Es el perfil por defecto de todo dispositivo conectado que no haga match con el registro de dispositivos privilegiados.
+**Función:** consumir servicios de red y aplicaciones institucionales. Es el actor por defecto: todo dispositivo conectado que no haga match con el registro de dispositivos privilegiados pertenece a esta población.
 
 **Puede**
 
 - Conectarse y obtener el perfil BASE sin autenticación digital (presencia física, RP-13).
-- Obtener configuración de red (DHCP), resolución de nombres (DNS) y acceso a Internet según política.
-- Acceder a los servicios académicos e institucionales permitidos.
+- Obtener configuración de red (DHCP), resolución de nombres (DNS) y acceso al portal con el perfil BASE.
+- Autenticarse en el portal contra el IdP institucional y obtener el perfil ACADÉMICO (servicios académicos e Internet).
+- Acceder a los servicios académicos e institucionales permitidos con su perfil ACADÉMICO.
 - Generar tráfico normal hacia servicios permitidos.
 - Solicitar una elevación temporal de privilegios (perfil LABORATORIO, INVESTIGACIÓN o similar) con justificación; la concesión depende del Administrador de Red y siempre expira.
 
@@ -64,7 +65,7 @@ El rol no define por sí solo el permiso efectivo: el acceso depende también de
 
 Este rol separa la seguridad de la infraestructura: el Administrador de Red administra la red; el Especialista de TI la vigila y responde ante incidentes.
 
-**Cómo accede:** su dispositivo figura en el registro de dispositivos privilegiados y, para ejercer el rol, debe autenticarse (portal cautivo / AAA). Sin login, su equipo tiene perfil BASE.
+**Cómo accede:** su dispositivo figura en el registro de dispositivos privilegiados y, para ejercer el rol, debe autenticarse en el portal (credenciales propias + código TOTP). Sin login, su equipo tiene perfil BASE.
 
 **Puede**
 
@@ -160,8 +161,8 @@ El sistema atiende dos poblaciones distintas, que conviene modelar por separado:
       PLANO DE DATOS        PLANO DE CONTROL
           │                     │
     Usuario académico        Operadores
-    (perfil BASE por        (registro + login)
-     presencia física)          │
+    (perfil BASE;           (registro + login
+     ACADÉMICO con login)    con MFA)
           │                ┌────┴─────┐
           │                │          │
      elevación temporal   TI      Admin. Red
@@ -199,14 +200,14 @@ No son actores autorizados ni atacantes: son agentes del sistema que ejecutan de
 | Detection Engine | Determina si existe comportamiento anómalo. |
 | Incident Manager | Registra y gestiona los incidentes de seguridad. |
 | Policy Engine | Decide qué respuesta corresponde a cada incidente o solicitud. |
-| AAA / RADIUS | Autentica y autoriza a los operadores privilegiados. |
+| AAA / RADIUS | Autentica y autoriza a las poblaciones: la comunidad contra el IdP; los operadores contra su repositorio propio. |
 | Servicios y servidores | Origen y destino de los flujos protegidos; también generan registros. |
 
 ### 3.5 Resumen de entidades
 
 | Entidad | Naturaleza | Relación con el sistema |
 |---|---|---|
-| Usuario académico | Actor con rol | Rol autorizado (nivel 0); perfil BASE por defecto |
+| Usuario académico | Actor con rol | Rol autorizado (nivel 0); perfil BASE por defecto, ACADÉMICO con login |
 | Especialista de TI | Actor con rol | Rol autorizado (nivel 1); requiere registro + login |
 | Administrador de Red | Actor con rol | Rol autorizado (nivel 2); requiere registro + login |
 | Superadministrador | Actor con rol | Rol autorizado (nivel 3); requiere registro + login |
@@ -216,7 +217,7 @@ No son actores autorizados ni atacantes: son agentes del sistema que ejecutan de
 | Controlador SDN | Agente del sistema | Traduce decisiones a reglas |
 | Dispositivos de red | Agente del sistema | Ejecutan forwarding, filtrado y mitigación |
 | Monitor / Detection / Incident / Policy | Agentes del sistema | Observan, detectan, registran y deciden |
-| AAA / RADIUS | Agente del sistema | Autentican y autorizan a operadores |
+| AAA / RADIUS | Agente del sistema | Autentican y autorizan a las poblaciones (comunidad y operadores) |
 | Servicios y servidores | Agente del sistema | Proveen recursos y registros |
 
 ---
@@ -233,7 +234,7 @@ Combinaciones que el modelo debe admitir:
 
 | Actor | Recurso | Condición | Resultado |
 |---|---|---|---|
-| Usuario académico | Servidor académico | Perfil BASE, tráfico normal | Permitir |
+| Usuario académico | Servidor académico | Perfil ACADÉMICO, tráfico normal | Permitir |
 | Usuario académico | Red de gestión | Perfil BASE, sin elevación | Denegar |
 | Usuario académico | Servidor de laboratorio | Elevación temporal aprobada, dentro del TTL | Permitir |
 | Usuario académico | Servidor de laboratorio | Elevación expirada | Denegar |
@@ -249,6 +250,5 @@ Esto conecta R1 y R2 con R3–R5: la autorización habilita el acceso, pero no s
 
 ## 5. Cuestiones abiertas
 
-- **MFA.** Si el login privilegiado (portal cautivo / acceso remoto) exige segundo factor y con qué mecanismo.
 - **Delegación del registro de Especialistas de TI.** Si el Administrador de Red puede registrar Especialistas de TI o esa función queda solo en el Superadministrador.
 - **Matriz Actor → Recurso.** Se deriva de este documento y de [`02_recursos_y_servicios.md`](02_recursos_y_servicios.md); corresponde a `03_permisos.md`.

@@ -19,14 +19,14 @@ RP-05 exige un entorno controlado y representativo: la segunda debe representar 
 
 | Elemento | Descripción | Relación con los requerimientos |
 |---|---|---|
-| Segmento de usuarios finales | Usuarios académicos conectados con perfil BASE | Origen de R1 y del tráfico observado en R3 y R4 |
+| Segmento de usuarios finales | Usuarios académicos conectados (BASE; ACADÉMICO tras el login) | Origen de R1 y del tráfico observado en R3 y R4 |
 | Segmento de servidores | Servicios académicos y administrativos | Objeto de R2 |
 | Segmento de administración | Consola, controlador y planos de gestión | Protegido según RA-09 |
 | Segmento perimetral | Borde con redes externas | Punto de aplicación de R5 |
-| Servicios institucionales | Académicos, notas, administrativos y base de datos | Activos protegidos (ver [`03_sistemas_externos.md`](03_sistemas_externos.md)) |
+| Servicios institucionales | Académicos, administrativos y base de datos | Activos protegidos (ver [`03_sistemas_externos.md`](03_sistemas_externos.md)) |
 | Dispositivos de usuario final | Equipos de usuarios académicos y de operadores | Origen del tráfico; candidatos a aislamiento |
 
-La segmentación anterior es una propuesta de referencia. Su definición definitiva pertenece a la arquitectura lógica (fases D y E) y a la topología (Fase H).
+La segmentación anterior es una propuesta de referencia. Su definición definitiva pertenece a la arquitectura lógica (Fase D) y a la topología (Fase H).
 
 ---
 
@@ -34,12 +34,12 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 
 | Elemento | Se despliega o se simula | Nota |
 |---|---|---|
-| Controlador SDN | Se despliega | Decisión tecnológica pendiente (Fase G) |
+| Controlador SDN | Se despliega | Decisión tecnológica pendiente (Fase F) |
 | Switches SDN | Se despliegan (virtuales o físicos) | Hardware del laboratorio: **Pica8 con PicOS** (RP-11); deben soportar la instalación dinámica de reglas y las primitivas OpenFlow que el diseño exija (meters, groups, counters) |
 | Canal de control | Se configura | Out-of-band (red de gestión); la variante in-band es un objetivo aspiracional (ver flujo §2.6) |
 | Hosts de usuario | Se simulan | Representan al usuario académico; generan tráfico legítimo; no se registran en ningún catálogo |
 | Servidores de servicio | Se simulan | Representan los activos protegidos |
-| Portal cautivo y AAA/RADIUS | Se despliegan | Autenticación de operadores; el backend de identidad (IdP) se simula o se integra (SE-02) |
+| Portal cautivo y AAA/RADIUS | Se despliegan | Autenticación de la comunidad y de los operadores; el backend de identidad (IdP) se simula o se integra (SE-02) |
 | Registro de dispositivos privilegiados | Se despliega | Base de datos propia: dispositivos de operadores y su auditoría |
 | Cadena de detección (Monitor, Detection, Incident, Policy) | Se despliega | Lee counters del plano de datos y alimenta al controlador |
 | Segmentación | Se configura | Necesaria para R2 y para separar poblaciones |
@@ -60,7 +60,7 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 
 - la escala real del campus: número de usuarios, de dispositivos y de enlaces;
 - hardware de red específico, cuando el entorno virtual permita validar lo mismo;
-- alta disponibilidad real y redundancia física: se analizan por diseño, no se despliegan;
+- alta disponibilidad del plano de control (clúster del controlador): se analiza por diseño, no se despliega; la redundancia del plano de datos sí se despliega y se mide — ocho switches dual-homed, fijado en la Fase H;
 - servicios institucionales reales: se representan mediante equivalentes controlados.
 
 ---
@@ -78,8 +78,8 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 
 ## 6. Cuestiones abiertas
 
-- Número de switches y de hosts del prototipo: depende de la capacidad disponible y de los escenarios que se quieran reproducir.
+- Número de switches y de hosts del prototipo: **cerrado en la Fase H** — ocho switches (dos núcleo, dos distribución, cuatro acceso, dual-homed) y ~23 dispositivos simulados.
 - Capacidad de las tablas de flujo de PicOS: condiciona cuántas reglas simultáneas admite la solución (riesgo de exceso de reglas SDN) y si meters/groups están disponibles.
 - Representación del perímetro: firewall simulado, componente del propio entorno o solo reglas en el borde.
-- Si habrá acceso a hardware físico o el prototipo será íntegramente virtual.
+- Si habrá acceso a hardware físico o el prototipo será íntegramente virtual: **cerrado** — hardware físico (Pica8 del laboratorio, RP-11), con apoyo virtual para el desarrollo fuera de las ventanas.
 - Si el canal in-band se implementa en el prototipo y en qué fase: es más complejo (VLAN de gestión, priorización, prueba de supervivencia ante un ataque volumétrico), pero valorado por el profesor.

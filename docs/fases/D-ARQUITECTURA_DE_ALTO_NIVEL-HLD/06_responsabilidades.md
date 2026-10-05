@@ -17,7 +17,7 @@ Este documento fija, por componente, qué responsabilidad tiene y qué **explíc
 | **Incident Manager** | Registrar el incidente; llevar su ciclo de vida hasta CLOSED. | Calcular umbrales; elegir la respuesta; ejecutar reglas. |
 | **Policy Engine** | Decidir la respuesta ante incidentes y las elevaciones de privilegios, con contexto y vigencia. | Observar el tráfico; ejecutar la decisión; administrar usuarios. |
 | **Controlador SDN** | Traducir decisiones a reglas; mantener topología y asociaciones; retirar reglas. | Decidir políticas; juzgar si hay ataque; autenticar operadores. |
-| **IAM/AAA** | Autenticar operadores; autorizar sesiones; registrar accounting. | Catalogar dispositivos; decidir mitigaciones; gestionar políticas. |
+| **IAM/AAA** | Autenticar a las poblaciones; autorizar sesiones; registrar accounting. | Catalogar dispositivos; decidir mitigaciones; gestionar políticas. |
 | **Registro de dispositivos** | Mantener el catálogo de dispositivos privilegiados y su auditoría de altas. | Conceder privilegios por sí mismo (P7); registrar dispositivos académicos. |
 | **Auditoría** | Registrar acciones y decisiones; responder quién, qué, cuándo y por qué. | Participar en la cadena de decisión; bloquear o permitir (P11). |
 | **Switches** | Ejecutar las reglas instaladas; reportar eventos y contadores. | Decidir qué reglas instalar; juzgar tráfico. |
@@ -51,12 +51,12 @@ Qué puede hacer cada rol sobre cada componente, según los permisos de la fase 
 | Incident Manager | — | Analizar, clasificar, escalar (P10, P11) | Gestionar incidentes | Todo |
 | Policy Engine | Solicitar elevación (P28) | Ejecutar mitigaciones autorizadas (P12) | Crear/modificar políticas; aprobar elevaciones (P17, P29) | Todo (P26) |
 | Controlador SDN | — | — (no opera) | Administrar reglas y topología (P19, P22) | Todo |
-| IAM/AAA | — (no se autentica a nivel de red) | Autenticarse como operador | Autenticarse como operador | Autenticarse como operador |
+| IAM/AAA | Autenticarse en el portal (perfil ACADÉMICO) | Autenticarse como operador | Autenticarse como operador | Autenticarse como operador |
 | Registro de dispositivos | — | — | Registrar dispositivos (P30) | Registrar + auditar (P30, P25) |
 | Auditoría | — | Consultar eventos y logs (P08) | Consultar | Consultar y auditar todo (P25) |
 | Consola | — (no la usa) | Uso con su rol | Uso con su rol | Uso con su rol |
 
-El usuario académico solo aparece en una celda: **solicitar elevación**. Todo lo demás le está denegado por el perfil BASE — y la red lo garantiza con entradas DROP hacia la infraestructura, no con la buena voluntad de la consola.
+El usuario académico solo aparece en dos celdas: **autenticarse en el portal** y **solicitar elevación**. Todo lo demás le está denegado —en BASE y en ACADÉMICO— y la red lo garantiza con entradas DROP hacia la infraestructura, no con la buena voluntad de la consola.
 
 ## 4. Separación de funciones entre roles
 

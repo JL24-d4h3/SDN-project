@@ -6,7 +6,7 @@
 
 ---
 
-Los flujos de extremo a extremo de la arquitectura, a nivel de componentes y eventos. La exposición detallada paso a paso —con los mensajes OpenFlow exactos— vive en la serie de flujo (`diagrams/`, partes 0–4); este documento resume cada flujo como cadena de componentes y lo ancla a los requerimientos.
+Los flujos de extremo a extremo de la arquitectura, a nivel de componentes y eventos. La exposición detallada paso a paso —con los mensajes OpenFlow exactos— vive en la serie de flujo (`flows/`, partes 0–5); este documento resume cada flujo como cadena de componentes y lo ancla a los requerimientos.
 
 ## F1 — Arranque y descubrimiento de la red
 
@@ -19,10 +19,12 @@ Controlador → FLOW_MOD: eth_type=0x88CC → CONTROLLER   (captura LLDP)
 Controlador → PACKET_OUT (LLDP por cada puerto de cada switch)
 Switches → PACKET_IN (LLDP del vecino, OFPR_ACTION)
 Controlador → deducción de enlaces dirigidos + confirmación bidireccional
-           → grafo de topología (sin instalar rutas todavía)
+           → grafo de topología
+Controlador → (+ inventario de servicios) FLOW_MOD por destino:
+              caminos hacia los servicios (proactivo; parte 5)
 ```
 
-**Resultado:** la red conoce su topología y está lista para reaccionar. **Detalle:** serie de flujo, parte 2 §2–5. **Cubre:** RT-05, RP-02.
+**Resultado:** la red conoce su topología y sus caminos hacia los servicios; lista para reaccionar al tráfico. **Detalle:** serie de flujo, partes 2 §2–5 y 5. **Cubre:** RT-05, RP-02.
 
 ## F2 — Conexión de un dispositivo y perfil BASE
 
@@ -31,28 +33,31 @@ Controlador → deducción de enlaces dirigidos + confirmación bidireccional
 ```text
 Host → frame → Switch → table-miss → PACKET_IN (OFPR_NO_MATCH)
 Controlador → aprende host (MAC, IP, switch, puerto) → evento DeviceConnected
-Controlador → inundación del broadcast (PACKET_OUT o group ALL)
-           → FLOW_MOD del camino hacia DHCP
+Controlador → camino al servidor DHCP por la ruta calculada (sin inundación)
+           → FLOW_MOD: identidad en el acceso, destino en el interior
 Host ↔ DHCP → diálogo completo (sin pasar por el controlador)
 Controlador → entradas del perfil BASE:
-              PERMITIR DHCP/DNS/académicos (prioridad 10)
-              DROP hacia red de gestión    (prioridad 100)
+              PERMITIR DHCP, DNS y portal   (prioridad 10 / 150)
+              DROP hacia red de gestión     (prioridad 100)
 ```
 
-**Resultado:** el dispositivo opera con privilegios mínimos; si su MAC no está en el registro privilegiado, nunca podrá más (P5, P7). **Detalle:** serie de flujo, parte 2 §6–9 y parte 3 §2. **Cubre:** R1, R2.
+**Resultado:** el dispositivo opera con privilegios mínimos —DHCP, DNS y una sola puerta, el portal—; el resto llega con el login (P5, P6). **Detalle:** serie de flujo, partes 2 §6–10, 5 §6 y 3 §2. **Cubre:** R1, R2.
 
-## F3 — Autenticación de un operador y sesión privilegiada
+## F3 — Login en el portal y sesión privilegiada
 
 **Disparador:** login en el portal cautivo.
 
 ```text
-Operador → portal → credenciales → IAM/AAA → IdP (identidad válida)
-IAM → Policy Engine: identidad + dispositivo (match con registro)
-      + contexto + vigencia → decisión: perfil ADMIN_RED
+Académico → portal → credenciales → IAM/AAA → IdP (identidad válida)
+          → perfil ACADÉMICO: servicios académicos e Internet (idle_timeout)
+Operador  → portal → paso 1: repositorio propio · paso 2: TOTP
+          → identidad + dispositivo (match con registro) + contexto
+          → decisión: sesión de rol (p. ej. ADMIN_RED)
 IAM → evento SessionOpened
 Policy Engine → comando northbound al Controlador
-Controlador → FLOW_MOD: ALLOW hacia red de gestión (prioridad 200,
-              idle_timeout = sesión)
+Controlador → FLOW_MOD: acceso de persona y destinos del rol
+              (ALLOW hacia red de gestión, prioridad 200,
+               idle_timeout = sesión)
 Sesión cerrada / inactividad → idle_timeout expira
 → el switch elimina la entrada solo → dispositivo regresa a BASE
 → evento SessionClosed (FLOW_REMOVED lo confirma)
@@ -136,7 +141,7 @@ Auditoría → registro completo: quién detectó, quién decidió,
 
 ## Flujo de fondo: monitoreo continuo
 
-Todos los flujos anteriores se apoyan en un flujo permanente: el Monitor sondea contadores, actualiza la línea base y verifica las mitigaciones activas. Sin él, F6 y F7 no existen. Su frecuencia es configurable y depende de los umbrales que se fijen en la Fase G.
+Todos los flujos anteriores se apoyan en un flujo permanente: el Monitor sondea contadores, actualiza la línea base y verifica las mitigaciones activas. Sin él, F6 y F7 no existen. Su frecuencia es configurable y depende de los umbrales que se fijen en la Fase F.
 
 ## Cuestiones abiertas
 

@@ -207,6 +207,6 @@ La idea central: **cada patrón resuelve una dimensión que los otros no tocan**
 
 ## 7. Cuestiones abiertas
 
-- **Tecnología del broker.** El patrón no elige producto: broker dedicado, colas embebidas o bus de eventos se decide en la Fase G, contra las capacidades del entorno del prototipo.
+- **Tecnología del broker.** El patrón no elige producto: broker dedicado, colas embebidas o bus de eventos se decide en la Fase F, contra las capacidades del entorno del prototipo.
 - **Frontera entre repositorios.** El número y los límites exactos de los repositorios se fijan junto con la descomposición en servicios ([`04_descomposición_arquitectónica.md`](04_descomposición_arquitectónica.md)).
 - **Auditoría por eventos o por escritura síncrona.** Si la auditoría consume del broker (eventual) o se escribe en la misma transacción de la acción (inmediata): es una decisión de consistencia que pertenece a [`08_comunicacion.md`](08_comunicacion.md).

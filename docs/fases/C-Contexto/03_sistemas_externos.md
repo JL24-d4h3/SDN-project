@@ -15,7 +15,7 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 | ID | Elemento externo | Categoría | Criticidad si falla |
 |---|---|---|---|
 | SE-01 | Internet y redes externas | Sistema externo y fuente de amenaza | Alta: sin él no hay servicio externo ni tráfico que inspeccionar |
-| SE-02 | Sistema de identidad institucional (IdP/LDAP) | Sistema externo | Alta: sin él no hay autenticación de operadores privilegiados (R1) |
+| SE-02 | Sistema de identidad institucional (IdP/LDAP) | Sistema externo | Alta: sin él no hay autenticación de la comunidad universitaria (R1) |
 | SE-03 | Fuente de inteligencia de amenazas | Sistema externo | Media: degrada R5.6, no detiene la operación |
 | SE-04 | Servicio de nombres (DNS) | Sistema externo | Alta: su manipulación es un vector de ataque (R3.3) |
 | SE-05 | Sincronización de tiempo (NTP) | Sistema externo | Media: afecta la correlación de eventos y la auditoría |
@@ -35,10 +35,10 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 
 ### SE-02 — Sistema de identidad institucional (IdP/LDAP)
 
-- **Qué se intercambia:** verificación de credenciales y atributos de los **operadores privilegiados** (Especialista de TI, Administrador de Red, Superadministrador) cuando solicitan elevar privilegios.
+- **Qué se intercambia:** verificación de credenciales y atributos de la **comunidad universitaria** (alumnos y profesores) cuando inician sesión en el portal.
 - **Interfaz esperada:** consulta desde el servidor AAA del sistema (portal cautivo).
-- **Qué no es:** no participa en la conexión del usuario académico. El perfil BASE se concede por presencia física (RP-13) sin consultar ningún sistema de identidad.
-- **Condición de amenaza:** no ataca, pero es objetivo: si se compromete, se compromete la autenticación de los privilegiados que dependen de él.
+- **Qué no es:** no participa en la conexión ni en el perfil BASE — se concede por presencia física (RP-13) sin consultar ningún sistema de identidad. Tampoco autentica a los operadores: su reino es el repositorio propio de la plataforma.
+- **Condición de amenaza:** no ataca, pero es objetivo: si se compromete, se compromete la autenticación de la comunidad que depende de él.
 - **En el prototipo:** se simula o se integra, según lo que exista en el entorno.
 - **Nota:** determina el límite del sistema en la autenticación de R1 (ver [`01_limite_del_sistema.md`](01_limite_del_sistema.md)).
 
@@ -81,7 +81,7 @@ Un sistema externo existe con independencia del proyecto y el sistema se integra
 
 | Dependencia | Alternativa si no existe en el entorno |
 |---|---|
-| Identidad institucional (IdP/LDAP) | Directorio simulado con los operadores privilegiados de prueba |
+| Identidad institucional (IdP/LDAP) | Directorio simulado con cuentas de la comunidad de prueba |
 | Inteligencia de amenazas | Conjunto de indicadores propio, definido por el proyecto |
 | Internet | Segmento externo controlado dentro del laboratorio |
 | Servicios institucionales | Servidores equivalentes desplegados en el prototipo |

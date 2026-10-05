@@ -67,7 +67,7 @@ Los drivers se ordenan aplicando cuatro criterios, en este orden:
 | **D-05** Seguridad perimetral | R5 no está asignado: se diseña la frontera y se demuestra el bloqueo si el entorno lo permite. |
 | **D-10** Latencia de las decisiones | Se mide sobre los tres requerimientos implementados; se optimiza si los resultados lo exigen. |
 | **D-11** Escalabilidad | Se evalúa con carga creciente; el resultado alimenta el análisis de riesgo del controlador. |
-| **D-12** Modularidad | Se materializa en la descomposición funcional y se evalúa en las fases D y E. |
+| **D-12** Modularidad | Se materializa en la descomposición funcional (Fase D) y se comprueba en la validación del HLD (Fase E). |
 | **D-13** Administración y observabilidad | Consola mínima para consultar políticas, eventos y registros. |
 
 ### P2 — Diferencial
@@ -121,4 +121,4 @@ D-10 y D-14 no activan decisiones de esa lista: fijan criterios de diseño (pres
 - **Alcance de R3 y R5.** Definir qué se considera suficiente: ¿diseño documentado, o diseño más un escenario demostrable en el prototipo?
 - **Umbrales y línea base.** Dependen de mediciones previas en el entorno del prototipo, que aún no existe.
 - **Presupuesto de latencia.** RNF-04 no fija un valor; hay que establecer el límite que se considerará aceptable.
-- **Capacidad de reglas.** Cuántas reglas simultáneas admite el dispositivo elegido es asunto de la Fase C y de la Fase G.
+- **Capacidad de reglas.** Cuántas reglas simultáneas admite el dispositivo elegido es asunto de la Fase C y de la Fase F.

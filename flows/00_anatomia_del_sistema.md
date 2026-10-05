@@ -1,7 +1,7 @@
 # Anatomía del sistema
 
 **Proyecto:** Solución de seguridad para una red de campus académico
-**Serie:** Descripción del flujo — parte 0 de 5
+**Serie:** Descripción del flujo — parte 0 de 6
 **Estado:** Borrador formal para revisión
 
 ---
@@ -17,6 +17,7 @@ Antes de describir cualquier flujo hay que fijar **dónde vive cada cosa**. Esta
 | 2 | `02_flujo_base_arranque.md` | Encendido de la red: canal, LLDP con N switches, DHCP, ARP |
 | 3 | `03_flujo_autenticacion_autorizacion.md` | Perfiles de acceso, registro de dispositivos, elevación |
 | 4 | `04_flujo_seguridad_r4.md` | Ciclo completo de detección y mitigación (R4) |
+| 5 | `05_enrutamiento.md` | Del grafo a los caminos: caminos por destino, ARP del controlador, tres niveles |
 
 ## 2. Hardware de referencia
 

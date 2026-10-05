@@ -13,7 +13,8 @@ Cómo la arquitectura realiza la seguridad: la jerarquía de confianza, los punt
 ```text
 Sin presencia en campus            →  sin acceso
 Presencia física en campus         →  perfil BASE (confianza inicial, RP-13)
-Dispositivo registrado + login     →  identidad + rol
+Login en el portal                 →  perfil ACADÉMICO (comunidad)
+                                      o identidad + rol (operadores)
 Autorización contextual            →  privilegios adicionales (TTL / sesión)
 ```
 
@@ -23,8 +24,8 @@ Cada peldaño habilita el siguiente y ninguno puede saltarse (P6): la presencia 
 
 | Punto | Qué aplica | Mecanismo |
 |---|---|---|
-| **Switch de ingreso** | El perfil BASE: denegación por defecto hacia infraestructura y tráfico permitido del segmento académico | Entradas de flujo con prioridades (DROP a red de gestión, prioridad 100) |
-| **Portal cautivo / IAM** | La identidad del operador | Autenticación contra el IdP; sesión con vigencia |
+| **Switch de ingreso** | El perfil BASE: denegación por defecto hacia infraestructura y mínimo de conectividad (DHCP, DNS y portal) | Entradas de flujo con prioridades (DROP a red de gestión, prioridad 100) |
+| **Portal cautivo / IAM** | La identidad de la población: perfil ACADÉMICO (comunidad) o sesión de rol (operadores) | Autenticación contra el IdP o contra el repositorio propio con MFA; sesión con vigencia |
 | **Policy Engine** | La autorización contextual: qué perfil corresponde a cada sesión o elevación | Condiciones ABAC-like (identidad + dispositivo + contexto + recurso + acción + vigencia) |
 | **Controlador** | La traducción de cada decisión a reglas concretas y reversibles | FLOW_MOD con cookie, prioridad y timeouts |
 | **Plano de datos (meter/drop)** | La mitigación en el punto de ingreso | Meters para limitar; DROP para bloquear; ambos temporales (P10) |
@@ -41,6 +42,8 @@ El controlador y sus interfaces administrativas son el objetivo de mayor valor d
 3. **Canal de control sano.** El canal OpenFlow usa TCP 6653 en la red de gestión; los switches solo aceptan a su controlador configurado. La variante in-band exige además priorización del tráfico de control (serie de flujo, parte 2 §14).
 
 ## 4. Cobertura de amenazas
+
+El listado consolidado de ataques y amenazas, con su origen y descripción, está en [`11.1_catalogo_de_ataques_y_amenazas.md`](11.1_catalogo_de_ataques_y_amenazas.md). Aquí se fija el control que la arquitectura aplica a cada uno:
 
 | Amenaza | Control arquitectónico | Referencia |
 |---|---|---|
@@ -65,7 +68,8 @@ La seguridad no termina en la red: las acciones de los operadores están control
 
 | Dato | Dónde vive | Protección |
 |---|---|---|
-| Credenciales de operadores | IdP institucional (externo) | El IAM no las almacena; consulta y descarta |
+| Credenciales de la comunidad | IdP institucional (externo) | El IAM no las almacena: consulta y descarta |
+| Credenciales de operadores | Repositorio propio del IAM | Almacenadas con hash; MFA obligatorio (TOTP) |
 | Registro de dispositivos privilegiados | `DeviceRepository` | Acceso solo por el servicio y por operadores autorizados; cada cambio auditado |
 | Incidentes y eventos | `IncidentRepository`, `AuditRepository` | Consulta según rol (P08, P25); retención por definir |
 | Reglas instaladas | Pipeline de los switches | Solo el controlador las modifica (P1) |
@@ -78,6 +82,5 @@ La seguridad no termina en la red: las acciones de los operadores están control
 
 ## 8. Cuestiones abiertas
 
-- **MFA en el portal.** Si el segundo factor es obligatorio para todos los operadores o solo para el Superadministrador.
 - **Integración con el firewall perimetral.** Si existe uno institucional con el que integrarse (R5, fase C).
 - **Retención e integridad de logs.** Cuánto tiempo se conservan y si se protegen contra manipulación (ligado a la retención de eventos del doc 08).

@@ -1,7 +1,7 @@
 # Flujo de seguridad: el ciclo completo de R4
 
 **Proyecto:** Solución de seguridad para una red de campus académico
-**Serie:** Descripción del flujo — parte 4 de 5
+**Serie:** Descripción del flujo — parte 4 de 6
 **Estado:** Borrador formal para revisión
 
 ---
@@ -91,6 +91,8 @@ H1 ── S1:p5 ── X ── S2 ── S3 ── SERVER
 ```
 
 Así, el tráfico malicioso se descarta antes de atravesar la red. Si el ataque entra por varios switches (H1 por S1, H2 por S2, H3 por S4), el controlador instala la regla **en cada switch de ingreso correspondiente** — control centralizado sobre una red distribuida, imposible con configuración manual por dispositivo.
+
+Las reglas de camino por destino no se tocan: la mitigación se superpone en el ingreso (parte 5 §1).
 
 ## 7. Paso 7 — FLOW_MOD: la regla y el meter
 
@@ -184,5 +186,5 @@ R4 es el caso de uso donde se ve toda la cadena de extremo a extremo: detección
 ## 13. Cuestiones abiertas
 
 - **Umbrales y línea base.** Los valores concretos (pps, Mbps, nº de fuentes, ventana temporal) dependen de mediciones en el entorno del prototipo, que aún no existe.
-- **Soporte de meters en PicOS.** Determina si el rate limiting usa medidores nativos o degrada a controlador; se fija en la Fase G.
+- **Soporte de meters en PicOS.** Determina si el rate limiting usa medidores nativos o degrada a controlador; se fija en la Fase F.
 - **Renovación vs timeout.** Si la verificación periódica del paso 9 basta o se combina con temporizadores más cortos.

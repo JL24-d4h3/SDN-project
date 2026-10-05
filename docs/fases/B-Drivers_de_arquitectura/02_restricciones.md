@@ -51,7 +51,7 @@ Una restricción es una condición impuesta al proyecto que la arquitectura no p
 
 **Restricción:** el acceso físico controlado al campus se considera condición de confianza inicial suficiente para la obtención del perfil mínimo de red (perfil BASE), sin autenticación digital.
 
-**Implicación:** la seguridad física del campus forma parte del perímetro de seguridad. La autenticación digital se reserva para la elevación de privilegios (operadores y elevaciones temporales); la presencia física jamás justifica privilegios elevados.
+**Implicación:** la seguridad física del campus forma parte del perímetro de seguridad. La autenticación digital se reserva para salir del perfil mínimo (el login de la comunidad o de un operador) y para las elevaciones temporales; la presencia física jamás justifica privilegios elevados.
 
 ### RP-09 — Coherencia tecnológica
 

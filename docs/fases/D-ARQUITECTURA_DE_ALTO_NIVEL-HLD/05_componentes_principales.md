@@ -14,8 +14,8 @@ Descripción detallada de cada componente de la descomposición ([`04_descomposi
 
 - **Entradas:** órdenes de política (instalar/retirar reglas, consultar estado); mensajes OpenFlow de los switches (PACKET_IN, PORT_STATUS, FLOW_REMOVED, FEATURES_REPLY).
 - **Salidas:** mensajes OpenFlow (FLOW_MOD, METER_MOD, GROUP_MOD, PACKET_OUT, MULTIPART); topología y estado a la plataforma.
-- **Estado:** grafo de topología (switches, enlaces, atributos), asociaciones host ↔ MAC ↔ IP ↔ switch ↔ puerto, inventario de reglas instaladas (con sus cookies), capacidades declaradas por cada switch.
-- **Mecanismos internos:** descubrimiento LLDP (inyección por PACKET_OUT y deducción de enlaces por cruce de metadatos); cálculo de rutas sobre el grafo; instalación reactiva ante PACKET_IN (FLOW_MOD + PACKET_OUT); retirada de reglas por cookie; lectura de contadores por MULTIPART. Detalle completo en la serie de flujo (partes 1 y 2).
+- **Estado:** grafo de topología (switches, enlaces, atributos), **inventario de servicios** (los anclajes declarados: servicio, IP, switch y puerto), asociaciones host ↔ MAC ↔ IP ↔ switch ↔ puerto, inventario de reglas instaladas (con sus cookies), capacidades declaradas por cada switch.
+- **Mecanismos internos:** descubrimiento LLDP (inyección por PACKET_OUT y deducción de enlaces por cruce de metadatos); cálculo de caminos por destino sobre el grafo e instalación **proactiva** hacia los servicios declarados, además de la instalación reactiva ante PACKET_IN (FLOW_MOD + PACKET_OUT); respuesta ARP desde sus asociaciones; retirada de reglas por cookie; lectura de contadores por MULTIPART. Detalle completo en la serie de flujo (partes 1, 2 y 5).
 
 ## 2. Monitor
 
@@ -55,12 +55,12 @@ Descripción detallada de cada componente de la descomposición ([`04_descomposi
 
 ## 6. IAM/AAA (con portal cautivo)
 
-**Propósito:** autenticar a los operadores privilegiados y autorizar sus sesiones.
+**Propósito:** autenticar a las poblaciones (la comunidad contra el IdP; los operadores contra su repositorio propio) y autorizar sus sesiones.
 
-- **Entradas:** credenciales del operador (portal cautivo o acceso remoto); atributos del IdP institucional.
-- **Salidas:** identidad autenticada + rol al Policy Engine; `SessionOpened` / `SessionClosed`; registros de accounting.
-- **Estado:** identidades privilegiadas, sesiones activas y su vigencia. No almacena credenciales académicas: el usuario académico no se autentica (RP-13). Las credenciales las valida el IdP; el servicio AAA no las guarda.
-- **Mecanismos internos:** diálogo RADIUS (Authentication, Authorization, Accounting) contra el IdP; gestión del ciclo de sesión (login → perfil elevado → logout/inactividad → retorno a BASE, vía idle_timeout).
+- **Entradas:** credenciales de la población (portal cautivo o acceso remoto); atributos del IdP institucional para la comunidad; código TOTP para operadores.
+- **Salidas:** identidad autenticada + perfil o rol al Policy Engine; `SessionOpened` / `SessionClosed`; registros de accounting.
+- **Estado:** identidades privilegiadas con sus credenciales propias y su segundo factor, sesiones activas y su vigencia. No almacena credenciales de la comunidad: las valida el IdP; el servicio AAA no las guarda.
+- **Mecanismos internos:** diálogo RADIUS (Authentication, Authorization, Accounting): contra el IdP para la comunidad, y contra el repositorio propio con TOTP para los operadores; gestión del ciclo de sesión (login → perfil ACADÉMICO o sesión de rol → logout/inactividad → retorno a BASE, vía idle_timeout).
 
 ## 7. Registro de dispositivos privilegiados
 
