@@ -1,0 +1,48 @@
+<mxfile host="app.diagrams.net" agent="Claude Code" version="24.0.0">
+  <diagram id="d4-afinidad" name="Despliegue agrupado por afinidad">
+    <mxGraphModel dx="1500" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="t" value="Despliegue agrupado por afinidad — la lógica no se fusiona, solo se co-localiza" style="text;html=1;align=left;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="800" height="30" as="geometry"/></mxCell>
+        <mxCell id="sub" value="Los diez servicios siguen siendo procesos distintos con fronteras intactas; los contenedores pueden co-localizarse por afinidad operacional (de partida: un contenedor por servicio)." style="text;html=1;align=left;fontColor=#64748B;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="48" width="1100" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="srv" value="SERVIDOR DEL LABORATORIO — hipervisor KVM/libvirt · ≥ 32 GB RAM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=1.8;fontSize=13.5;fontStyle=1;fontColor=#0F172A;verticalAlign=top;spacingTop=6;" vertex="1" parent="1"><mxGeometry x="40" y="76" width="1160" height="400" as="geometry"/></mxCell>
+
+        <mxCell id="h1" value="HOST DE IDENTIDAD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1EDFA;strokeColor=#3B6E9E;strokeWidth=1.4;fontColor=#1E3A8A;fontSize=12.5;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1"><mxGeometry x="70" y="120" width="340" height="150" as="geometry"/></mxCell>
+        <mxCell id="h1a" value="Portal (.5)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="88" y="154" width="140" height="40" as="geometry"/></mxCell>
+        <mxCell id="h1b" value="IAM/AAA (.10)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="240" y="154" width="152" height="40" as="geometry"/></mxCell>
+        <mxCell id="h1c" value="Registro (.11)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="88" y="204" width="140" height="40" as="geometry"/></mxCell>
+        <mxCell id="h1d" value="IdP: FreeRADIUS + OpenLDAP (.23/.24)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE8D0;strokeColor=#F5AA50;fontSize=11;" vertex="1" parent="1"><mxGeometry x="240" y="204" width="152" height="40" as="geometry"/></mxCell>
+
+        <mxCell id="h2" value="HOST DE OBSERVABILIDAD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1EDFA;strokeColor=#3B6E9E;strokeWidth=1.4;fontColor=#1E3A8A;fontSize=12.5;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1"><mxGeometry x="430" y="120" width="340" height="150" as="geometry"/></mxCell>
+        <mxCell id="h2a" value="Monitor (.12)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="448" y="154" width="140" height="40" as="geometry"/></mxCell>
+        <mxCell id="h2b" value="Detección (.13)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="600" y="154" width="152" height="40" as="geometry"/></mxCell>
+        <mxCell id="h2c" value="Adaptador (.18)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="448" y="204" width="140" height="40" as="geometry"/></mxCell>
+        <mxCell id="h2d" value="Grafana (.26)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE8D0;strokeColor=#F5AA50;fontSize=11;" vertex="1" parent="1"><mxGeometry x="600" y="204" width="152" height="40" as="geometry"/></mxCell>
+
+        <mxCell id="h3" value="HOST DE RESPUESTA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1EDFA;strokeColor=#3B6E9E;strokeWidth=1.4;fontColor=#1E3A8A;fontSize=12.5;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1"><mxGeometry x="790" y="120" width="340" height="150" as="geometry"/></mxCell>
+        <mxCell id="h3a" value="Incidentes (.14)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="808" y="154" width="140" height="40" as="geometry"/></mxCell>
+        <mxCell id="h3b" value="Políticas (.15)&#xa;única emisora de órdenes I2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=10;" vertex="1" parent="1"><mxGeometry x="960" y="154" width="152" height="44" as="geometry"/></mxCell>
+
+        <mxCell id="h4" value="HOST DE GOBIERNO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1EDFA;strokeColor=#3B6E9E;strokeWidth=1.4;fontColor=#1E3A8A;fontSize=12.5;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1"><mxGeometry x="70" y="290" width="340" height="150" as="geometry"/></mxCell>
+        <mxCell id="h4a" value="Auditoría (.16)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="88" y="324" width="140" height="40" as="geometry"/></mxCell>
+        <mxCell id="h4b" value="Consola (.17)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="240" y="324" width="152" height="40" as="geometry"/></mxCell>
+        <mxCell id="h4c" value="export JSONL con cadena SHA-256" style="text;html=1;align=center;fontColor=#64748B;fontSize=10;" vertex="1" parent="1"><mxGeometry x="88" y="376" width="292" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="h5" value="INFRAESTRUCTURA (papel → producto)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE8D0;strokeColor=#F5AA50;strokeWidth=1.4;fontColor=#9A4D00;fontSize=12.5;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1"><mxGeometry x="430" y="290" width="700" height="150" as="geometry"/></mxCell>
+        <mxCell id="h5a" value="ONOS 2.7 (.20)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="448" y="326" width="160" height="40" as="geometry"/></mxCell>
+        <mxCell id="h5b" value="RabbitMQ 3.13 (.21)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="620" y="326" width="160" height="40" as="geometry"/></mxCell>
+        <mxCell id="h5c" value="PostgreSQL 16 (.22)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="792" y="326" width="160" height="40" as="geometry"/></mxCell>
+        <mxCell id="h5d" value="chrony (.25)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="964" y="326" width="148" height="40" as="geometry"/></mxCell>
+        <mxCell id="h5e" value="DNS dnsmasq (.28)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="448" y="376" width="160" height="40" as="geometry"/></mxCell>
+        <mxCell id="h5f" value="una base PostgreSQL por servicio (bd_iam, bd_registro, bd_monitor, bd_incidentes, bd_politicas, bd_auditoria)" style="text;html=1;align=center;fontColor=#9A4D00;fontSize=10;" vertex="1" parent="1"><mxGeometry x="620" y="382" width="490" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="sensor" value="VM SENSOR PERIMETRAL — Suricata 7 · 10.0.0.27 · 2 NIC: espejo RX (sin IP, desde A4 p47) + gestión&#xa;fuera del camino de reenvío (P8): su caída degrada R5 pero no corta el plano de datos · alertas eve.json → Adaptador (.18) → bus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE4E2;strokeColor=#A33B33;strokeWidth=1.5;fontColor=#B91C1C;fontSize=11;" vertex="1" parent="1"><mxGeometry x="70" y="500" width="1090" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="nota" value="Agrupación sujeta a CPU/RAM y pruebas de carga. La independencia de despliegue es una capacidad: IAM y Registro pueden vivir en el mismo host sin dejar de ser servicios distintos — la misma descomposición que un despliegue en nube heredaría sin cambios." style="text;html=1;align=left;fontColor=#64748B;fontSize=10.5;" vertex="1" parent="1"><mxGeometry x="40" y="596" width="1100" height="20" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

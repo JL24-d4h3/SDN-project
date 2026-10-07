@@ -1,0 +1,38 @@
+<mxfile host="app.diagrams.net" agent="Claude Code" version="24.0.0">
+  <diagram id="d3-cadena-r4" name="Cadena dinámica R4 (bucle cerrado)">
+    <mxGraphModel dx="1500" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="t" value="La cadena R4 — detección y mitigación de DDoS/brute-force interno (bucle cerrado)" style="text;html=1;align=left;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="900" height="30" as="geometry"/></mxCell>
+
+        <mxCell id="c1" value="Tráfico&#xa;ataque hacia 10.2.0.10&#xa;(legítimo + malicioso)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="80" width="130" height="96" as="geometry"/></mxCell>
+        <mxCell id="c2" value="Contadores&#xa;OpenFlow&#xa;PORT / FLOW stats&#xa;vía ONOS (I8)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=11;" vertex="1" parent="1"><mxGeometry x="200" y="80" width="130" height="96" as="geometry"/></mxCell>
+        <mxCell id="c3" value="Monitor&#xa;5 s caliente · 60 s barrido&#xa;EWMA: μ, σ · α = 0.2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0284C7;fontSize=11;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="360" y="80" width="130" height="96" as="geometry"/></mxCell>
+        <mxCell id="c4" value="Detección&#xa;umbral k=4σ · piso 200 pps&#xa;N=3 ventanas (15 s)&#xa;vía rápida N=1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0284C7;fontSize=11;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="520" y="80" width="130" height="96" as="geometry"/></mxCell>
+        <mxCell id="c5" value="Incidentes&#xa;INC-xxxx&#xa;ABIERTO → EN_MITIGACION&#xa;secuencia monótona" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0284C7;fontSize=11;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="680" y="80" width="130" height="96" as="geometry"/></mxCell>
+        <mxCell id="c6" value="Políticas&#xa;ABAC + escalera&#xa;RATE_LIMIT → BLOCK → ISOLATE&#xa;única emisora I2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1E3A8A;strokeWidth=1.6;fontSize=11;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="840" y="80" width="130" height="96" as="geometry"/></mxCell>
+        <mxCell id="c7" value="ONOS&#xa;I2 → OpenFlow&#xa;cookie 0x02 · BARRIER&#xa;confirmación" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE4E2;strokeColor=#E15A50;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1000" y="80" width="130" height="96" as="geometry"/></mxCell>
+        <mxCell id="c8" value="Switch de ingreso&#xa;METER 35 Mbps o DROP&#xa;prioridad 1000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7EBD7;strokeColor=#3F7D3F;fontSize=11;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1160" y="80" width="120" height="96" as="geometry"/></mxCell>
+
+        <mxCell id="e1" value="MetricSample" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;fontSize=9.5;fontColor=#64748B;" edge="1" parent="1" source="c1" target="c2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="AnomalyDetected" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;fontSize=9.5;fontColor=#64748B;" edge="1" parent="1" source="c3" target="c4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="IncidentOpened" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;fontSize=9.5;fontColor=#64748B;" edge="1" parent="1" source="c4" target="c5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="MitigationRequired (eco al bus)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;fontSize=9.5;fontColor=#64748B;" edge="1" parent="1" source="c5" target="c6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" value="orden I2 síncrona" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;fontSize=9.5;fontColor=#64748B;" edge="1" parent="1" source="c6" target="c7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" value="FLOW_MOD / METER_MOD" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;fontSize=9.5;fontColor=#64748B;" edge="1" parent="1" source="c7" target="c8"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="verif" value="MitigationVerified — el Monitor mide el tráfico real en la siguiente ventana (5 s): la regla instalada no es la mitigación efectiva (900 Mbps → 35 Mbps)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=7 4;strokeColor=#15803D;strokeWidth=1.8;fontSize=10.5;fontColor=#15803D;fontStyle=1;" edge="1" parent="1" source="c8" target="c3"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="f1" value="OBSERVAR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1EDFA;strokeColor=#9CC3E5;fontColor=#1E3A8A;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="200" y="220" width="290" height="34" as="geometry"/></mxCell>
+        <mxCell id="f2" value="DETECTAR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1EDFA;strokeColor=#9CC3E5;fontColor=#1E3A8A;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="520" y="220" width="290" height="34" as="geometry"/></mxCell>
+        <mxCell id="f3" value="DECIDIR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE8D0;strokeColor=#F5AA50;fontColor=#9A4D00;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="840" y="220" width="290" height="34" as="geometry"/></mxCell>
+        <mxCell id="f4" value="TRADUCIR + EJECUTAR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE4E2;strokeColor=#E15A50;fontColor=#B91C1C;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1000" y="276" width="280" height="34" as="geometry"/></mxCell>
+        <mxCell id="f5" value="VERIFICAR (bucle cerrado)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7EBD7;strokeColor=#7BAE7B;fontColor=#166534;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="200" y="276" width="290" height="34" as="geometry"/></mxCell>
+
+        <mxCell id="pres" value="T_mitigate = T_detect + T_event + T_policy + T_I2 + T_OF + T_ASIC ≈ 15 s + 0.185 s ≈ 15.2 s (patrón lento N=3) · ≈ 5.2 s (vía rápida N=1) — presupuesto de diseño, se mide en el prototipo" style="text;html=1;align=left;fontColor=#334155;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="336" width="1240" height="24" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

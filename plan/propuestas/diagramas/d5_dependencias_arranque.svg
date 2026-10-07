@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 420" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+  </defs>
+
+  <title>Dependencias de arranque del prototipo</title>
+
+  <text x="40" y="34" font-size="17" font-weight="bold" fill="#0F172A">Dependencias de arranque — orden de levantamiento del prototipo</text>
+  <text x="40" y="54" font-size="11" fill="#64748B">tiempo → persistencia → intermediario → controlador y switches → identidad → servicios → observación · arranque degradado (P2)</text>
+
+  <g font-size="12">
+    <rect x="40" y="100" width="170" height="60" rx="8" fill="#F1F5F9" stroke="#64748B" stroke-width="1.4"/>
+    <text x="125" y="126" font-weight="bold" text-anchor="middle" fill="#0F172A">chrony 4.5</text>
+    <text x="125" y="144" font-size="10.5" text-anchor="middle" fill="#475569">tiempo común (UTC)</text>
+
+    <rect x="290" y="100" width="170" height="60" rx="8" fill="#F1F5F9" stroke="#64748B" stroke-width="1.4"/>
+    <text x="375" y="126" font-weight="bold" text-anchor="middle" fill="#0F172A">PostgreSQL 16</text>
+    <text x="375" y="144" font-size="10.5" text-anchor="middle" fill="#475569">persistencia por servicio</text>
+
+    <rect x="540" y="100" width="170" height="60" rx="8" fill="#F1F5F9" stroke="#64748B" stroke-width="1.4"/>
+    <text x="625" y="126" font-weight="bold" text-anchor="middle" fill="#0F172A">RabbitMQ 3.13</text>
+    <text x="625" y="144" font-size="10.5" text-anchor="middle" fill="#475569">intermediario de eventos</text>
+
+    <rect x="290" y="230" width="170" height="60" rx="8" fill="#D7EBD7" stroke="#3F7D3F" stroke-width="1.4"/>
+    <text x="375" y="256" font-weight="bold" text-anchor="middle" fill="#0F172A">ONOS + switches</text>
+    <text x="375" y="274" font-size="10.5" text-anchor="middle" fill="#475569">canal OOB · OpenFlow</text>
+
+    <rect x="540" y="230" width="170" height="60" rx="8" fill="#FBE8D0" stroke="#F5AA50" stroke-width="1.4"/>
+    <text x="625" y="256" font-weight="bold" text-anchor="middle" fill="#0F172A">FreeRADIUS + LDAP</text>
+    <text x="625" y="274" font-size="10.5" text-anchor="middle" fill="#475569">identidad institucional</text>
+
+    <rect x="790" y="150" width="390" height="110" rx="10" fill="#ffffff" stroke="#1E3A8A" stroke-width="1.6"/>
+    <text x="985" y="174" font-weight="bold" text-anchor="middle" fill="#1E3A8A">SERVICIOS DE LA PLATAFORMA</text>
+    <text x="985" y="194" font-size="10.5" text-anchor="middle" fill="#475569">Portal · IAM · Registro · Monitor · Detección</text>
+    <text x="985" y="212" font-size="10.5" text-anchor="middle" fill="#475569">Incidentes · Políticas · Auditoría · Consola · Adaptador</text>
+    <text x="985" y="234" font-size="10" text-anchor="middle" fill="#64748B">imagen propia Python 3.12</text>
+
+    <rect x="790" y="300" width="390" height="60" rx="8" fill="#FBE4E2" stroke="#A33B33" stroke-width="1.4"/>
+    <text x="985" y="324" font-weight="bold" text-anchor="middle" fill="#0F172A">Suricata 7 (VM) + Grafana 11</text>
+    <text x="985" y="344" font-size="10.5" text-anchor="middle" fill="#475569">observación perimetral y visualización</text>
+  </g>
+
+  <g stroke="#334155" stroke-width="1.7" marker-end="url(#arr)">
+    <line x1="210" y1="130" x2="288" y2="130"/>
+    <line x1="460" y1="130" x2="538" y2="130"/>
+    <path d="M 375 160 C 375 195, 375 195, 375 228"/>
+    <path d="M 460 130 C 590 130, 590 228, 712 228"/>
+    <path d="M 625 160 C 625 195, 625 195, 625 228"/>
+    <path d="M 710 260 C 750 260, 750 205, 788 205"/>
+    <path d="M 710 260 C 750 260, 750 205, 788 205"/>
+    <path d="M 375 290 C 375 330, 700 330, 788 330"/>
+    <line x1="1180" y1="260" x2="1180" y2="298"/>
+  </g>
+  <g font-size="10" fill="#64748B">
+    <text x="560" y="186">persistencia lista</text>
+    <text x="620" y="196">identidad lista</text>
+    <text x="470" y="296">canal de control listo</text>
+    <text x="1000" y="286">alertas eve.json</text>
+  </g>
+
+  <rect x="40" y="330" width="700" height="56" rx="10" fill="#D7EBD7" stroke="#7BAE7B" stroke-width="1.4"/>
+  <text x="390" y="354" font-size="12" font-weight="bold" text-anchor="middle" fill="#166534">ARRANQUE DEGRADADO (P2, P10)</text>
+  <text x="390" y="374" font-size="10.5" text-anchor="middle" fill="#166534">si un servicio falla, las reglas ya instaladas en los switches no desaparecen: privilegios y mitigaciones expiran por timeout, el resto sigue operando</text>
+</svg>

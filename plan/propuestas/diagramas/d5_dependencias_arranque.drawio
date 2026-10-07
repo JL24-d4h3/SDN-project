@@ -1,0 +1,32 @@
+<mxfile host="app.diagrams.net" agent="Claude Code" version="24.0.0">
+  <diagram id="d5-arranque" name="Dependencias de arranque">
+    <mxGraphModel dx="1500" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="t" value="Dependencias de arranque — orden de levantamiento del prototipo" style="text;html=1;align=left;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="700" height="30" as="geometry"/></mxCell>
+        <mxCell id="sub" value="tiempo → persistencia → intermediario → controlador y switches → identidad → servicios → observación · arranque degradado (P2)" style="text;html=1;align=left;fontColor=#64748B;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="48" width="1000" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="n1" value="chrony 4.5&#xa;tiempo común (UTC)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="40" y="100" width="170" height="60" as="geometry"/></mxCell>
+        <mxCell id="n2" value="PostgreSQL 16&#xa;persistencia por servicio" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="290" y="100" width="170" height="60" as="geometry"/></mxCell>
+        <mxCell id="n3" value="RabbitMQ 3.13&#xa;intermediario de eventos" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="540" y="100" width="170" height="60" as="geometry"/></mxCell>
+        <mxCell id="n4" value="ONOS + switches&#xa;canal OOB · OpenFlow" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7EBD7;strokeColor=#3F7D3F;fontSize=12;" vertex="1" parent="1"><mxGeometry x="290" y="230" width="170" height="60" as="geometry"/></mxCell>
+        <mxCell id="n5" value="FreeRADIUS + LDAP&#xa;identidad institucional" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE8D0;strokeColor=#F5AA50;fontSize=12;" vertex="1" parent="1"><mxGeometry x="540" y="230" width="170" height="60" as="geometry"/></mxCell>
+        <mxCell id="n6" value="SERVICIOS DE LA PLATAFORMA&#xa;Portal · IAM · Registro · Monitor · Detección&#xa;Incidentes · Políticas · Auditoría · Consola · Adaptador&#xa;imagen propia Python 3.12" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1E3A8A;strokeWidth=1.6;fontColor=#0F172A;fontSize=11;" vertex="1" parent="1"><mxGeometry x="790" y="150" width="390" height="110" as="geometry"/></mxCell>
+        <mxCell id="n7" value="Suricata 7 (VM) + Grafana 11&#xa;observación perimetral y visualización" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE4E2;strokeColor=#A33B33;fontSize=12;" vertex="1" parent="1"><mxGeometry x="790" y="300" width="390" height="60" as="geometry"/></mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.7;" edge="1" parent="1" source="n1" target="n2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.7;" edge="1" parent="1" source="n2" target="n3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="persistencia lista" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.7;fontSize=9.5;fontColor=#64748B;" edge="1" parent="1" source="n2" target="n4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="identidad lista" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.7;fontSize=9.5;fontColor=#64748B;" edge="1" parent="1" source="n2" target="n5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.7;" edge="1" parent="1" source="n3" target="n6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.7;" edge="1" parent="1" source="n5" target="n6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" value="canal de control listo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.7;fontSize=9.5;fontColor=#64748B;" edge="1" parent="1" source="n4" target="n6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" value="alertas eve.json" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.7;fontSize=9.5;fontColor=#64748B;" edge="1" parent="1" source="n6" target="n7"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="deg" value="ARRANQUE DEGRADADO (P2, P10)&#xa;si un servicio falla, las reglas ya instaladas en los switches no desaparecen: privilegios y mitigaciones expiran por timeout, el resto sigue operando" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7EBD7;strokeColor=#7BAE7B;fontColor=#166534;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="340" width="740" height="60" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

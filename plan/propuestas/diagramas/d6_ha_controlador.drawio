@@ -1,0 +1,28 @@
+<mxfile host="app.diagrams.net" agent="Claude Code" version="24.0.0">
+  <diagram id="d6-ha" name="HA del controlador (referencia)">
+    <mxGraphModel dx="1200" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="t" value="Alta disponibilidad del controlador — ARQUITECTURA DE REFERENCIA (analizada, no desplegada)" style="text;html=1;align=left;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="900" height="30" as="geometry"/></mxCell>
+        <mxCell id="sub" value="El prototipo usa una sola instancia de ONOS; el clúster es la evolución de producción documentada (F-01 §6, C-04 §4)" style="text;html=1;align=left;fontColor=#64748B;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="48" width="900" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="oa" value="ONOS-A&#xa;tcp:10.0.0.30:6653" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE4E2;strokeColor=#E15A50;strokeWidth=1.8;fontSize=12.5;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="140" y="90" width="180" height="70" as="geometry"/></mxCell>
+        <mxCell id="ob" value="ONOS-B&#xa;tcp:10.0.0.31:6653" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE4E2;strokeColor=#E15A50;strokeWidth=1.8;fontSize=12.5;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="430" y="90" width="180" height="70" as="geometry"/></mxCell>
+        <mxCell id="oc" value="ONOS-C&#xa;tcp:10.0.0.32:6653" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE4E2;strokeColor=#E15A50;strokeWidth=1.8;fontSize=12.5;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="720" y="90" width="180" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="e1" style="edgeStyle=none;html=1;endArrow=none;strokeColor=#E15A50;strokeWidth=2;" edge="1" parent="1" source="oa" target="ob"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=none;html=1;endArrow=none;strokeColor=#E15A50;strokeWidth=2;" edge="1" parent="1" source="ob" target="oc"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="consenso Raft (Atomix)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=none;strokeColor=#E15A50;strokeWidth=2;fontSize=11;fontColor=#B91C1C;fontStyle=1;" edge="1" parent="1" source="oa" target="oc"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="sw" value="Switches Pica8 — varios endpoints configurados&#xa;un maestro (MASTER) por dispositivo, los demás en SLAVE · OFPT_ROLE_REQUEST con generation_id&#xa;ante la caída del maestro: re-elección → reconexión → reconciliación (reinstala lo faltante, no barre lo vigente)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7EBD7;strokeColor=#3F7D3F;strokeWidth=1.6;fontColor=#0F172A;fontSize=11;" vertex="1" parent="1"><mxGeometry x="240" y="250" width="560" height="80" as="geometry"/></mxCell>
+        <mxCell id="ea" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=7 4;strokeColor=#B91C1C;strokeWidth=1.6;" edge="1" parent="1" source="oa" target="sw"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="eb" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=7 4;strokeColor=#B91C1C;strokeWidth=1.6;" edge="1" parent="1" source="ob" target="sw"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=7 4;strokeColor=#B91C1C;strokeWidth=1.6;" edge="1" parent="1" source="oc" target="sw"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="nota" value="La red instalada continúa durante la caída: los switches conservan las reglas y sus timeouts (P2, P10).&#xa;La redundancia del plano de datos sí se despliega (8 switches dual-homed); la del plano de control se documenta." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF9C3;strokeColor=#CA8A04;fontColor=#713F12;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="360" width="960" height="56" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

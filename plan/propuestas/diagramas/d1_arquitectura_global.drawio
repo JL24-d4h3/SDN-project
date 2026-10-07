@@ -1,0 +1,90 @@
+<mxfile host="app.diagrams.net" agent="Claude Code" version="24.0.0">
+  <diagram id="d1-arquitectura-global" name="Arquitectura global (capas y planos)">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Banda: actores -->
+        <mxCell id="act" value="ACTORES / SISTEMAS EXTERNOS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1EDFA;strokeColor=#9CC3E5;fontColor=#1E3A8A;fontStyle=1;fontSize=13;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="1280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="act1" value="Usuario académico&#xa;BASE por presencia · ACADÉMICO por login" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="70" y="66" width="270" height="52" as="geometry"/></mxCell>
+        <mxCell id="act2" value="Especialista TI · Admin. de Red · Superadmin&#xa;dispositivo registrado + autenticación + TOTP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="360" y="66" width="350" height="52" as="geometry"/></mxCell>
+        <mxCell id="act3" value="Atacantes y sistemas externos&#xa;sin rol: se observan, clasifican y contienen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="730" y="66" width="310" height="52" as="geometry"/></mxCell>
+        <mxCell id="act4" value="IdP institucional · DNS · NTP&#xa;sistema externo a la plataforma" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="1060" y="66" width="240" height="52" as="geometry"/></mxCell>
+
+        <!-- Banda: interacción -->
+        <mxCell id="inter" value="INTERACCIÓN" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;fontColor=#1E3A8A;fontStyle=1;fontSize=13;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="145" width="1280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="por" value="Portal cautivo · 10.0.0.5&#xa;I3 · única superficie que BASE alcanza" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0284C7;fontSize=12;" vertex="1" parent="1"><mxGeometry x="70" y="180" width="260" height="52" as="geometry"/></mxCell>
+        <mxCell id="con" value="Consola · 10.0.0.17&#xa;I7 · operación y administración" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0284C7;fontSize=12;" vertex="1" parent="1"><mxGeometry x="350" y="180" width="260" height="52" as="geometry"/></mxCell>
+        <mxCell id="api" value="API northbound (I2)&#xa;órdenes y consultas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0284C7;fontSize=12;" vertex="1" parent="1"><mxGeometry x="630" y="180" width="210" height="52" as="geometry"/></mxCell>
+        <mxCell id="nota10" value="Los diez servicios están todos en la banda PLATAFORMA. Portal y Consola son servicios de interacción, no partes de otro servicio." style="text;html=1;align=left;verticalAlign=middle;fontColor=#334155;fontSize=11;" vertex="1" parent="1"><mxGeometry x="870" y="176" width="420" height="60" as="geometry"/></mxCell>
+
+        <!-- Banda: plataforma -->
+        <mxCell id="plat" value="PLATAFORMA DE SEGURIDAD — DIEZ SERVICIOS, TODOS VISIBLES Y SEPARADOS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748B;fontColor=#1E3A8A;fontStyle=1;fontSize=13;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="260" width="1280" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="iam" value="IAM / AAA · .10&#xa;autenticación, sesiones, IdP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="70" y="310" width="226" height="58" as="geometry"/></mxCell>
+        <mxCell id="reg" value="Registro · .11&#xa;catálogo de dispositivos" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="308" y="310" width="226" height="58" as="geometry"/></mxCell>
+        <mxCell id="mon" value="Monitor · .12&#xa;contadores, línea base EWMA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="546" y="310" width="226" height="58" as="geometry"/></mxCell>
+        <mxCell id="det" value="Detección · .13&#xa;clasificación de anomalías" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="784" y="310" width="226" height="58" as="geometry"/></mxCell>
+        <mxCell id="inc" value="Incidentes · .14&#xa;ciclo de vida INC-xxxx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="1022" y="310" width="226" height="58" as="geometry"/></mxCell>
+        <mxCell id="pol" value="Políticas · .15&#xa;ABAC, escalera; única emisora I2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="70" y="386" width="226" height="58" as="geometry"/></mxCell>
+        <mxCell id="aud" value="Auditoría · .16&#xa;quién, qué, cuándo, por qué" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="308" y="386" width="226" height="58" as="geometry"/></mxCell>
+        <mxCell id="ada" value="Adaptador del sensor · .18&#xa;alerta EVE JSON → bus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="546" y="386" width="226" height="58" as="geometry"/></mxCell>
+        <mxCell id="notaServ" value="Portal (10.0.0.5) y Consola (.17) son servicios de la banda INTERACCIÓN — completan los diez; nadie los absorbe (IAM no «contiene» el Portal)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF9C3;strokeColor=#CA8A04;fontColor=#713F12;fontSize=11;" vertex="1" parent="1"><mxGeometry x="784" y="386" width="464" height="58" as="geometry"/></mxCell>
+
+        <!-- Banda: broker -->
+        <mxCell id="broker" value="EVENT BROKER — RabbitMQ 3.13 · 10.0.0.21&#xa;exchange topic «plataforma» · colas durables por servicio · DLQ · cola FIFO por incidente inc.&lt;INC-id&gt; · al menos una vez + idempotencia" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE8D0;strokeColor=#F5AA50;fontColor=#9A4D00;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="1280" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Banda: control -->
+        <mxCell id="ctrl" value="CONTROL SDN" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE4E2;strokeColor=#E15A50;fontColor=#B91C1C;fontStyle=1;fontSize=13;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="610" width="1280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="onos" value="ONOS 2.7 LTS · 10.0.0.20&#xa;motor de traducción: órdenes → OpenFlow · topología · cookies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#E15A50;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="450" y="644" width="420" height="52" as="geometry"/></mxCell>
+        <mxCell id="notaOnos" value="No autentica usuarios ni decide política de seguridad: traduce y coordina." style="text;html=1;align=left;verticalAlign=middle;fontColor=#64748B;fontSize=11;" vertex="1" parent="1"><mxGeometry x="900" y="648" width="380" height="44" as="geometry"/></mxCell>
+
+        <!-- Banda: data plane -->
+        <mxCell id="data" value="PLANO DE DATOS — ocho switches Pica8/PicOS · OpenFlow 1.3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7EBD7;strokeColor=#7BAE7B;fontColor=#166534;fontStyle=1;fontSize=13;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="730" width="1280" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="d_nc" value="NC1 ═ NC2 · núcleo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7BAE7B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="70" y="770" width="180" height="40" as="geometry"/></mxCell>
+        <mxCell id="d_dist" value="D1 · D2 · distribución" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7BAE7B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="262" y="770" width="200" height="40" as="geometry"/></mxCell>
+        <mxCell id="d_acc" value="A1 · A2 · A3 · A4 · acceso" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7BAE7B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="474" y="770" width="240" height="40" as="geometry"/></mxCell>
+        <mxCell id="d_links" value="13 enlaces dual-homed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7BAE7B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="726" y="770" width="180" height="40" as="geometry"/></mxCell>
+        <mxCell id="d_vlan" value="VLAN 10 · 20 · 30 · 40 · FLOW · METER · GROUP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7BAE7B;fontSize=12;" vertex="1" parent="1"><mxGeometry x="918" y="770" width="330" height="40" as="geometry"/></mxCell>
+        <mxCell id="d_nota" value="La mitigación se instala en los switches de ingreso (P9) · el canal de control es out-of-band por ma1, jamás por la VLAN 20" style="text;html=1;align=left;fontColor=#166534;fontSize=10.5;" vertex="1" parent="1"><mxGeometry x="70" y="822" width="900" height="20" as="geometry"/></mxCell>
+
+        <!-- Banda: activos -->
+        <mxCell id="activos" value="ACTIVOS Y PERÍMETRO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F2F2F2;strokeColor=#94A3B8;fontColor=#334155;fontStyle=1;fontSize=13;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="870" width="1280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="a_serv" value="Servicios protegidos · VLAN 30&#xa;general .10 · privilegiado .11 · crítico .12" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7BAE7B;fontSize=11;" vertex="1" parent="1"><mxGeometry x="70" y="905" width="300" height="52" as="geometry"/></mxCell>
+        <mxCell id="a_perim" value="Perímetro · VLAN 40&#xa;espejo A4 p47 → Suricata → Adaptador → bus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#F5AA50;fontSize=11;" vertex="1" parent="1"><mxGeometry x="390" y="905" width="300" height="52" as="geometry"/></mxCell>
+        <mxCell id="a_inet" value="Internet&#xa;origen de escenarios R5" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#94A3B8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="710" y="905" width="200" height="52" as="geometry"/></mxCell>
+        <mxCell id="a_ids" value="Suricata 7 · 10.0.0.27&#xa;IDS fuera de camino (solo RX)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#E15A50;fontSize=11;" vertex="1" parent="1"><mxGeometry x="930" y="905" width="240" height="52" as="geometry"/></mxCell>
+
+        <!-- Flechas -->
+        <mxCell id="e_act_por" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;" edge="1" parent="1" source="act1" target="por"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_act_con" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;" edge="1" parent="1" source="act2" target="con"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_por_iam" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;" edge="1" parent="1" source="por" target="iam"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_con_aud" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;" edge="1" parent="1" source="con" target="aud"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_broker_1" value="I5 eventos" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=6 4;strokeColor=#9A4D00;strokeWidth=1.5;fontSize=10;fontColor=#9A4D00;" edge="1" parent="1" source="mon" target="broker"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_broker_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=6 4;strokeColor=#9A4D00;strokeWidth=1.5;" edge="1" parent="1" source="pol" target="broker"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_broker_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=6 4;strokeColor=#9A4D00;strokeWidth=1.5;" edge="1" parent="1" source="aud" target="broker"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_i2" value="I2 órdenes (síncrono, solo Políticas)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#1E3A8A;strokeWidth=2;fontSize=10.5;fontColor=#1E3A8A;fontStyle=1;" edge="1" parent="1" source="pol" target="onos"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_i8" value="I8 contadores 5 s / 60 s" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=6 4;strokeColor=#0284C7;strokeWidth=1.5;fontSize=10;fontColor=#0284C7;" edge="1" parent="1" source="mon" target="onos"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_i1" value="I1 OpenFlow 1.3 · OOB ma1 · tcp 6653" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#B91C1C;strokeWidth=2;fontSize=10.5;fontColor=#B91C1C;fontStyle=1;" edge="1" parent="1" source="onos" target="data"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_datos" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#334155;strokeWidth=1.5;" edge="1" parent="1" source="data" target="activos"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_espejo" value="espejo SPAN A4 p47 (solo RX)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=6 4;strokeColor=#B91C1C;strokeWidth=1.3;fontSize=10;fontColor=#B91C1C;" edge="1" parent="1" source="a_perim" target="a_ids"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="titulo_der" value="observar → detectar → decidir → traducir → ejecutar → verificar" style="text;html=1;align=right;fontColor=#1E3A8A;fontStyle=1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="940" y="262" width="370" height="20" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

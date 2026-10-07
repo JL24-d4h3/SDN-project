@@ -1,0 +1,1323 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\geometry{margin=2.2cm}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc,shapes.geometric,shapes.misc,matrix,backgrounds,decorations.pathreplacing}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{pdflscape}
+\usepackage{caption}
+\usepackage{multicol}
+
+\definecolor{critical}{RGB}{210,45,45}
+\definecolor{high}{RGB}{245,190,50}
+\definecolor{layerblue}{RGB}{225,237,250}
+\definecolor{layergray}{RGB}{242,242,242}
+\definecolor{eventorange}{RGB}{245,170,80}
+\definecolor{controlred}{RGB}{225,90,80}
+\definecolor{datagreen}{RGB}{215,235,215}
+\definecolor{notegray}{RGB}{245,245,245}
+\definecolor{dark}{RGB}{45,45,45}
+
+\hypersetup{colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!55!black,citecolor=blue!55!black}
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headheight}{14pt}
+\lhead{Arquitectura SDN de seguridad para campus}
+\rhead{Documento arquitectónico consolidado}
+\cfoot{\thepage}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\renewcommand{\arraystretch}{1.18}
+
+\newcommand{\status}[1]{\textcolor{blue!60!black}{\textbf{Estado: #1}}}
+\newcommand{\criticalnote}[1]{\begin{center}\fcolorbox{critical!70!black}{red!4}{\parbox{0.93\linewidth}{\textbf{Punto crítico.} #1}}\end{center}}
+\newcommand{\decision}[2]{\begin{center}\fcolorbox{blue!55!black}{blue!3}{\parbox{0.93\linewidth}{\textbf{Decisión: #1.} #2}}\end{center}}
+\newcommand{\pending}[1]{\begin{center}\fcolorbox{high!70!black}{yellow!5}{\parbox{0.93\linewidth}{\textbf{Pendiente de validación.} #1}}\end{center}}
+
+\lstset{basicstyle=\ttfamily\small,breaklines=true,columns=fullflexible,frame=single,backgroundcolor=\color{notegray}}
+
+\titleformat{\section}{\Large\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{0.5em}{}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{1.5cm}
+{\Huge\bfseries Arquitectura de una solución de seguridad SDN\par}
+\vspace{0.35cm}
+{\LARGE Red de campus académico\par}
+\vspace{1.2cm}
+{\Large Documento arquitectónico consolidado\par}
+\vspace{0.8cm}
+{\large Adaptación ARC42 + arquitectura SDN + HLD/LLSD\par}
+\vfill
+\begin{tabular}{ll}
+Curso: & TEL354 --- Redes Definidas por Software\\
+Proyecto: & Solución de seguridad para una red de campus académico\\
+Versión: & Consolidación v2 --- octubre de 2026\\
+Estado: & Documento de decisión para aprobación técnica interna\\
+\end{tabular}
+\vfill
+\fbox{\parbox{0.86\linewidth}{\small\textbf{Propósito del documento.} Este documento consolida el planeamiento existente de las fases A--H, conserva las responsabilidades de los microservicios como unidades lógicas separadas, formaliza los planos y capas, integra la infraestructura y añade una estructura de decisión y trazabilidad. Las cifras que las fuentes identifican como provisionales o pendientes de medición se mantienen explícitamente como tales; no se presentan como resultados experimentales.}}
+\vfill
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Cómo leer este documento y criterio de consolidación}
+
+Este documento adopta \textbf{ARC42 como estructura documental de referencia}, pero no como plantilla rígida. ARC42 resulta adecuado porque separa contexto, restricciones, estrategia de solución, bloques de construcción, comportamiento en ejecución, despliegue, conceptos transversales, decisiones, requisitos de calidad y riesgos. Para esta solución SDN se añaden tres vistas que ARC42 no debe dejar implícitas: \textbf{superposición capas $\times$ planos SDN}, \textbf{cadena de detección--decisión--enforcement} y \textbf{trazabilidad requisito \(\rightarrow\) componente \(\rightarrow\) mecanismo \(\rightarrow\) métrica \(\rightarrow\) prueba}.
+
+La regla de consolidación es la siguiente:
+
+\begin{enumerate}[label=\arabic*.]
+\item Los cuatro documentos de planeamiento suministrados son la fuente primaria del contenido.
+\item Las decisiones ya cerradas se conservan con su terminología: ONOS, OpenFlow 1.3, Pica8/PicOS, RabbitMQ, PostgreSQL, FreeRADIUS/OpenLDAP, Suricata, out-of-band, EWMA, etc.
+\item Las unidades lógicas de microservicio \textbf{no se fusionan}. Pueden agruparse por afinidad en una vista de despliegue, pero siguen siendo servicios/componentes diferenciados en la arquitectura.
+\item Cuando dos documentos contienen cifras distintas, no se inventa una reconciliación. Se declara la discrepancia y se define el mecanismo para cerrarla.
+\item La arquitectura lógica, el despliegue del prototipo y la arquitectura de referencia del campus se distinguen explícitamente.
+\end{enumerate}
+
+\criticalnote{Existe una discrepancia cuantitativa importante que debe cerrarse antes de considerar el diseño numéricamente congelado: la fase F estima aproximadamente 200--300 entradas OpenFlow para el prototipo, mientras que la fase H utiliza aproximadamente 350--450 reglas. Además, la capacidad TCAM efectiva del modelo de switch no está fijada en los documentos. Por tanto, este documento adopta 450 como \emph{envolvente de diseño conservadora}, no como medición, y exige una cuenta de reglas por función y una medición de capacidad real del switch.}
+
+\section{Contexto, propósito y alcance}
+
+\subsection{Propósito}
+
+Diseñar una solución de seguridad basada en SDN para una red de campus académico capaz de controlar el acceso a la red, proteger recursos privilegiados, detectar y mitigar ataques internos y proteger el perímetro frente a amenazas externas.
+
+Los cinco requerimientos son:
+
+\begin{itemize}
+\item \textbf{R1}: control de acceso a la red según rol, perfil y contexto.
+\item \textbf{R2}: protección de recursos privilegiados.
+\item \textbf{R3}: detección y mitigación de ataques encubiertos en la intranet.
+\item \textbf{R4}: detección y mitigación de DDoS/brute-force interno.
+\item \textbf{R5}: seguridad perimetral frente a ataques externos.
+\end{itemize}
+
+La arquitectura considera los cinco; la implementación detallada del grupo se concentra en los requerimientos asignados por el curso.
+
+\subsection{Problema arquitectónico}
+
+El problema no consiste solamente en autenticar personas. La solución debe conectar una decisión de seguridad de alto nivel con una modificación concreta del plano de datos:
+
+\begin{center}
+\textbf{identidad/contexto \(\rightarrow\) política \(\rightarrow\) decisión \(\rightarrow\) controlador \(\rightarrow\) regla SDN \(\rightarrow\) enforcement \(\rightarrow\) verificación}
+\end{center}
+
+El diseño debe mantener separadas tres responsabilidades fundamentales:
+
+\begin{itemize}
+\item la plataforma de seguridad \textbf{observa y decide};
+\item el controlador SDN \textbf{traduce y coordina};
+\item los switches \textbf{ejecutan y reportan}.
+\end{itemize}
+
+\subsection{Alcance funcional}
+
+Control de acceso, autorización, monitoreo, detección, mitigación, seguridad perimetral, políticas, auditoría, recuperación, escalabilidad y evaluación cuantitativa.
+
+\subsection{Alcance de infraestructura}
+
+El prototipo contempla ocho switches Pica8/PicOS: dos de núcleo (NC1, NC2), dos de distribución (D1, D2) y cuatro de acceso (A1--A4), 13 enlaces entre switches, canal de control out-of-band, un servidor de laboratorio, VMs para hosts/servidores/atacantes y contenedores para servicios.
+
+\section{Drivers, restricciones e invariantes}
+
+\subsection{Principios arquitectónicos}
+
+\begin{longtable}{p{0.12\linewidth}p{0.78\linewidth}}
+\toprule
+P1 & Separación de planos.\\
+P2 & Decisión centralizada, ejecución distribuida.\\
+P3 & Responsabilidad única de los componentes.\\
+P4 & Toda complejidad debe estar justificada.\\
+P5 & Mínimo privilegio con denegación por defecto.\\
+P6 & La identidad se exige para elevar privilegios.\\
+P7 & La MAC es atributo, no credencial.\\
+P8 & El detector observa; la política decide; la red ejecuta.\\
+P9 & Mitigar cerca del origen sin cortar el tráfico legítimo innecesariamente.\\
+P10 & Todo privilegio y toda mitigación es temporal y reversible.\\
+P11 & Trazabilidad y observabilidad por diseño.\\
+P12 & Sin métrica no hay decisión válida.\\
+P13 & Comunicación por eventos entre componentes de seguridad.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Restricciones de referencia}
+
+\begin{itemize}
+\item El campus es de acceso físico controlado. La presencia física permite obtener únicamente el perfil BASE.
+\item El canal de control del prototipo es out-of-band.
+\item Los hosts del prototipo utilizan IP estática por reproducibilidad; DHCP queda contemplado para la referencia y la regla de infraestructura, pero no es dependencia del direccionamiento experimental.
+\item 802.1X y el canal in-band son capacidades de referencia, no compromisos del prototipo.
+\item La alta disponibilidad real del controlador se diseña como arquitectura de referencia; el prototipo parte de una instancia ONOS.
+\item Las primitivas OpenFlow exigidas se deben verificar contra el switch real antes de fijar el pipeline como irreversible.
+\end{itemize}
+
+\section{Contexto del sistema}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=8mm, every node/.style={font=\small}, box/.style={draw,rounded corners,align=center,minimum width=3.4cm,minimum height=1cm}]
+\node[box,fill=layerblue] (acad) {Usuario académico};
+\node[box,fill=layerblue,right=14mm of acad] (ops) {Especialista TI\\Administrador de Red\\Superadministrador};
+\node[box,fill=layerblue,right=14mm of ops] (ext) {Atacante externo /\\sistemas externos};
+\node[box,fill=white,below=13mm of ops,minimum width=5.5cm] (sys) {\textbf{Solución de seguridad SDN}\\Plataforma + controlador + plano de datos};
+\draw[-{Latex}] (acad)--node[above]{portal / servicios} (sys);
+\draw[-{Latex}] (ops)--node[right]{consola / API} (sys);
+\draw[-{Latex}] (ext)--node[right]{tráfico / integración} (sys);
+\end{tikzpicture}
+\caption{Contexto de alto nivel.}
+\end{figure}
+
+\subsection{Actores con roles autorizados}
+
+\begin{longtable}{p{0.14\linewidth}p{0.18\linewidth}p{0.24\linewidth}p{0.32\linewidth}}
+\toprule
+Nivel & Rol & Obtención de privilegios & Alcance principal\\
+\midrule
+0 & Usuario académico & BASE por presencia física; ACADÉMICO mediante login al IdP; elevación temporal aprobada & Servicios públicos/académicos; no administra red.\\
+1 & Especialista de TI & Dispositivo registrado + autenticación + TOTP & Observabilidad, alertas, investigación y mitigaciones autorizadas.\\
+2 & Administrador de Red & Dispositivo registrado + autenticación & Políticas, VLAN, reglas, switches, elevaciones y operación.\\
+3 & Superadministrador & Dispositivo registrado + autenticación; acceso remoto contemplado & Gestión global, roles, administradores, políticas y recuperación.\\
+\bottomrule
+\end{longtable}
+
+Alumno y Docente se fusionan en \textbf{Usuario académico} a nivel de red. Las diferencias que existan a nivel de aplicación no forman parte del control de red.
+
+\subsection{Agentes no autorizados}
+
+Atacante externo, atacante interno y nodo comprometido no reciben roles. Son orígenes de comportamiento que el sistema observa, clasifica y contiene.
+
+\subsection{Regla de autorización}
+
+\begin{equation}
+\boxed{\text{Permiso efectivo} = \text{Rol} + \text{Recurso} + \text{Acción} + \text{Contexto} + \text{Vigencia} + \text{Estado de seguridad}}
+\end{equation}
+
+El rol, por sí solo, no constituye confianza permanente.
+
+\section{Estrategia de solución}
+
+\subsection{Estilo arquitectónico híbrido}
+
+La arquitectura adopta cuatro estilos con responsabilidades diferentes:
+
+\begin{longtable}{p{0.2\linewidth}p{0.7\linewidth}}
+\toprule
+Capas & Estructura global por niveles de responsabilidad.\\
+Orientado a eventos & Reacción dinámica y desacoplamiento de la cadena de seguridad.\\
+Cliente-Servidor & Interacción síncrona en el borde: portal, consola, APIs y sistemas externos.\\
+Microservicios & Descomposición interna de la plataforma en unidades con responsabilidad, estado y ciclo de vida propios.\\
+\bottomrule
+\end{longtable}
+
+No se trata de elegir un único estilo y descartar los demás. El sistema tiene simultáneamente una dimensión estructural, una dinámica, una interacción externa y una descomposición interna. La arquitectura los utiliza de forma ortogonal.
+
+\subsection{Microservicios: decisión explícita}
+
+\textbf{Los microservicios se mantienen separados.} La preocupación por sobrearquitectura afecta al despliegue y a la infraestructura, no a la descomposición lógica. Cada servicio conserva su responsabilidad visible.
+
+\begin{itemize}
+\item IAM/AAA
+\item Registro de dispositivos privilegiados
+\item Monitor
+\item Detección
+\item Incidentes
+\item Políticas
+\item Auditoría
+\end{itemize}
+
+El portal forma parte de IAM/AAA; la consola es un cliente de los servicios; el controlador SDN no se trata como microservicio de la plataforma y los switches no son microservicios.
+
+La independencia lógica permite posteriormente desplegar servicios en hosts distintos, contenedores separados y, en un curso posterior, utilizar capacidades cloud sin alterar el modelo arquitectónico.
+
+\subsection{Patrones arquitectónicos}
+
+\begin{longtable}{p{0.2\linewidth}p{0.7\linewidth}}
+\toprule
+Broker & Patrón transversal para eventos y desacoplamiento entre productores y consumidores.\\
+Pipe-and-Filter & Patrón localizado dentro de Detección: captura \(\rightarrow\) normalización \(\rightarrow\) features \(\rightarrow\) detección \(\rightarrow\) clasificación.\\
+Repository & Aísla la lógica de cada servicio de su persistencia.\\
+\bottomrule
+\end{longtable}
+
+Message Queueing se utiliza como mecanismo de entrega dentro del Broker, no como estilo global. Master-Slave se descarta como patrón arquitectónico general: la relación controlador--switch pertenece al paradigma SDN. CQRS se descarta por falta de una divergencia real entre modelos de lectura y escritura.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=7mm, every node/.style={font=\small}, b/.style={draw,rounded corners,align=center,minimum width=3cm,minimum height=8mm}]
+\node[b,fill=layerblue] (ui) {Portal / Consola / APIs};
+\node[b,below=of ui] (svc) {Microservicios separados};
+\node[b,below=of svc,fill=eventorange!35,minimum width=4cm] (broker) {BROKER\\eventos};
+\node[b,below=of broker,fill=notegray] (det) {Pipe-and-Filter\\dentro de Detección};
+\node[b,below=of det] (repo) {Repository \(\rightarrow\) datos propios};
+\draw[-{Latex}] (ui)--(svc);
+\draw[-{Latex}] (svc)--(broker);
+\draw[-{Latex}] (broker)--(det);
+\draw[-{Latex}] (svc)--(repo);
+\end{tikzpicture}
+\caption{Integración de estilos y patrones.}
+\end{figure}
+
+\section{Vista de bloques de construcción}
+
+\subsection{Arquitectura principal: capas + eventos}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[every node/.style={font=\small}, layer/.style={draw,rounded corners,minimum width=15.5cm,minimum height=1.2cm,align=center}, svc/.style={draw,rounded corners,fill=white,minimum width=1.7cm,minimum height=0.65cm,align=center}]
+\node[layer,fill=layerblue] (interaction) {\textbf{INTERACCIÓN}\\Portal cautivo $\cdot$ Consola de administración $\cdot$ APIs $\cdot$ sistemas externos};
+\node[layer,fill=white,below=2mm of interaction] (application) {\textbf{APLICACIÓN}\\IAM/AAA $\cdot$ Registro $\cdot$ Incidentes $\cdot$ Políticas $\cdot$ Monitor $\cdot$ Detección $\cdot$ Auditoría};
+\node[layer,fill=eventorange!25,below=2mm of application,minimum height=0.65cm] (broker) {\textbf{EVENT BROKER} --- eventos asíncronos};
+\node[layer,fill=red!12,below=2mm of broker] (control) {\textbf{CONTROL SDN}\\ONOS $\cdot$ API northbound $\cdot$ OpenFlow 1.3 southbound};
+\node[layer,fill=datagreen,below=2mm of control] (data) {\textbf{INFRAESTRUCTURA / DATA PLANE}\\NC1 $\cdot$ NC2 $\cdot$ D1 $\cdot$ D2 $\cdot$ A1 $\cdot$ A2 $\cdot$ A3 $\cdot$ A4 $\cdot$ hosts $\cdot$ servidores $\cdot$ perímetro};
+\draw[-{Latex}] (interaction)--(application);
+\draw[-{Latex},dashed] (application)--(broker);
+\draw[-{Latex}] (broker)--(control);
+\draw[-{Latex}] (control)--node[right]{OpenFlow 1.3}(data);
+\end{tikzpicture}
+\caption{Vista arquitectónica principal. Los microservicios permanecen conceptualmente separados dentro de la capa de aplicación.}
+\end{figure}
+
+\subsection{Microservicios: vista completa y separada}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[every node/.style={font=\scriptsize}, svc/.style={draw,rounded corners,fill=white,minimum width=2.5cm,minimum height=0.85cm,align=center}, grp/.style={draw,dashed,rounded corners,inner sep=5mm}]
+\node[svc] (iam) {IAM/AAA\\+ Portal};
+\node[svc,right=4mm of iam] (reg) {Device\\Registry};
+\node[svc,right=4mm of reg] (mon) {Monitor};
+\node[svc,right=4mm of mon] (det) {Detection\\Engine};
+\node[svc,below=8mm of iam] (inc) {Incident\\Manager};
+\node[svc,right=4mm of inc] (pol) {Policy\\Engine};
+\node[svc,right=4mm of pol] (aud) {Audit};
+\node[grp,fit=(iam)(reg),label=above:{\scriptsize Identidad y acceso}] {};
+\node[grp,fit=(mon)(det),label=above:{\scriptsize Observabilidad y detección}] {};
+\node[grp,fit=(inc)(pol),label=below:{\scriptsize Respuesta y decisión}] {};
+\node[grp,fit=(aud),label=below:{\scriptsize Gobernanza y trazabilidad}] {};
+\end{tikzpicture}
+\caption{Todos los microservicios permanecen visibles y separados; las cajas punteadas solo indican afinidad.}
+\end{figure}
+
+\subsection{Responsabilidades}
+
+\begin{longtable}{p{0.2\linewidth}p{0.36\linewidth}p{0.32\linewidth}}
+\toprule
+Servicio & Responsabilidad & Estado propio / repositorio\\
+\midrule
+IAM/AAA & Identidad, autenticación, autorización de población y sesiones; portal cautivo. & identidades privilegiadas, sesiones, perfiles.\\
+Registro & Catálogo de dispositivos privilegiados, vigencias y responsables. & DeviceRepository.\\
+Monitor & Lectura de counters y construcción de línea base. & observaciones y línea base.\\
+Detección & Clasificación de anomalías. & modelos/umbrales.\\
+Incidentes & Ciclo de vida del incidente. & IncidentRepository.\\
+Políticas & Decisión de respuesta, elevaciones y mitigaciones. & PolicyRepository/PermissionRepository.\\
+Auditoría & Quién, qué, cuándo y por qué. & AuditRepository.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Controlador SDN}
+
+ONOS cumple el papel de controlador central de decisión de la red: aprende topología y asociaciones, traduce órdenes de alto nivel a primitivas OpenFlow, confirma y retira reglas. No autentica usuarios ni decide la política de seguridad.
+
+\subsection{Interfaces}
+
+\begin{longtable}{p{0.11\linewidth}p{0.23\linewidth}p{0.56\linewidth}}
+\toprule
+I1 & Southbound & ONOS \(\leftrightarrow\) Pica8/PicOS, OpenFlow 1.3, out-of-band.\\
+I2 & Northbound & Servicios \(\leftrightarrow\) ONOS; órdenes de alto nivel y confirmación.\\
+I3 & Portal & Poblaciones \(\leftrightarrow\) IAM/AAA.\\
+I4 & Identidad & IAM/AAA \(\leftrightarrow\) IdP institucional mediante RADIUS/directorio.\\
+I5 & Eventos & Servicios \(\leftrightarrow\) RabbitMQ.\\
+I6 & Persistencia & Servicio \(\leftrightarrow\) repositorio/base propia.\\
+I7 & Administración & Consola \(\leftrightarrow\) servicios.\\
+I8 & Observación & Monitor obtiene counters a través de ONOS.\\
+\bottomrule
+\end{longtable}
+
+\section{Modelo de comunicación}
+
+La frontera síncrono/asíncrono es deliberada.
+
+\begin{itemize}
+\item \textbf{Síncrono}: login, consultas administrativas, aprobación de elevación, órdenes northbound y confirmaciones.
+\item \textbf{Asíncrono}: métricas, anomalías, incidentes, solicitudes de mitigación, verificación y expiración.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=12mm,every node/.style={font=\small},b/.style={draw,rounded corners,minimum width=2.8cm,minimum height=8mm,align=center}]
+\node[b] (m) {Monitor};
+\node[b,right=14mm of m] (d) {Detection};
+\node[b,right=14mm of d] (i) {Incident};
+\node[b,right=14mm of i] (p) {Policy};
+\node[b,right=14mm of p] (c) {ONOS};
+\draw[-{Latex},dashed] (m)--node[above]{métricas/evento}(d);
+\draw[-{Latex},dashed] (d)--node[above]{AnomalyDetected}(i);
+\draw[-{Latex},dashed] (i)--node[above]{IncidentOpened}(p);
+\draw[-{Latex}] (p)--node[above]{orden I2}(c);
+\end{tikzpicture}
+\caption{Cadena dinámica principal.}
+\end{figure}
+
+\section{Vistas de ejecución y flujos principales}
+
+\subsection{R1 --- conexión, autenticación y perfil}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=7mm,every node/.style={font=\small},b/.style={draw,rounded corners,align=center,minimum width=3.3cm,minimum height=8mm}]
+\node[b] (dev) {Dispositivo conectado};
+\node[b,below=of dev] (base) {Perfil BASE\\DHCP $\cdot$ DNS $\cdot$ portal};
+\node[b,below=of base] (login) {Login en portal};
+\node[b,below=of login] (idp) {IdP institucional / AAA};
+\node[b,below=of idp] (profile) {Perfil ACADÉMICO\\o sesión de operador};
+\node[b,below=of profile] (policy) {Policy Engine};
+\node[b,below=of policy] (onos) {ONOS};
+\node[b,below=of onos] (sw) {Switch de ingreso\\FLOW\_MOD};
+\draw[-{Latex}] (dev)--(base)--(login)--(idp)--(profile)--(policy)--(onos)--(sw);
+\end{tikzpicture}
+\caption{R1: el perfil BASE no depende de identidad; la identidad se exige para elevar privilegios.}
+\end{figure}
+
+La elevación temporal sigue: solicitud \(\rightarrow\) aprobación \(\rightarrow\) TTL \(\rightarrow\) regla de sesión \(\rightarrow\) expiración \(\rightarrow\) retirada por cookie/timeout \(\rightarrow\) auditoría.
+
+\subsection{R2 --- protección de recursos privilegiados}
+
+Los recursos críticos incluyen servidores protegidos, infraestructura de gestión, AAA/RADIUS, IdP, controlador y segmentos/VLAN. El permiso efectivo se evalúa antes de que el flujo alcance el recurso.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=10mm,every node/.style={font=\small},b/.style={draw,rounded corners,minimum width=3.2cm,minimum height=8mm,align=center}]
+\node[b] (actor) {Actor / sesión};
+\node[b,right=12mm of actor] (role) {Rol + contexto};
+\node[b,right=12mm of role] (pol) {Policy Engine};
+\node[b,right=12mm of pol] (flow) {Regla SDN};
+\node[b,right=12mm of flow] (res) {Recurso protegido};
+\draw[-{Latex}] (actor)--(role)--(pol)--(flow)--(res);
+\draw[-{Latex},dashed] (flow.south) to[bend right=35] node[below]{counter / auditoría} (pol.south);
+\end{tikzpicture}
+\caption{R2: autorización y enforcement distribuido.}
+\end{figure}
+
+\subsection{R3/R4 --- detección y mitigación}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=6mm,every node/.style={font=\small},b/.style={draw,rounded corners,minimum width=2.8cm,minimum height=8mm,align=center}]
+\node[b] (traffic) {Tráfico};
+\node[b,right=6mm of traffic] (counter) {OpenFlow counters};
+\node[b,right=6mm of counter] (mon) {Monitor\\5 s / 60 s};
+\node[b,right=6mm of mon] (det) {Detection\\EWMA + reglas};
+\node[b,right=6mm of det] (inc) {Incident};
+\node[b,right=6mm of inc] (pol) {Policy};
+\node[b,right=6mm of pol] (onos) {ONOS};
+\node[b,right=6mm of onos] (sw) {Ingress switch\\Meter / DROP};
+\draw[-{Latex}] (traffic)--(counter)--(mon)--(det)--(inc)--(pol)--(onos)--(sw);
+\draw[-{Latex},dashed] (sw.south) to[bend right=35] node[below]{MitigationVerified} (mon.south);
+\end{tikzpicture}
+\caption{Cadena completa de R4; el resultado de la mitigación se verifica con nuevas observaciones.}
+\end{figure}
+
+\subsection{R5 --- perímetro}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=10mm,every node/.style={font=\small},b/.style={draw,rounded corners,minimum width=2.8cm,minimum height=8mm,align=center}]
+\node[b] (internet) {Internet / red externa};
+\node[b,right=13mm of internet] (edge) {A4\\borde};
+\node[b,above=11mm of edge] (mirror) {Port mirror};
+\node[b,right=13mm of mirror] (ids) {Suricata IDS};
+\node[b,below=11mm of ids] (adapt) {Adaptador};
+\node[b,right=13mm of edge] (data) {Plano de datos};
+\node[b,right=13mm of data] (target) {Servicios};
+\node[b,below=13mm of ids] (det) {Detection / Policy / ONOS};
+\draw[-{Latex}] (internet)--(edge)--(data)--(target);
+\draw[-{Latex}] (edge)--(mirror)--(ids)--(adapt)--(det);
+\draw[-{Latex}] (det)--(data);
+\end{tikzpicture}
+\caption{R5: IDS fuera de camino y enforcement mediante SDN.}
+\end{figure}
+
+\section{Detección, umbrales y mitigación: especificación cuantitativa}
+
+\subsection{Observación}
+
+El Monitor obtiene counters mediante I8 y no habla directamente con los switches. Hay dos regímenes:
+
+\begin{longtable}{p{0.3\linewidth}p{0.25\linewidth}p{0.3\linewidth}}
+\toprule
+Conjunto caliente & 5 s & recursos protegidos y puertos/reglas de ingreso.\\
+Barrido completo & 60 s & inventario completo de flujos y puertos.\\
+\bottomrule
+\end{longtable}
+
+Estos valores son configurables y deben evaluarse contra carga del plano de control y latencia de detección.
+
+\subsection{EWMA y reglas iniciales}
+
+\begin{longtable}{p{0.35\linewidth}p{0.2\linewidth}p{0.32\linewidth}}
+\toprule
+Parámetro & Valor inicial & Función\\
+\midrule
+$\alpha$ & 0,2 & suavizado de la línea base.\\
+Ventana & 5 s & coincide con conjunto caliente.\\
+N & 3 & confirmación de 15 s para patrones lentos.\\
+k entrada/salida & 4$\sigma$ / 2$\sigma$ & histéresis.\\
+Piso por destino & 200 pps y 2 Mbps & evita disparos triviales.\\
+Calentamiento & 30 min & durante el cual no se automatizan acciones por la línea base.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Clases de detección}
+
+\begin{longtable}{p{0.23\linewidth}p{0.39\linewidth}p{0.25\linewidth}}
+\toprule
+Clase & Features & Regla inicial\\
+\midrule
+Flood/DDoS & pps/bps hacia destino & $\geq$ k$\sigma$ y piso, N ventanas.\\
+Distribuido & número de fuentes & $\geq$10 fuentes en 60 s + tasa agregada sobre umbral.\\
+Brute-force & solicitudes/s por origen & $\geq$20 solicitudes/s sostenidas + conexiones nuevas altas.\\
+Scanning & destinos distintos por origen & >20 destinos en 60 s.\\
+Spoofing/MAC\_Moved & asociación MAC \(\leftrightarrow\) puerto & incoherencia determinista; no espera a umbral estadístico.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Escalera de mitigación}
+
+\begin{enumerate}
+\item RATE\_LIMIT --- automático, meter, reversible.
+\item BLOCK\_SOURCE --- automático si persiste o el patrón es inequívoco, TTL corto.
+\item ISOLATE\_DEVICE --- automático ante detección determinista, con TTL y auditoría.
+\item QUARANTINE --- alto impacto; aprobación humana en el diseño actual.
+\end{enumerate}
+
+\subsection{Presupuesto de latencia}
+
+\begin{longtable}{p{0.38\linewidth}p{0.22\linewidth}p{0.28\linewidth}}
+\toprule
+Etapa & Presupuesto provisional & Fundamento\\
+\midrule
+Ataque \(\rightarrow\) detección & $\leq$15 s & 3 ventanas de 5 s.\\
+Detección \(\rightarrow\) orden confirmada & $\leq$5 s & eventos + orden northbound síncrona.\\
+Orden \(\rightarrow\) efecto en data plane & <1 s & meter nativo; ejecución local del switch.\\
+Total percibido & $\leq$20 s & peor caso del patrón lento.\\
+\bottomrule
+\end{longtable}
+
+\criticalnote{Los tiempos anteriores son presupuestos provisionales, no resultados. La prueba debe medir Tdetect, Tdecision, Tinstall y Tmitigate. Los falsos positivos, tráfico residual e impacto sobre tráfico legítimo tampoco están cuantificados todavía y deben salir del protocolo experimental.}
+
+\subsection{Métricas que deben quedar cerradas experimentalmente}
+
+\begin{align*}
+T_{detect} &= t_{AnomalyDetected}-t_{attack}\
+T_{decision} &= t_{MitigationRequested}-t_{AnomalyDetected}\
+T_{install} &= t_{MitigationApplied}-t_{MitigationRequested}\
+T_{mitigate} &= t_{MitigationVerified}-t_{attack}\
+\text{FP rate} &= \frac{\text{alertas falsas}}{\text{ventanas sin ataque}}\\
+\text{tráfico residual} &= \frac{\text{tráfico atacante posterior}}{\text{tráfico atacante previo}}\times100
+\end{align*}
+
+El impacto legítimo debe expresarse como, al menos, tasa de solicitudes legítimas exitosas, latencia y pérdida durante la mitigación.
+
+\section{Plano de datos y reglas OpenFlow}
+
+\subsection{Primitivas}
+
+\begin{longtable}{p{0.2\linewidth}p{0.67\linewidth}}
+\toprule
+FLOW\_MOD & esqueleto BASE, sesiones, mitigaciones; cookie + prioridad + timeout.\\
+METER\_MOD & RATE\_LIMIT.\\
+GROUP\_MOD & redirección y mecanismos de forwarding/replicación cuando aplique.\\
+PACKET\_IN / OUT & aprendizaje y redirección pre-login.\\
+FLOW\_REMOVED & expiración y cierre de sesión/incidente.\\
+PORT\_STATUS & caída/recuperación de puertos/enlaces.\\
+OFPMP\_PORT\_STATS / FLOW & observación del plano de datos.\\
+FEATURES / PORT\_DESC & inventario y capacidades.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Pipeline lógico}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=7mm,every node/.style={font=\small},b/.style={draw,rounded corners,minimum width=4cm,minimum height=8mm,align=center}]
+\node[b] (base) {Esqueleto BASE\\prioridad 100};
+\node[b,below=of base] (session) {Sesión / perfil\\prioridad 200};
+\node[b,below=of session] (mit) {Mitigación\\prioridad alta};
+\node[b,below=of mit] (forward) {Forwarding / caminos};
+\node[b,below=of forward] (miss) {Table-miss \(\rightarrow\) PACKET\_IN};
+\draw[-{Latex}] (base)--(session)--(mit)--(forward)--(miss);
+\end{tikzpicture}
+\caption{Orden conceptual del pipeline; las prioridades concretas deben coincidir con la especificación LLSD de reglas.}
+\end{figure}
+
+\subsection{Regla de retiro}
+
+Cada regla dinámica porta una cookie que identifica su sesión o incidente. Logout, expiración, cierre de incidente o revocación deben retirar únicamente las reglas correspondientes. El esqueleto permanente es la excepción y no se elimina como parte de una sesión.
+
+\section{TCAM y dimensionamiento de reglas}
+
+\subsection{Por qué TCAM es una decisión arquitectónica}
+
+Las políticas de acceso, anti-spoofing, forwarding, mitigaciones y sesiones se materializan como entradas de tablas del switch. La capacidad de las tablas es, por tanto, un recurso físico que limita la escalabilidad lógica.
+
+\subsection{Estimación de partida}
+
+La fase F aporta una estimación de aproximadamente:
+
+\begin{itemize}
+\item esqueleto BASE por dispositivo: ~6 reglas;
+\item sesión por dispositivo activo: ~4 reglas;
+\item mitigaciones simultáneas: decenas;
+\item escenario completo de aproximadamente 20 dispositivos: ~200--300 entradas.
+\end{itemize}
+
+La fase H, en cambio, utiliza una envolvente de aproximadamente 350--450 reglas para ocho switches y ~23 dispositivos.
+
+\decision{envolvente de diseño}{Hasta disponer de una cuenta exacta por función y de la medición del switch real, se utilizarán 450 entradas como techo de planificación conservador. Esto no significa que 450 sea una medición de TCAM ni que todos los switches utilicen exactamente 450 entradas.}
+
+\subsection{Matriz de reglas que debe cerrarse}
+
+\begin{longtable}{p{0.33\linewidth}p{0.16\linewidth}p{0.18\linewidth}p{0.2\linewidth}}
+\toprule
+Familia & Base por switch & Dinámica & Método de cierre\\
+\midrule
+Esqueleto BASE & ~6/dispositivo & --- & conteo de entradas instaladas.\\
+Sesiones/perfiles & --- & ~4/dispositivo activo & conteo por perfil.\\
+Forwarding/caminos & --- & dependiente de topología & inventario de rutas.\\
+Anti-spoofing & --- & dependiente de hosts/puertos & conteo de reglas por puerto.\\
+Mitigación R3/R4 & --- & decenas en peor caso & escenarios concurrentes.\\
+Perímetro R5 & --- & dependiente de listas/política & inventario del borde.\\
+\textbf{Total} & \multicolumn{2}{c}{\textbf{$\leq$450 como envolvente provisional}} & medición real requerida.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Capacidad real del switch}
+
+La prueba definida es instalar entradas por lotes hasta recibir un error de tabla llena (`OFPFMFC\_TABLE\_FULL`) y reportar la capacidad por tabla. Deben conservarse al menos:
+
+\begin{equation}
+U_{TCAM}=\frac{N_{reglas}}{N_{capacidad}}\times100\%.
+\end{equation}
+
+Sin la capacidad real del modelo Pica8/PicOS concreto no es válido presentar un porcentaje de utilización. El experimento debe cerrar esta cifra.
+
+\section{Planos y capas}
+
+\subsection{Tres planos}
+
+\begin{itemize}
+\item \textbf{Plano de gestión}: servicios, portal, consola, persistencia, identidad y auditoría.
+\item \textbf{Plano de control}: ONOS y canal OpenFlow.
+\item \textbf{Plano de datos}: switches y tráfico de usuarios/servidores.
+\end{itemize}
+
+\subsection{Superposición capas $\times$ planos}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[every node/.style={font=\small},l/.style={draw,rounded corners,minimum width=11cm,minimum height=8mm,align=center}]
+\node[l,fill=layerblue] (i) {Interacción: portal $\cdot$ consola $\cdot$ APIs};
+\node[l,below=2mm of i] (a) {Aplicación: IAM $\cdot$ Registry $\cdot$ Incident $\cdot$ Policy $\cdot$ Monitor $\cdot$ Detection $\cdot$ Audit};
+\node[l,below=2mm of a] (s) {Seguridad: detección $\cdot$ políticas $\cdot$ respuesta};
+\node[l,below=2mm of s,fill=red!12] (c) {Control SDN: ONOS};
+\node[l,below=2mm of c,fill=datagreen] (d) {Infraestructura: switches $\cdot$ hosts $\cdot$ servidores $\cdot$ perímetro};
+\draw[-{Latex}] (i)--(a)--(s)--(c)--node[right]{OpenFlow}(d);
+\end{tikzpicture}
+\caption{Capas estructurales superpuestas sobre los planos SDN.}
+\end{figure}
+
+\section{Topología lógica actual}
+
+\subsection{Segmentos}
+
+\begin{longtable}{p{0.17\linewidth}p{0.2\linewidth}p{0.29\linewidth}p{0.25\linewidth}}
+\toprule
+VLAN & Subred & Segmento & Propósito\\
+\midrule
+10 & 10.1.0.0/24 & USUARIOS & académicos, operadores, atacante interno.\\
+20 & 10.0.0.0/24 & GESTIÓN & plataforma, ONOS, broker, persistencia, identidad, DNS, visualización.\\
+30 & 10.2.0.0/24 & SERVIDORES & activos protegidos de R2.\\
+40 & 10.3.0.0/24 & EXTERNA & origen de escenarios R5.\\
+\bottomrule
+\end{longtable}
+
+La VLAN agrupa y direcciona; \textbf{no concede permisos}. El aislamiento y autorización viven en las reglas del pipeline.
+
+\subsection{Direccionamiento de gestión}
+
+La red 10.0.0.0/24 contempla: portal .5, IAM .10, registro .11, monitor .12, detección .13, incidentes .14, políticas .15, auditoría .16, consola .17, ONOS .20, RabbitMQ .21, PostgreSQL .22, FreeRADIUS .23, OpenLDAP .24, chrony .25, Grafana .26, adaptador .27 y DNS .28.
+
+\criticalnote{La coexistencia entre la VLAN 20 de gestión y el canal OpenFlow out-of-band debe mantenerse explícita: VLAN 20 es un segmento del plano de datos; `ma1` es el canal físico/lógico de control. No deben dibujarse como si fueran la misma red.}
+
+\section{Topología física del prototipo}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[every node/.style={font=\small},sw/.style={draw,rounded corners,fill=datagreen,minimum width=1.7cm,minimum height=8mm,align=center}]
+\node[sw] (a1) {A1};\node[sw,right=18mm of a1] (a2) {A2};\node[sw,right=18mm of a2] (a3) {A3};\node[sw,right=18mm of a3] (a4) {A4};
+\node[sw,below=13mm of a1,xshift=20mm] (d1) {D1};\node[sw,below=13mm of a3,xshift=-20mm] (d2) {D2};
+\node[sw,below=16mm of d1,xshift=13mm] (n1) {NC1};\node[sw,below=16mm of d2,xshift=-13mm] (n2) {NC2};
+\foreach \a/\b in {a1/d1,a1/d2,a2/d1,a2/d2,a3/d1,a3/d2,a4/d1,a4/d2,d1/n1,d1/n2,d2/n1,d2/n2,n1/n2} {\draw[-] (\a)--(\b);}
+\node[above=5mm of a1] {Acceso};
+\node[below=5mm of d1] {Distribución};
+\node[below=5mm of n1] {Núcleo};
+\end{tikzpicture}
+\caption{Ocho switches y 13 enlaces entre switches. Todos los accesos están dual-homed a D1/D2; D1/D2 llegan a ambos núcleos; NC1 y NC2 están enlazados.}
+\end{figure}
+
+\subsection{Papeles por switch}
+
+\begin{itemize}
+\item A1/A2: ingreso de usuarios y operadores.
+\item A3: servidores y gestión.
+\item A4: borde externo y espejo perimetral.
+\item D1/D2: agregación y caminos.
+\item NC1/NC2: núcleo.
+\end{itemize}
+
+\subsection{Puertos y espejo}
+
+A1 p1/p2 \(\rightarrow\) D1/D2; A2 p1/p2 \(\rightarrow\) D1/D2; A3 p1/p2 \(\rightarrow\) D1/D2; A4 p1/p2 \(\rightarrow\) D1/D2. A4 p47 replica el ingreso externo hacia la NIC dedicada del sensor. Las interfaces `ma1` de los ocho switches forman el canal de control out-of-band.
+
+\section{Despliegue: microservicios separados, hosts agrupados por afinidad}
+
+La arquitectura lógica no se fusiona. La vista de despliegue sí puede agrupar servicios por afinidad para reducir coste y facilitar operación.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[every node/.style={font=\scriptsize},host/.style={draw,rounded corners,fill=layerblue,minimum width=4.5cm,minimum height=1.6cm,align=left},svc/.style={draw,rounded corners,fill=white,minimum width=1.65cm,minimum height=6mm,align=center}]
+\node[host] (h1) {\textbf{Host/VM de identidad}\\IAM/AAA\\Device Registry\\IdP/AAA adapter};
+\node[host,right=7mm of h1] (h2) {\textbf{Host/VM de observabilidad}\\Monitor\\Detection\\Grafana\\adaptador IDS};
+\node[host,below=8mm of h1] (h3) {\textbf{Host/VM de respuesta}\\Incident Manager\\Policy Engine\\Audit};
+\node[host,right=7mm of h3] (h4) {\textbf{Infraestructura}\\ONOS\\RabbitMQ\\PostgreSQL\\chrony\\DNS};
+\node[host,below=8mm of h3,xshift=30mm,minimum height=1.3cm] (h5) {\textbf{VM sensor}\\Suricata\\NIC espejo RX + gestión};
+\end{tikzpicture}
+\caption{Agrupación de despliegue propuesta por afinidad. No modifica las fronteras de microservicio. La distribución exacta queda sujeta a CPU/RAM y pruebas de carga.}
+\end{figure}
+
+El diseño original del prototipo contempla un contenedor por servicio y productos de infraestructura separados. La agrupación anterior es una \textbf{vista física alternativa} que puede implementarse sin fusionar los servicios: por ejemplo, IAM y Device Registry pueden residir en el mismo host mientras siguen siendo procesos/servicios distintos.
+
+\subsection{Inventario del prototipo}
+
+\begin{longtable}{p{0.28\linewidth}p{0.16\linewidth}p{0.43\linewidth}}
+\toprule
+Elemento & Cantidad & Papel\\
+\midrule
+Pica8/PicOS & 8 & plano de datos.\\
+Servidor laboratorio & 1 & hipervisor KVM/libvirt y contenedores.\\
+Hosts académicos & 16 & VMs.\\
+Operadores & 2 & VMs.\\
+Atacante interno & 1 & VM.\\
+Atacante externo & 1 & VM.\\
+Servidores de servicio & 3 & VMs, activos protegidos.\\
+Sensor Suricata & 1 & VM con NIC espejo y gestión.\\
+\bottomrule
+\end{longtable}
+
+El inventario de VMs asciende a aproximadamente 23 VMs. El dimensionamiento documentado parte de ~32 GB de RAM, con un recorte a 16 GB si el laboratorio lo exige.
+
+\section{Identidad, acceso y sesiones}
+
+\subsection{Poblaciones}
+
+\begin{itemize}
+\item Comunidad académica: autenticación contra el IdP institucional mediante AAA/RADIUS.
+\item Operadores: repositorio propio de credenciales + segundo factor TOTP.
+\end{itemize}
+
+El dispositivo registrado no es una credencial. El registro únicamente habilita que un dispositivo pueda intentar ejercer un rol privilegiado; la sesión requiere autenticación.
+
+\subsection{Perfiles}
+
+\begin{itemize}
+\item BASE: DHCP, DNS, ARP y portal; no acceso general a intranet.
+\item ACADÉMICO: servicios académicos e Internet después del login.
+\item LABORATORIO/INVESTIGACIÓN: elevación temporal aprobada.
+\item TI/ADMIN\_RED: sesiones administrativas según rol.
+\end{itemize}
+
+\subsection{Vigencia}
+
+Los privilegios temporales expiran mediante TTL y retiro de reglas. La arquitectura favorece la reversibilidad: ninguna elevación debe quedar permanente por accidente.
+
+\section{Seguridad arquitectónica}
+
+\subsection{Jerarquía de confianza}
+
+\begin{enumerate}
+\item presencia física \(\rightarrow\) confianza mínima BASE;
+\item identidad autenticada \(\rightarrow\) perfil/rol;
+\item autorización contextual \(\rightarrow\) acceso al recurso;
+\item vigilancia continua \(\rightarrow\) posible restricción incluso de actores previamente autorizados.
+\end{enumerate}
+
+\subsection{Protección del plano de control}
+
+El canal OpenFlow es out-of-band. Los switches solo aceptan el controlador por `ma1`. La red de usuarios tiene DROP hacia la gestión salvo reglas explícitas de elevación. Esto evita que un flood del plano de datos compita directamente por el mismo canal físico de control.
+
+\subsection{Mitigación distribuida}
+
+Un ataque distribuido puede originarse simultáneamente en A1, A2 y A4. La mitigación debe instalarse en el switch de ingreso de cada origen cuando el patrón lo justifique, en lugar de esperar a bloquear solamente junto al destino.
+
+\section{Redundancia y tolerancia a fallos}
+
+\subsection{Plano de datos}
+
+La topología dual-homed permite que una caída de A1--D1 mantenga conectividad mediante A1--D2. La caída de NC1 mantiene el núcleo por NC2. La caída de un acceso aísla ese acceso sin destruir el resto.
+
+\subsection{Plano de control: arquitectura de referencia}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[every node/.style={font=\small},c/.style={draw,rounded corners,fill=red!12,minimum width=2.2cm,minimum height=8mm,align=center},s/.style={draw,rounded corners,fill=datagreen,minimum width=3.5cm,minimum height=8mm,align=center}]
+\node[c] (o1) {ONOS-A};\node[c,right=10mm of o1] (o2) {ONOS-B};\node[c,right=10mm of o2] (o3) {ONOS-C};
+\node[s,below=13mm of o2] (sw) {Switches\\múltiples endpoints};
+\draw[Latex-Latex] (o1)--(o2);\draw[Latex-Latex] (o2)--(o3);\draw[Latex-Latex] (o1) to[bend right=25] (o3);
+\draw[-{Latex},dashed] (o1)--(sw);\draw[-{Latex},dashed] (o2)--(sw);\draw[-{Latex},dashed] (o3)--(sw);
+\end{tikzpicture}
+\caption{HA del controlador como arquitectura de referencia.}
+\end{figure}
+
+\textbf{Prototipo}: una instancia ONOS. \textbf{Referencia}: clúster ONOS con varias instancias y switches configurados con más de un endpoint. La red instalada debe poder continuar durante una caída y luego reconciliar el estado.
+
+\section{Infraestructura y servicios externos}
+
+\subsection{DHCP, DNS e identidad}
+
+DHCP y DNS forman parte del conjunto de servicios base. En el prototipo, DNS interno se ubica en 10.0.0.28 y los hosts usan direccionamiento estático para reproducibilidad. DHCP queda reservado para la referencia, aunque la regla de perfil BASE contempla el flujo.
+
+El IdP institucional es externo al dominio de administración de la solución. FreeRADIUS/AAA actúa como integración con el IdP y como autenticación de operadores contra el repositorio propio.
+
+\subsection{Zonas}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[every node/.style={font=\small},zone/.style={draw,rounded corners,minimum width=4.2cm,minimum height=1cm,align=center}]
+\node[zone,fill=layerblue] (u) {VLAN 10\\USUARIOS};
+\node[zone,fill=layerblue,right=8mm of u] (g) {VLAN 20\\GESTIÓN};
+\node[zone,fill=datagreen,below=8mm of u] (s) {VLAN 30\\SERVIDORES};
+\node[zone,fill=eventorange!25,right=8mm of s] (e) {VLAN 40\\EXTERNA};
+\draw[-{Latex}] (u)--node[above]{política}(g);
+\draw[-{Latex}] (u)--node[left]{autorización}(s);
+\draw[-{Latex}] (e)--node[above]{R5}(s);
+\end{tikzpicture}
+\caption{Zonas lógicas. El permiso lo determinan las reglas SDN, no la mera pertenencia a una VLAN.}
+\end{figure}
+
+\subsection{Aislamiento físico y lógico}
+
+\begin{itemize}
+\item gestión separada mediante canal OOB;
+\item espejo del perímetro dedicado A4 p47 \(\rightarrow\) sensor;
+\item servidores en VLAN 30;
+\item servicios de plataforma en VLAN 20;
+\item usuarios y atacantes internos en VLAN 10;
+\item segmento externo en VLAN 40.
+\end{itemize}
+
+\section{Despliegue y dependencias}
+
+\subsection{Regla de ejecución}
+
+Una entidad que la red debe identificar como host real se modela como VM; un servicio sin identidad de red propia se modela como contenedor.
+
+\subsection{Dependencias de arranque}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=7mm,every node/.style={font=\small},b/.style={draw,rounded corners,minimum width=3.4cm,minimum height=7mm,align=center}]
+\node[b] (time) {chrony / tiempo};
+\node[b,right=12mm of time] (db) {PostgreSQL};
+\node[b,right=12mm of db] (mq) {RabbitMQ};
+\node[b,below=10mm of db] (ctrl) {ONOS + switches};
+\node[b,below=10mm of time] (idp) {FreeRADIUS + LDAP};
+\node[b,below=10mm of mq] (svc) {IAM $\cdot$ Registry $\cdot$ Monitor $\cdot$ Detection\\Incident $\cdot$ Policy $\cdot$ Audit $\cdot$ Portal $\cdot$ Consola};
+\node[b,below=10mm of svc] (obs) {Suricata + Grafana};
+\draw[-{Latex}] (time)--(db)--(mq);
+\draw[-{Latex}] (db)--(ctrl);
+\draw[-{Latex}] (db)--(idp);
+\draw[-{Latex}] (mq)--(svc);
+\draw[-{Latex}] (idp)--(svc);
+\draw[-{Latex}] (ctrl)--(svc);
+\draw[-{Latex}] (svc)--(obs);
+\end{tikzpicture}
+\caption{Grafo simplificado de dependencias de arranque.}
+\end{figure}
+
+La propiedad operacional importante es el arranque degradado: si un servicio de plataforma falla, las reglas ya instaladas en los switches no deben desaparecer inmediatamente; los privilegios y mitigaciones temporales expiran según timeout.
+
+\section{Catálogo de eventos}
+
+\begin{longtable}{p{0.29\linewidth}p{0.24\linewidth}p{0.33\linewidth}}
+\toprule
+Evento & Origen & Consumidores principales\\
+\midrule
+DeviceConnected & ONOS & IAM/Registry/Monitor.\\
+MAC\_Moved & Monitor/ONOS & Incident/Policy.\\
+AnomalyDetected & Detection & Incident.\\
+IncidentOpened & Incident & Policy/Consola/Audit.\\
+MitigationRequired & Policy & ONOS.\\
+MitigationApplied & ONOS & Monitor/Audit.\\
+MitigationVerified & Monitor & Policy/Incident.\\
+MitigationExpired & Monitor/ONOS & Policy/Incident.\\
+ElevationGranted & Policy & ONOS/Audit.\\
+ElevationExpired & Policy/ONOS & Audit.\\
+\bottomrule
+\end{longtable}
+
+\section{Matriz maestra: requisito \(\rightarrow\) módulo \(\rightarrow\) mecanismo \(\rightarrow\) métrica \(\rightarrow\) prueba}
+
+Esta matriz es la estructura de trazabilidad central del documento. No sustituye las especificaciones detalladas; conecta la arquitectura con la evidencia que debe producir el prototipo.
+
+\begin{longtable}{p{0.08\linewidth}p{0.18\linewidth}p{0.27\linewidth}p{0.2\linewidth}p{0.18\linewidth}}
+\toprule
+Req. & Módulo & Mecanismo & Métrica & Evidencia/prueba\\
+\midrule
+R1 & IAM/AAA & IdP/RADIUS, sesión & latencia login, tasa éxito/fallo & CU acceso autorizado/no autorizado.\\
+R1 & Registry & catálogo MAC/rol/vigencia & tiempo de consulta, altas/revocaciones & registro + auditoría.\\
+R1 & Policy & perfil + contexto + TTL & latencia autorización & elevación temporal.\\
+R1 & ONOS/switch & FLOW\_MOD, cookie, timeout & tiempo orden\(\rightarrow\)regla & inspección de flujo.\\
+R2 & Policy & permiso\(\rightarrow\)recurso\(\rightarrow\)acción & decisiones permitidas/denegadas & pruebas de acceso privilegiado.\\
+R2 & Switch & segmentación + reglas & entradas TCAM & capacidad y tabla llena.\\
+R2 & Audit & trazabilidad & cobertura de acciones & correlación de eventos.\\
+R3 & Monitor & counters OpenFlow & cobertura de observación & scanning/spoofing/distribuido.\\
+R3 & Detection & EWMA + reglas deterministas & Tdetect, FP & días sin ataque + ataques controlados.\\
+R3 & Policy & escalera & tiempo de mitigación & aislamiento/rollback.\\
+R4 & Monitor & 5 s/60 s & carga de control & barrido de frecuencia.\\
+R4 & Detection & EWMA, 4$\sigma$/2$\sigma$, N=3 & Tdetect, FP & flood/brute-force.\\
+R4 & Policy & RATE\(\rightarrow\)BLOCK\(\rightarrow\)ISOLATE\(\rightarrow\)QUARANTINE & Tmitigate & tráfico legítimo paralelo.\\
+R4 & ONOS & orden northbound & latencia orden\(\rightarrow\)instalación & confirmación.\\
+R4 & Switch & METER/DROP & tráfico residual & counters post-mitigación.\\
+R5 & A4/Suricata & espejo + IDS & tiempo de alerta & ataque externo.\\
+R5 & Policy/ONOS & bloqueo/aislamiento SDN & tiempo de enforcement & validación perimetral.\\
+\bottomrule
+\end{longtable}
+
+\section{Matriz de recursos privilegiados y TCAM}
+
+\begin{longtable}{p{0.26\linewidth}p{0.2\linewidth}p{0.24\linewidth}p{0.2\linewidth}}
+\toprule
+Recurso & Clasificación & Control & Riesgo arquitectónico\\
+\midrule
+Servidor de notas/servicio académico & alto & perfil académico + política & acceso indebido.\\
+Servidores de laboratorio/investigación & privilegiado & elevación + TTL & abuso de privilegio.\\
+Base de datos institucional & crítico & acceso administrativo restringido & exfiltración/corrupción.\\
+AAA/RADIUS & crítico & solo gestión autorizada & pérdida de identidad.\\
+IdP/LDAP & crítico/external & integración controlada & indisponibilidad de login.\\
+ONOS & crítico & OOB + API protegida & pérdida de control.\\
+Segmento de gestión & alto/crítico & DROP desde BASE & movimiento lateral.\\
+Switches & crítico & solo ONOS en canal de control & compromiso del plano.\\
+Logs/auditoría & crítico & append/auditoría & pérdida de trazabilidad.\\
+\bottomrule
+\end{longtable}
+
+\section{Matriz de fallos y recuperación}
+
+\begin{longtable}{p{0.22\linewidth}p{0.26\linewidth}p{0.25\linewidth}p{0.17\linewidth}}
+\toprule
+Falla & Detección & Respuesta & Métrica\\
+\midrule
+A1--D1 & PORT\_STATUS & camino alternativo por D2 & tiempo de conmutación.\\
+NC1 & estado/topología & NC2 y recálculo & tiempo de recuperación.\\
+ONOS-A & pérdida de sesión/heartbeat & ONOS-B/C en referencia; switches conservan reglas & re-registro/reconciliación.\\
+RabbitMQ & health/cola & buffer local/huecos declarados & tiempo de recuperación.\\
+Detection & health & no hay nuevas detecciones; mitigaciones vigentes siguen & duración de degradación.\\
+Incident Manager & health & reconciliación con plano de datos & consistencia.\\
+Servidor protegido & Monitor & aislamiento/reacción según política & disponibilidad.\\
+Sensor IDS & health & R5 pierde detección; no debe cortar data plane & tiempo de recuperación.\\
+\bottomrule
+\end{longtable}
+
+\section{Escalabilidad y carga}
+
+La escalabilidad debe analizarse por dimensión, no únicamente mediante la palabra ``microservicios''.
+
+\begin{longtable}{p{0.2\linewidth}p{0.32\linewidth}p{0.32\linewidth}}
+\toprule
+Variable & Efecto & Componente presionado\\
+\midrule
+Usuarios/hosts ↑ & más sesiones y reglas & IAM, Registry, switches/TCAM.\\
+Switches ↑ & más counters, topología y eventos & Monitor, ONOS, broker.\\
+Tráfico ↑ & más observación y features & Monitor/Detection.\\
+Eventos/s ↑ & más colas y consumidores & RabbitMQ, Incident/Policy/Audit.\\
+VLANs/segmentos ↑ & más reglas de segmentación & Policy/TCAM.\\
+Ataques simultáneos ↑ & más mitigaciones temporales & Policy, ONOS, TCAM.\\
+\bottomrule
+\end{longtable}
+
+La ventaja de mantener microservicios separados es que estas dimensiones pueden escalar de forma asimétrica. La vista de despliegue puede colocar Monitor/Detection en hosts distintos sin modificar sus fronteras lógicas.
+
+\section{Método de validación}
+
+\subsection{Pruebas funcionales}
+
+CU-01 acceso autorizado; CU-02 acceso no autorizado; CU-03 acceso a recurso privilegiado; CU-04 acceso no autorizado a recurso privilegiado; CU-05 port scanning; CU-06 IP spoofing; CU-07 DDoS interno; CU-08 ataque externo; CU-09 gestión de política; CU-10 recuperación.
+
+\subsection{Pruebas de rendimiento}
+
+Medir latencia de autenticación, autorización, orden northbound, instalación de regla, detección, mitigación y recuperación.
+
+\subsection{Pruebas de TCAM}
+
+Instalar reglas por lotes hasta `OFPFMFC\_TABLE\_FULL`; registrar capacidad por tabla y utilización del peor caso.
+
+\subsection{Pruebas R4}
+
+Siempre ejecutar ataque y tráfico legítimo en paralelo. Medir:
+
+\begin{itemize}
+\item Tdetect;
+\item Tmitigate;
+\item tráfico residual;
+\item solicitudes legítimas exitosas;
+\item latencia legítima;
+\item falsos positivos;
+\item carga de ONOS y broker;
+\item número de reglas dinámicas.
+\end{itemize}
+
+\subsection{Pruebas de sondeo}
+
+Comparar 5 s, 30 s y 60 s para cuantificar el compromiso entre carga del plano de control y velocidad de detección.
+
+\subsection{Pruebas de fallos}
+
+Cortar enlaces, apagar NC1, apagar ONOS, detener consumidores del broker, detener Detection, detener el sensor y verificar que la degradación sea explícita y no silenciosa.
+
+\section{Decisiones tecnológicas}
+
+\begin{longtable}{p{0.25\linewidth}p{0.2\linewidth}p{0.43\linewidth}}
+\toprule
+Papel & Decisión & Motivo\\
+\midrule
+Controlador & ONOS 2.7 LTS & controlador SDN, API northbound, OpenFlow.\\
+Plano de datos & Pica8/PicOS + OpenFlow 1.3 & primitivas requeridas: flows, meters, groups, counters.\\
+Broker & RabbitMQ 3.13 & colas, desacoplamiento, recuperación.\\
+Persistencia & PostgreSQL 16 & datos por servicio/repository.\\
+Identidad & FreeRADIUS 3.2 + OpenLDAP 2.6 & integración IdP y operadores.\\
+Sensor & Suricata 7 & IDS perimetral fuera de camino.\\
+Tiempo & chrony 4.5 & timestamps comunes.\\
+Visualización & Grafana 11 & observabilidad.\\
+Servicios propios & Python 3.12 & implementación del prototipo.\\
+\bottomrule
+\end{longtable}
+
+\section{Decisiones abiertas que deben cerrarse}
+
+\begin{enumerate}
+\item Capacidad TCAM real por modelo de Pica8/PicOS.
+\item Conteo definitivo de reglas por switch; resolver 200--300 vs 350--450.
+\item Resultado experimental de Tdetect/Tmitigate.
+\item Tasa de falsos positivos.
+\item Tráfico residual después de RATE\_LIMIT/BLOCK.
+\item Impacto sobre tráfico legítimo.
+\item Carga de ONOS para sondeo 5/30/60 s.
+\item Primitivas reales de METER\_MOD/GROUP\_MOD/PACKET\_OUT/FLOW\_REMOVED.
+\item Granularidad física de despliegue de los microservicios. La granularidad lógica no se modifica.
+\item Número final de instancias ONOS de referencia y mecanismo de failover.
+\item Si la consola queda exclusivamente en gestión o se habilita desde otra zona con autenticación.
+\item Si la cuarentena se materializa como VLAN dedicada o permanece como DROP en el prototipo.
+\item Integración definitiva de DHCP en el despliegue de referencia.
+\item Política de backup/cifrado de persistencia para una eventual referencia real.
+\item Feeds externos de inteligencia para R5.6.
+\end{enumerate}
+
+\section{Riesgos y críticas arquitectónicas}
+
+\subsection{Sobrearquitectura}
+
+El riesgo no se resuelve eliminando microservicios. Se controla manteniendo separación lógica y permitiendo consolidación física por afinidad. La independencia de despliegue es una capacidad, no la obligación de ejecutar cada servicio en un servidor físico separado.
+
+\subsection{Dependencia del controlador}
+
+La decisión centralizada es deliberada, pero introduce dependencia del plano de control para decisiones nuevas. P2 la mitiga: el data plane ejecuta lo instalado y los timeouts hacen temporales las reglas dinámicas. La HA del controlador queda como evolución de referencia.
+
+\subsection{Broker como cuello de botella}
+
+El Broker desacopla, pero no elimina carga. Ráfagas de eventos pueden saturar colas. Por eso deben medirse profundidad de cola, tiempo de consumo y pérdida/reintento.
+
+\subsection{Detector adaptativo}
+
+EWMA evita depender de un umbral fijo, pero puede adaptarse a cambios anómalos. El piso absoluto, el calentamiento, la histéresis y la confirmación N reducen este riesgo; aun así, la tasa de falsos negativos y positivos debe medirse.
+
+\subsection{TCAM}
+
+La mayor incertidumbre cuantitativa actual es la capacidad de tablas. El diseño no debe fijar un porcentaje de utilización hasta medir el switch real.
+
+\subsection{Complejidad de R5}
+
+IDS, adaptador, Policy y ONOS forman una cadena adicional. El IDS está fuera de camino para evitar que una caída corte la red, pero una caída del sensor reduce la detección perimetral. Esta degradación debe ser explícita.
+
+\section{Vista de arquitectura de referencia completa}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[every node/.style={font=\scriptsize},layer/.style={draw,rounded corners,minimum width=15.8cm,minimum height=1cm,align=center},s/.style={draw,rounded corners,fill=white,minimum width=1.7cm,minimum height=6mm,align=center}]
+\node[layer,fill=layerblue] (top) {\textbf{ACTORES / SISTEMAS EXTERNOS}\\Usuario académico $\cdot$ Especialista TI $\cdot$ Administrador de Red $\cdot$ Superadministrador $\cdot$ IdP $\cdot$ Internet};
+\node[layer,fill=white,below=2mm of top,minimum height=1.25cm] (inter) {\textbf{INTERACCIÓN}\\Portal $\cdot$ Consola $\cdot$ APIs};
+\node[layer,fill=white,below=2mm of inter,minimum height=1.8cm] (services) {\textbf{MICROSERVICIOS SEPARADOS}\\IAM/AAA $\cdot$ Device Registry $\cdot$ Monitor $\cdot$ Detection $\cdot$ Incident Manager $\cdot$ Policy Engine $\cdot$ Audit};
+\node[layer,fill=eventorange!25,below=2mm of services,minimum height=0.6cm] (bus) {\textbf{RABBITMQ / EVENT BROKER}};
+\node[layer,fill=red!12,below=2mm of bus,minimum height=1.1cm] (ctrl) {\textbf{ONOS}\\Northbound: órdenes de seguridad $\cdot$ Southbound: OpenFlow 1.3};
+\node[layer,fill=datagreen,below=2mm of ctrl,minimum height=1.6cm] (data) {\textbf{DATA PLANE}\\NC1 === NC2 $\cdot$ D1/D2 $\cdot$ A1/A2/A3/A4 $\cdot$ VLAN 10/20/30/40 $\cdot$ FLOW/METER/GROUP};
+\node[layer,fill=layergray,below=2mm of data,minimum height=0.9cm] (assets) {\textbf{ACTIVOS Y PERÍMETRO}\\servicios protegidos $\cdot$ base institucional $\cdot$ laboratorio $\cdot$ Internet $\cdot$ A4 espejo \(\rightarrow\) Suricata};
+\draw[-{Latex}] (top)--(inter);
+\draw[-{Latex}] (inter)--(services);
+\draw[-{Latex},dashed] (services)--(bus);
+\draw[-{Latex}] (bus)--(ctrl);
+\draw[-{Latex}] (ctrl)--node[right]{OOB OpenFlow}(data);
+\draw[-{Latex}] (data)--(assets);
+\end{tikzpicture}
+\caption{Arquitectura consolidada de referencia. Esta es la figura principal para el documento técnico; una versión simplificada puede derivarse posteriormente para exposición.}
+\end{figure}
+
+\section{Glosario arquitectónico}
+
+\begin{longtable}{p{0.2\linewidth}p{0.7\linewidth}}
+\toprule
+Perfil & Conjunto de reglas de red aplicado a un dispositivo/sesión en un momento dado.\\
+Rol & Conjunto de permisos asociado a una identidad.\\
+Policy Engine & Componente que decide la respuesta; no ejecuta directamente el pipeline.\\
+Detection Engine & Componente que clasifica comportamiento; no decide la mitigación final.\\
+Monitor & Componente que observa counters y mantiene la línea base.\\
+Incident Manager & Componente que administra el ciclo de vida del incidente.\\
+Controller & ONOS; traduce decisiones a OpenFlow y mantiene estado/topología.\\
+Data plane & Switches que ejecutan forwarding, filtrado y mitigación.\\
+Broker & Intermediario de eventos.\\
+TCAM & Recurso de tablas del switch que limita reglas simultáneas.\\
+TTL & Tiempo de vigencia de una regla/privilegio.\\
+OOB & Canal out-of-band separado del tráfico de datos.\\
+\bottomrule
+\end{longtable}
+
+\section{Checklist de aprobación técnica}
+
+Antes de declarar la arquitectura congelada, deben poder responderse afirmativamente las siguientes preguntas:
+
+\begin{enumerate}[label=\arabic*.]
+\item ¿Cada microservicio tiene una responsabilidad única y visible?
+\item ¿Las dependencias entre microservicios están expresadas como eventos o APIs y no como llamadas arbitrarias?
+\item ¿Está explícita la frontera plataforma \(\rightarrow\) controlador \(\rightarrow\) switches?
+\item ¿El prototipo y la referencia HA están diferenciados?
+\item ¿La topología física de ocho switches y 13 enlaces coincide con el plano de puertos?
+\item ¿DHCP, DNS e IdP tienen ubicación e interfaz definida?
+\item ¿La VLAN 20 está claramente diferenciada del canal OOB?
+\item ¿Existe una cuenta exacta de reglas por función?
+\item ¿Se ha medido la capacidad TCAM real?
+\item ¿Tdetect y Tmitigate están medidos?
+\item ¿Se han medido falsos positivos, tráfico residual e impacto legítimo?
+\item ¿La cadena R4 puede demostrarse de extremo a extremo?
+\item ¿Los fallos de enlace, switch y controlador tienen respuesta definida?
+\item ¿Las reglas temporales tienen cookie, TTL y mecanismo de retiro?
+\item ¿La vista de despliegue agrupa por afinidad sin fusionar microservicios?
+\end{enumerate}
+
+\section{Conclusión arquitectónica}
+
+La arquitectura consolidada se puede resumir en una regla estructural:
+
+\begin{center}
+\Large\bfseries
+Observar \(\rightarrow\) detectar \(\rightarrow\) decidir \(\rightarrow\) traducir \(\rightarrow\) ejecutar \(\rightarrow\) verificar
+\end{center}
+
+La plataforma de seguridad está descompuesta en microservicios independientes y visibles: IAM/AAA, Device Registry, Monitor, Detection, Incident Manager, Policy Engine y Audit. Los eventos desacoplan su funcionamiento reactivo mediante un Broker; Pipe-and-Filter estructura internamente la detección; Repository desacopla persistencia.
+
+ONOS mantiene la separación entre la lógica de seguridad y el plano de datos. La plataforma no instala reglas directamente en los switches. Policy emite una orden; ONOS la traduce; Pica8/PicOS ejecuta; Monitor verifica el resultado.
+
+La infraestructura materializa esta separación mediante una topología de ocho switches, doble núcleo, doble distribución, cuatro accesos, 13 enlaces, VLANs diferenciadas y un canal de control out-of-band. La arquitectura de referencia añade clúster de controladores y otros mecanismos de despliegue de producción.
+
+La principal deuda actual no es conceptual sino cuantitativa: TCAM, conteo definitivo de reglas, latencias, falsos positivos, tráfico residual, impacto legítimo y carga del plano de control. Esos valores deben cerrarse experimentalmente antes de considerar la arquitectura completamente validada.
+
+\section{Anexo C --- Modelo de dominio consolidado}
+
+\subsection{Catálogo completo de permisos}
+
+Los permisos representan acciones autorizadas. No sustituyen a roles, recursos ni políticas.
+
+\begin{longtable}{p{0.08\linewidth}p{0.29\linewidth}p{0.51\linewidth}}
+\toprule
+ID & Permiso & Descripción\\
+\midrule
+P01 & Autenticarse & Iniciar sesión y acreditar identidad.\\
+P02 & Acceder a la red & Obtener acceso a segmentos permitidos.\\
+P03 & Acceder a servicio & Utilizar un servicio autorizado.\\
+P04 & Consultar recurso & Leer información de un recurso autorizado.\\
+P05 & Ejecutar operación & Ejecutar una operación funcional autorizada.\\
+P06 & Consultar estado de red & Consultar estado, disponibilidad y métricas.\\
+P07 & Consultar tráfico & Consultar información y métricas de tráfico.\\
+P08 & Consultar eventos y logs & Consultar eventos, registros y trazas.\\
+P09 & Consultar alertas & Visualizar alertas de seguridad.\\
+P10 & Analizar incidente & Investigar un evento o incidente.\\
+P11 & Gestionar alerta & Clasificar, confirmar, descartar o escalar.\\
+P12 & Ejecutar mitigación & Aplicar una medida de contención autorizada.\\
+P13 & Aislar nodo & Restringir o aislar un dispositivo comprometido.\\
+P14 & Gestionar usuario & Crear, modificar, bloquear o deshabilitar cuentas.\\
+P15 & Asignar rol & Asignar o modificar roles.\\
+P16 & Gestionar permisos & Crear, modificar o revocar permisos.\\
+P17 & Gestionar políticas de acceso & Crear, modificar, activar o eliminar políticas de autorización.\\
+P18 & Gestionar políticas de seguridad & Configurar detección, prevención y mitigación.\\
+P19 & Gestionar reglas de red & Crear, modificar o eliminar forwarding, filtrado o control de tráfico.\\
+P20 & Gestionar segmentación & Administrar VLAN y aislamiento lógico.\\
+P21 & Gestionar dispositivos de red & Registrar, configurar, actualizar, habilitar o deshabilitar dispositivos.\\
+P22 & Gestionar controlador SDN & Administrar configuración y operación del controlador.\\
+P23 & Gestionar mecanismos de seguridad & Administrar IDS, IPS, firewall y controles integrados.\\
+P24 & Gestionar administradores & Crear, modificar, bloquear, revocar o eliminar cuentas administrativas.\\
+P25 & Auditar operaciones & Revisar acciones de usuarios y administradores.\\
+P26 & Gestionar configuración global & Modificar parámetros globales y componentes críticos.\\
+P27 & Gestionar recuperación & Ejecutar procedimientos de restauración/recuperación.\\
+P28 & Solicitar elevación & Solicitar perfil temporal con justificación, alcance y duración.\\
+P29 & Aprobar elevación & Aprobar/rechazar elevaciones y definir TTL.\\
+P30 & Registrar dispositivo privilegiado & Alta, modificación y baja del catálogo de dispositivos privilegiados.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Relaciones estructurales}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=12mm,every node/.style={font=\small},b/.style={draw,rounded corners,minimum width=3cm,minimum height=8mm,align=center}]
+\node[b] (actor) {Actor};
+\node[b,right=12mm of actor] (role) {Rol};
+\node[b,right=12mm of role] (perm) {Permiso};
+\node[b,right=12mm of perm] (res) {Recurso / Servicio};
+\node[b,below=12mm of role] (dev) {Dispositivo};
+\node[b,right=12mm of dev] (prof) {Perfil de acceso};
+\draw[-{Latex}] (actor)--node[above]{desempeña}(role);
+\draw[-{Latex}] (role)--node[above]{concede}(perm);
+\draw[-{Latex}] (perm)--node[above]{se aplica a}(res);
+\draw[-{Latex}] (dev)--node[above]{recibe}(prof);
+\draw[-{Latex}] (role)--(prof);
+\end{tikzpicture}
+\caption{Modelo estructural mínimo de autorización.}
+\end{figure}
+
+Las relaciones de seguridad adicionales son: Evento → Alerta → Incidente; Incidente → Mitigación; Nodo → Tráfico; Sesión privilegiada → Reglas de red; Superadministrador → Administrador de Red / Especialista de TI; Administrador de Red → elevaciones temporales y administración operativa.
+
+\subsection{Matriz Rol × Permiso: estado actual}
+
+La fuente de dominio define el catálogo de permisos y ejemplos de asignación, pero declara pendiente la matriz completa Rol × Permiso. Por ello no se inventa una matriz total en este documento. El siguiente esquema conserva las asignaciones explícitas y marca como pendientes las delegaciones.
+
+\begin{longtable}{p{0.27\linewidth}p{0.17\linewidth}p{0.17\linewidth}p{0.17\linewidth}p{0.17\linewidth}}
+\toprule
+Permiso & Académico & Especialista TI & Admin. Red & Superadmin\\
+\midrule
+P01 Autenticarse & Sí & Sí & Sí & Sí\\
+P02 Acceder a red & Sí & Sí & Sí & Sí\\
+P09 Consultar alertas & -- & Sí & según delegación & Sí\\
+P10 Analizar incidente & -- & Sí & según delegación & Sí\\
+P12 Ejecutar mitigación & -- & autorizada & Sí & Sí\\
+P13 Aislar nodo & -- & autorizada & Sí & Sí\\
+P17 Gestionar políticas de acceso & -- & No & Sí & Sí\\
+P19 Gestionar reglas de red & -- & No & Sí & Sí\\
+P22 Gestionar controlador SDN & -- & No & según delegación & Sí\\
+P24 Gestionar administradores & -- & No & No & Sí\\
+P26 Gestionar configuración global & -- & No & No & Sí\\
+P28 Solicitar elevación & Sí & -- & -- & --\\
+P29 Aprobar elevación & -- & -- & Sí & Sí\\
+P30 Registrar dispositivo privilegiado & -- & según delegación & Sí & Sí\\
+\bottomrule
+\end{longtable}
+
+\section{Anexo D --- Requerimientos funcionales y de calidad}
+
+\subsection{R1 --- Control de acceso según rol}
+\begin{enumerate}[label=R1.\arabic*.]
+\item Identificar dispositivo y contexto: MAC, puerto, switch y ubicación.
+\item Exigir autenticación para salir de BASE: comunidad contra IdP; operadores con credenciales propias y MFA.
+\item Asignar BASE por defecto y perfiles elevados tras autenticación/elevación.
+\item Determinar acceso según identidad, atributos, contexto, recurso, acción y vigencia.
+\item Aplicar mínimo privilegio.
+\item Rechazar accesos no autorizados.
+\item Gestionar roles, perfiles y registro de dispositivos.
+\item Contemplar un rol administrativo superior.
+\item Registrar autenticación, autorización y elevación.
+\item Considerar crecimiento de dispositivos y accesos concurrentes.
+\end{enumerate}
+
+\subsection{R2 --- Protección de recursos privilegiados}
+\begin{enumerate}[label=R2.\arabic*.]
+\item Inventariar recursos.
+\item Clasificarlos en generales, privilegiados y críticos.
+\item Asociar políticas.
+\item Verificar autorización.
+\item Bloquear accesos no autorizados.
+\item Segmentar recursos.
+\item Actualizar políticas.
+\item Aplicar controles superiores a recursos críticos.
+\item Auditar accesos.
+\item Traducir decisiones a reglas SDN.
+\end{enumerate}
+
+\subsection{R3 --- Ataques encubiertos}
+Monitoreo; scanning; spoofing; anomalías; ataques distribuidos; clasificación; mitigación; acciones proporcionales; recuperación; registro.
+
+\subsection{R4 --- DDoS brute-force interno}
+Línea base; detección; indicadores; umbrales; mitigación; rate limiting; bloqueo; disponibilidad; recuperación; medición.
+
+\subsection{R5 --- Seguridad perimetral}
+Perímetro; IDS/IPS; inspección; bloqueo por IP; bloqueo hacia destinos; inteligencia; integración SDN; registro.
+
+\subsection{Requerimientos transversales}
+RT-01 gestión centralizada de políticas; RT-02 separación de responsabilidades; RT-03 integración SDN; RT-04 northbound; RT-05 southbound; RT-06 monitoreo; RT-07 auditoría; RT-08 respuesta automatizada; RT-09 administración; RT-10 recuperación.
+
+\subsection{Atributos de calidad}
+RNF-01 seguridad; RNF-02 disponibilidad; RNF-03 rendimiento; RNF-04 latencia; RNF-05 escalabilidad; RNF-06 flexibilidad; RNF-07 modularidad; RNF-08 observabilidad; RNF-09 trazabilidad; RNF-10 mantenibilidad; RNF-11 reproducibilidad; RNF-12 verificabilidad.
+
+\appendix
+\section{Anexo A --- Correspondencia con la estructura ARC42}
+
+\begin{longtable}{p{0.18\linewidth}p{0.68\linewidth}}
+\toprule
+ARC42-01 & Objetivos y propósito.\\
+ARC42-02 & Restricciones e invariantes.\\
+ARC42-03 & Contexto del sistema y actores.\\
+ARC42-04 & Estrategia: estilos, patrones y principios.\\
+ARC42-05 & Bloques de construcción: microservicios, ONOS, switches.\\
+ARC42-06 & Runtime: R1--R5 y cadena de eventos.\\
+ARC42-07 & Despliegue: VMs, contenedores, red física y lógica.\\
+ARC42-08 & Conceptos transversales: seguridad, identidad, persistencia, eventos, tiempo.\\
+ARC42-09 & Decisiones tecnológicas y decisiones abiertas.\\
+ARC42-10 & Calidad: rendimiento, disponibilidad, escalabilidad, observabilidad.\\
+ARC42-11 & Riesgos y deuda técnica.\\
+ARC42-12 & Glosario.\\
+ARC42-13 & Checklist y trazabilidad complementaria.\\
+\bottomrule
+\end{longtable}
+
+\section{Anexo B --- Fuentes internas consolidadas}
+
+Este documento se construyó sobre los cuatro archivos proporcionados como planeamiento de referencia:
+
+\begin{itemize}
+\item \texttt{v2\_plan\_ABC.md}: marco del proyecto, modelo de dominio, actores, roles, permisos, relaciones, requisitos, políticas y pruebas.
+\item \texttt{v2\_plan\_DE.md}: estilos, patrones, principios, descomposición, componentes, responsabilidades, interfaces, comunicación, planos, topología, seguridad, flujos, validación y trazabilidad.
+\item \texttt{v2\_plan\_FG(2).md}: decisiones tecnológicas, ONOS, Pica8/PicOS, identidad, RabbitMQ, persistencia, detección/mitigación, perímetro, prototipo, APIs, eventos, datos, interfaces, configuraciones, reglas y detalles de implementación.
+\item \texttt{v2\_plan\_H(1).md}: despliegue físico, VMs/containers, red, VLANs/subredes, puertos y dependencias.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,587 @@
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% Configuración de idioma sin babel-spanish (evita error de paquete faltante)
+\renewcommand{\chaptername}{Capítulo}
+\renewcommand{\contentsname}{Índice General}
+\renewcommand{\tablename}{Tabla}
+\renewcommand{\figurename}{Figura}
+\usepackage{lmodern}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=2.3cm, right=2.3cm}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{amsmath,amssymb}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{caption}
+
+% Definición de colores sobrios y corporativos
+\definecolor{primary}{RGB}{15, 23, 42}       % Slate 900
+\definecolor{secondary}{RGB}{30, 58, 138}    % Blue 900
+\definecolor{accent}{RGB}{2, 132, 199}       % Sky 600
+\definecolor{darkgray}{RGB}{51, 65, 85}      % Slate 700
+\definecolor{lightgray}{RGB}{248, 250, 252}  % Slate 50
+\definecolor{bordergray}{RGB}{203, 213, 225} % Slate 300
+\definecolor{codebg}{RGB}{241, 245, 249}     % Slate 100
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=secondary,
+    urlcolor=accent,
+    citecolor=secondary,
+    pdfauthor={Piero Jesús Oropeza León},
+    pdftitle={Especificación Arquitectónica Formal: Solución de Seguridad SDN para Campus Académico}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headheight}{14pt}
+\lhead{\textcolor{darkgray}{\small\nouppercase{\leftmark}}}
+\rhead{\textcolor{darkgray}{\small Solución de Seguridad SDN}}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\renewcommand{\arraystretch}{1.2}
+
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries\color{primary}}{\chaptertitlename\ \thechapter}{14pt}{\Huge}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{secondary}}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{darkgray}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{darkgray}}{\thesubsubsection}{1em}{}
+
+\begin{document}
+
+% ==============================================================================
+% PORTADA
+% ==============================================================================
+\begin{titlepage}
+\centering
+\vspace*{1.0cm}
+{\huge\bfseries\color{primary} ESPECIFICACIÓN ARQUITECTÓNICA FORMAL\par}
+\vspace{0.4cm}
+{\LARGE\color{secondary} Plataforma de Seguridad Definida por Software (SDN)\par}
+{\Large Red de Campus Académico Universitario\par}
+\vspace{1.2cm}
+\rule{\linewidth}{1.5pt}\par
+\vspace{0.6cm}
+{\Large\bfseries DOCUMENTO MAESTRO DE DISEÑO Y ESPECIFICACIÓN TÉCNICA\par}
+\vspace{0.2cm}
+{\large Marco Arquitectónico Kruchten 4+1 adaptado a Redes Definidas por Software (ISO/IEC/IEEE 42010)\par}
+\rule{\linewidth}{1.5pt}\par
+\vspace{1.5cm}
+
+\begin{minipage}{0.85\linewidth}
+\begin{tabular}{ll}
+\textbf{Curso:} & TEL354 --- Redes Definidas por Software \\
+\textbf{Proyecto:} & Sistema Autónomo de Seguridad de Acceso y Mitigación Perimetral \\
+\textbf{Autor Principal:} & Piero Jesús Oropeza León \\
+\textbf{Entorno de Validación:} & Laboratorio SDN (Pica8 / PicOS OpenFlow 1.3 / ONOS) \\
+\textbf{Fecha:} & Octubre de 2026 \\
+\textbf{Estado:} & \textbf{Versión Final Cerrada para Aprobación Técnica} \\
+\end{tabular}
+\end{minipage}
+
+\vfill
+\fbox{\parbox{0.92\linewidth}{\small\textbf{Declaración de Propósito Técnico:} Este documento constituye la especificación formal e integrada de ingeniería para la solución de seguridad SDN. Define rigurosamente la separación de planos, el modelo de autorización contextual adaptativo (ABAC), la descomposición de 7 microservicios con persistencia aislada, el modelo analítico de detección de anomalías (EWMA), el presupuesto de reglas TCAM en hardware y la topología física dual-homed de 8 switches Pica8.}}
+\vspace*{0.5cm}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ==============================================================================
+% CAPÍTULO 1
+% ==============================================================================
+\chapter{Fundamentos, Contexto y Drivers Arquitectónicos}
+
+\section{Propósito y Límites del Sistema}
+El proyecto tiene como propósito diseñar, formalizar y verificar una arquitectura integral de seguridad basada en Redes Definidas por Software (SDN) para un entorno de campus universitario. La red del campus combina una alta densidad de usuarios con diversos grados de confianza, tráfico institucional crítico y exposición continua a amenazas internas y externas.
+
+El sistema se define estrictamente como la \textbf{Plataforma SDN de Seguridad}: el plano inteligente de toma de decisiones, control programable y telemetría que gobierna dinámicamente el comportamiento del plano de datos.
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Lo que forma parte del sistema:} La plataforma de gestión y microservicios de seguridad (IAM/AAA, Device Registry, Monitor, Detection Engine, Incident Manager, Policy Engine, Audit Service), el controlador SDN (ONOS 2.7 LTS con su traductor de órdenes), el broker de eventos (RabbitMQ), los almacenes de datos dedicados y los switches físicos Pica8/PicOS gobernados por OpenFlow 1.3.
+    \item \textbf{Lo que constituye activo protegido:} Los servidores de servicios académicos, los servidores de investigación y las bases de datos institucionales (conectados a la VLAN 30), así como la integridad del plano de control y de gestión (VLAN 20 y canal OOB).
+    \item \textbf{Lo que constituye sistema externo:} El Proveedor de Identidad Institucional (IdP FreeRADIUS/OpenLDAP de la universidad), los servidores DNS/NTP del campus y las redes externas de Internet.
+\end{itemize}
+
+\section{Los 13 Principios Arquitectónicos Invariantes}
+Toda decisión técnica plasmada en este documento se rige estrictamente por 13 principios obligatorios:
+\begin{enumerate}[label=\textbf{P\arabic*.}, leftmargin=*]
+    \item \textbf{Separación Estricta de Planos (RP-02, RA-02, RA-03):} El plano de datos ejecuta y reporta; el plano de control traduce y coordina; el plano de gestión observa y decide. Las decisiones de seguridad jamás se programan switch a switch manualmente.
+    \item \textbf{Decisión Centralizada, Ejecución Distribuida (D-06, R2.10):} La plataforma y el controlador concentran la lógica global, pero la ejecución ocurre en el hardware de conmutación en los puntos de ingreso (\emph{ingress switches}) a velocidad de línea.
+    \item \textbf{Responsabilidad Única de los Componentes (RT-02, RNF-07):} Cada microservicio tiene un rol delimitado e interfaces contractuales claras. Ningún componente asume funciones de otro.
+    \item \textbf{Complejidad Justificada (RP-07, RP-09):} Ningún patrón o herramienta se adopta por moda. Toda pieza responde a una necesidad demostrable y dimensionada al prototipo.
+    \item \textbf{Mínimo Privilegio con Denegación por Defecto (R1.5, R1.6, R2.5):} Todo puerto y host sin autenticar recibe estrictamente el perfil BASE. Todo lo no explícitamente permitido está bloqueado en hardware (\emph{Drop by default}).
+    \item \textbf{La Identidad se Exige solo para Elevar Privilegios (RP-13, R1.2):} La presencia física en el campus concede conectividad mínima (perfil BASE). Salir de este mínimo requiere autenticación formal contra el IdP o el repositorio de operadores.
+    \item \textbf{La MAC es Atributo de Contexto, no Credencial (R3.3):} La dirección MAC se aprende, asocia y monitoriza. La coincidencia con el registro de dispositivos habilita el intento de autenticación, jamás concede acceso por sí sola.
+    \item \textbf{El Detector Observa, la Política Decide, la Red Ejecuta (P8, RA-06):} El subsistema de detección genera eventos de anomalía; el Policy Engine evalúa la respuesta; el controlador la traduce; los switches instalan flujos. Se prohíbe que el detector instale reglas directamente.
+    \item \textbf{Mitigar Cerca del Origen sin Afectar Tráfico Legítimo (P9, R4.8):} La mitigación se instala en el switch de acceso del atacante, descartando o limitando el flujo malicioso antes de saturar los enlaces de distribución y núcleo.
+    \item \textbf{Temporalidad y Reversibilidad Obligatoria (P10, RT-10):} Ningún privilegio elevado ni regla de mitigación es permanente. Toda regla dinámica porta \texttt{cookie}, \texttt{idle\_timeout} y \texttt{hard\_timeout}.
+    \item \textbf{Trazabilidad y Observabilidad por Diseño (P11, RT-07):} Todo evento relevante (login, cambio de política, ataque, elevación) debe persistirse de forma inmutable respondiendo quién, qué, cuándo y por qué.
+    \item \textbf{Sin Métrica no hay Decisión Válida (P12, R4.10, RNF-12):} Cada afirmación técnica de rendimiento o mitigación debe contar con un modelo matemático y una prueba de laboratorio medible.
+    \item \textbf{Comunicación Interna Asíncrona por Eventos (P13, D-08):} Los microservicios de seguridad se desacoplan temporalmente mediante un broker de mensajería; las llamadas síncronas se reservan exclusivamente para interfaces de borde y comandos críticos de aplicación.
+\end{enumerate}
+
+\section{Matriz de Trazabilidad de Drivers Arquitectónicos}
+La Tabla~\ref{tab:drivers} establece la correspondencia directa entre los drivers arquitectónicos y los requerimientos funcionales, transversales y de calidad del proyecto.
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\linewidth}{p{1.2cm}p{4.2cm}p{3.2cm}X}
+\toprule
+\textbf{Driver} & \textbf{Descripción} & \textbf{Requisitos Origen} & \textbf{Decisión Arquitectónica Clave} \\
+\midrule
+\textbf{D-01} & Control de Acceso Granular & R1.1--R1.10, RP-13 & Perfil BASE por defecto; autenticación en Portal Cautivo con evaluación ABAC. \\
+\textbf{D-02} & Protección de Recursos & R2.1--R2.10 & Segmentación por VLANs y reglas de acceso hacia la VLAN 30 de servidores. \\
+\textbf{D-03} & Detección de Ataques Internos & R3.1--R3.10 & Telemetría OpenFlow vía contadores I8 y detección determinista de incoherencias. \\
+\textbf{D-04} & Mitigación DDoS / Brute-force & R4.1--R4.10 & Algoritmo EWMA en Monitor + Escalera de mitigación (Meters y Drops) en switches. \\
+\textbf{D-05} & Seguridad Perimetral & R5.1--R5.8 & Sensor IDS Suricata fuera de camino sobre puerto espejo SPAN + bloqueo en borde SDN. \\
+\textbf{D-06} & Traducción SDN Confiable & RT-03, RT-04, RT-05 & Controlador ONOS con aplicación dedicada y API northbound I2 estructurada. \\
+\textbf{D-07} & Respuesta Automatizada y Reversible & RT-08, RT-10, PS-07 & Ciclo cerrado de incidentes con timeouts nativos OpenFlow e idempotencia por cookie. \\
+\textbf{D-08} & Trazabilidad y Auditoría & R1.9, R2.9, RT-07, RNF-09 & Servicio de auditoría con export append-only y cadena criptográfica SHA-256. \\
+\textbf{D-09} & Disponibilidad de Tráfico Legítimo & RNF-02, R4.8 & Mitigación proporcional en ingress mediante \texttt{METER\_MOD} antes de aplicar DROP. \\
+\textbf{D-10} & Presupuesto de Latencia & RNF-04 & Decisión centralizada en RAM y ejecución a velocidad de línea en el ASIC/TCAM. \\
+\textbf{D-11} & Escalabilidad y Capacidad & RNF-05, R1.10, RA-08 & Desacoplamiento por colas RabbitMQ y optimización del pipeline de flujos ($\le 188$ flujos/sw). \\
+\textbf{D-12} & Modularidad e Independencia & RT-02, RNF-07 & Descomposición en 7 microservicios autónomos con bases de datos relacionales dedicadas. \\
+\textbf{D-13} & Observabilidad y Operación & RT-06, RT-09, ADM-01--05 & Consola administrativa web I7 y dashboards analíticos Grafana en modo lectura. \\
+\textbf{D-14} & Verificabilidad Cuantitativa & RNF-11, RNF-12, RP-10 & Modelado matemático de EWMA, presupuesto temporal y pruebas de llenado TCAM. \\
+\bottomrule
+\end{tabularx}
+\caption{Matriz de drivers y trazabilidad de requerimientos.}
+\label{tab:drivers}
+\end{table}
+
+% ==============================================================================
+% CAPÍTULO 2
+% ==============================================================================
+\chapter{Vista Lógica: Modelo de Dominio y Microservicios}
+
+\section{Ecuación Formal del Permiso Efectivo}
+El control de acceso en la solución no se basa en listas de control de acceso (ACL) estáticas ni en la pertenencia pasiva a una red de área local virtual (VLAN). Se implementa un modelo formal de Control de Acceso Basado en Atributos Adaptativo (\emph{Adaptive ABAC}), evaluado dinámicamente por el microservicio \textbf{Policy Engine}:
+
+\begin{equation}
+\label{eq:abac}
+\boxed{\mathcal{P}_{\text{efectivo}} = \mathcal{R}_{\text{rol}} \wedge \mathcal{C}_{\text{recurso}} \wedge \mathcal{A}_{\text{acción}} \wedge \mathcal{K}_{\text{contexto}} \wedge \mathcal{V}_{\text{vigencia}} \wedge \mathcal{S}_{\text{seguridad}}}
+\end{equation}
+
+Donde cada dimensión representa:
+\begin{itemize}[leftmargin=*]
+    \item $\mathcal{R}_{\text{rol}} \in \{\text{BASE}, \text{ACADÉMICO}, \text{TI}, \text{ADMIN\_RED}, \text{SUPER\_ADMIN}\}$: Rol autenticado del sujeto.
+    \item $\mathcal{C}_{\text{recurso}} \in \{\text{PORTAL}, \text{SERV\_GENERAL}, \text{SERV\_PRIVILEGIADO}, \text{SERV\_CRÍTICO}, \text{INFRA\_MGMT}\}$: Activo solicitado.
+    \item $\mathcal{A}_{\text{acción}} \in \{\text{CONSULTAR}, \text{OPERAR}, \text{ELEVAR}, \text{ADMINISTRAR}, \text{AUDITAR}\}$: Operación intentada.
+    \item $\mathcal{K}_{\text{contexto}} = (\text{MAC}, \text{DPID}, \text{Puerto}, \text{IP}_{\text{origen}})$: Tupla de ubicación física y lógica aprendida en el handshake OpenFlow.
+    \item $\mathcal{V}_{\text{vigencia}} = (t_{\text{actual}} \le t_{\text{expiración}}) \wedge (\Delta t_{\text{inactividad}} < \text{idle\_timeout})$: Validación temporal de sesión.
+    \item $\mathcal{S}_{\text{seguridad}} \in \{\text{NORMAL}, \text{SOSPECHOSO}, \text{RATE\_LIMITED}, \text{AISLADO}\}$: Estado de riesgo reportado por Incident Manager. Si $\mathcal{S}_{\text{seguridad}} = \text{AISLADO}$, $\mathcal{P}_{\text{efectivo}} = \emptyset$ independientemente del rol.
+\end{itemize}
+
+\section{Actores, Roles y Catálogo de Permisos}
+El sistema gobierna a cuatro actores humanos y contempla tres agentes sin rol autorizado (Atacante Interno, Atacante Externo y Nodo Comprometido). La asignación de permisos autorizados sigue el catálogo cerrado P01--P30 (Tabla~\ref{tab:permisos}).
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\linewidth}{p{1.2cm}p{4.2cm}cccc}
+\toprule
+\textbf{ID} & \textbf{Permiso de Seguridad} & \textbf{Académico} & \textbf{Esp. TI} & \textbf{Admin Red} & \textbf{SuperAdmin} \\
+\midrule
+P01 & Autenticarse en Portal Cautivo & Sí & Sí & Sí & Sí \\
+P02 & Acceder a Red de Usuarios (VLAN 10) & Sí & Sí & Sí & Sí \\
+P03 & Consumir Servicio General (10.2.0.10) & Sí (Auth) & Sí & Sí & Sí \\
+P04 & Consultar Recursos Técnicos (10.2.0.11) & Elevación & Sí & Sí & Sí \\
+P05 & Operar Base de Datos Crítica (10.2.0.12) & No & No & Sí & Sí \\
+P06--P08 & Consultar Métricas, Tráfico y Logs & No & Sí & Sí & Sí \\
+P09--P11 & Gestionar Alertas e Investigar Incidentes & No & Sí & Sí & Sí \\
+P12--P13 & Ejecutar Mitigación y Aislar Nodos & No & Autorizada & Sí & Sí \\
+P14--P16 & Gestionar Usuarios, Roles y Permisos & No & No & No & Sí \\
+P17--P18 & Gestionar Políticas de Acceso y Detección & No & No & Sí & Sí \\
+P19--P20 & Gestionar Reglas SDN y Segmentación & No & No & Sí & Sí \\
+P21--P22 & Administrar Switches y Controlador ONOS & No & No & Delegada & Sí \\
+P24--P26 & Administrar Operadores y Config. Global & No & No & No & Sí \\
+P28 & Solicitar Elevación Temporal de Acceso & Sí & No & No & No \\
+P29 & Aprobar / Rechazar Elevaciones (TTL) & No & No & Sí & Sí \\
+P30 & Registrar Dispositivo Privilegiado & No & Delegada & Sí & Sí \\
+\bottomrule
+\end{tabularx}
+\caption{Matriz de permisos de seguridad asignados por rol.}
+\label{tab:permisos}
+\end{table}
+
+\section{Descomposición en Siete Microservicios Independientes}
+La plataforma de software está descompuesta en siete microservicios autónomos. Cada microservicio mantiene su propia lógica de dominio, expone contratos de interfaz bien definidos y es dueño exclusivo de su persistencia relacional (patrón \emph{Repository}):
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{IAM / AAA Service (\texttt{10.0.0.10}):} Responsable exclusivo de la autenticación de usuarios y la gestión del ciclo de vida de sesiones. Integra al IdP institucional mediante RADIUS para la comunidad académica y valida localmente a los operadores contra \texttt{bd\_iam} exigiendo verificación estricta de hash \texttt{bcrypt} y código TOTP RFC 6238. Mantiene la ligadura criptográfica de la sesión: $\text{Cookie} \leftrightarrow (\text{MAC}, \text{Switch:Puerto}, \text{IP})$.
+    \item \textbf{Device Registry Service (\texttt{10.0.0.11}):} Gestiona el catálogo de dispositivos de hardware autorizados para tareas de operación (\texttt{bd\_registro}). Implementa la regla inversa fundamental: cualquier host cuya dirección MAC no coincida con un registro activo es clasificado automáticamente como terminal académico no privilegiado y derivado a perfil BASE. Registra el historial de altas y modificaciones (P30).
+    \item \textbf{Monitor Service (\texttt{10.0.0.12}):} Monitorea pasivamente el plano de datos leyendo estadísticas multipart OpenFlow desde ONOS ($I8$). Calcula y mantiene en \texttt{bd\_monitor} las líneas base de tráfico por destino ($\mu_t, \sigma_t$) usando EWMA. Detecta deterministamente eventos de movimiento físico de terminales (\texttt{MAC\_Moved}) y ejecuta la verificación post-mitigación emitiendo \texttt{MitigationVerified}.
+    \item \textbf{Detection Engine Service (\texttt{10.0.0.13}):} Evalúa continuamente las métricas reportadas por el Monitor. Implementa internamente una arquitectura \emph{Pipe-and-Filter} estructurada en: Captura $\rightarrow$ Normalización $\rightarrow$ Extracción de Características $\rightarrow$ Detección Estadística $\rightarrow$ Clasificación de Amenazas. Incorpora además el adaptador perimetral que ingiere alertas EVE JSON del sensor Suricata.
+    \item \textbf{Incident Manager Service (\texttt{10.0.0.14}):} Administra la máquina de estados finitos de cada incidente (\texttt{INC-xxxx}) en \texttt{bd\_incidentes}: $\text{DETECTED} \rightarrow \text{MITIGATING} \rightarrow \text{MITIGATED} \rightarrow \text{CLOSED}$. Garantiza el orden causal asignando un número de secuencia monótono estricto a cada evento del incidente y lidera la reconciliación del estado tras caídas de componentes.
+    \item \textbf{Policy Engine Service (\texttt{10.0.0.15}):} Motor central de toma de decisiones de seguridad. Evalúa la ecuación ABAC~(\ref{eq:abac}), administra la escalera de respuestas proporcionales y es el \textbf{único servicio autorizado para emitir órdenes síncronas de programación de flujos ($I2$)} hacia el controlador SDN ONOS.
+    \item \textbf{Audit Service (\texttt{10.0.0.16}):} Ingesta pasivamente todos los eventos del catálogo que transitan por el bus RabbitMQ. Almacena en \texttt{bd\_auditoria} la trazabilidad transaccional y exporta diariamente registros estructurados append-only en formato JSONL, asegurando integridad forense mediante encadenamiento criptográfico SHA-256.
+\end{enumerate}
+
+\section{Taxonomía Formal de Recursos y Servidores}
+En estricta coherencia con el modelo de dominio saneado, la zona de servidores (VLAN 30) se clasifica en tres activos formales y predecibles:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Servicio General (10.2.0.10 / MAC 52:54:00:02:01):} Representa las plataformas educativas e institucionales de uso común (ej. Entorno Virtual de Aprendizaje, portales institucionales). Accesible para cualquier usuario con perfil ACADÉMICO.
+    \item \textbf{Servicio Privilegiado (10.2.0.11 / MAC 52:54:00:02:02):} Representa servidores de computación avanzada, laboratorios de investigación y servicios técnicos especializados. Inaccesible desde perfil BASE o ACADÉMICO estándar; requiere elevación temporal formal (P28/P29) concedida por el Administrador de Red con TTL estricto.
+    \item \textbf{Servicio Crítico (10.2.0.12 / MAC 52:54:00:02:03):} Servidor de Base de Datos Institucional. Aloja registros de alta confidencialidad. El acceso está restringido a nivel de red para aceptar únicamente conexiones de backend autorizadas y sesiones autenticadas de administradores.
+\end{itemize}
+
+% ==============================================================================
+% CAPÍTULO 3
+% ==============================================================================
+\chapter{Vista de Procesos y Dinámica: Reactividad y Detección}
+
+\section{Infraestructura de Eventos y Mensajería (RabbitMQ)}
+El bus de eventos materializa la reactividad y el desacoplamiento temporal de la plataforma (P13). Se despliega sobre una instancia de RabbitMQ 3.13 (\texttt{10.0.0.21}) configurada bajo las siguientes políticas:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Exchange Principal:} Topic exchange durable denominado \texttt{plataforma}. Las claves de enrutamiento siguen el formato jerárquico \texttt{evento.<TipoEvento>}.
+    \item \textbf{Colas Durables por Servicio:} Cada microservicio consumidor posee su propia cola durable con acuse de recibo manual (\emph{manual ack}). Si un servicio se reinicia, los mensajes se acumulan en disco y se procesan en orden tras su recuperación.
+    \item \textbf{Dead-Letter Queue (DLQ):} Cada cola posee una regla de descarte con redirección a su respectiva \texttt{dlq.<servicio>} tras 5 reintentos fallidos con retroceso exponencial. Ningún evento se descarta en silencio.
+    \item \textbf{Colas FIFO por Incidente:} Al abrirse un incidente se declara dinámicamente una cola dedicada \texttt{inc.<INC-id>}. Todos los eventos del ciclo de vida de dicha anomalía se publican en esta cola, garantizando procesamiento estrictamente secuencial y libre de carreras.
+\end{itemize}
+
+\section{Catálogo Exhaustivo de Eventos}
+La Tabla~\ref{tab:eventos} define el catálogo formal de eventos que circulan por el bus. Cada evento utiliza una envoltura estándar con identificador UUIDv7, marca de tiempo sincronizada (UTC ISO 8601), número de secuencia y claves de correlación.
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\linewidth}{p{3.2cm}p{2.2cm}p{3.2cm}X}
+\toprule
+\textbf{Evento} & \textbf{Productor} & \textbf{Consumidores} & \textbf{Payload Crítico} \\
+\midrule
+\texttt{DeviceConnected} & ONOS (I2) & Registry, Monitor, Audit & \texttt{\{mac, ip, switch, port, ts\}} \\
+\texttt{MAC\_Moved} & Monitor & Incident, Policy, IAM, Audit & \texttt{\{mac, prev\_loc, new\_loc, ts\}} \\
+\texttt{AnomalyDetected} & Detection & Incident, Consola, Audit & \texttt{\{tipo, dst, src\_list, rates, sigma\}} \\
+\texttt{IncidentOpened} & Incident & Policy, Consola, Audit & \texttt{\{inc\_id, tipo, dst, severidad\}} \\
+\texttt{MitigationRequired} & Policy & Audit, Consola (y I2 a ONOS) & \texttt{\{inc\_id, accion, params, ttl\}} \\
+\texttt{MitigationApplied} & ONOS (I2) & Monitor, Incident, Audit & \texttt{\{inc\_id, flow\_ids, switches, ts\}} \\
+\texttt{MitigationVerified} & Monitor & Incident, Policy, Audit & \texttt{\{inc\_id, rate\_post, delta\_ok: bool\}} \\
+\texttt{MitigationExpired} & Monitor/ONOS & Incident, Policy, Audit & \texttt{\{inc\_id, cookie, motivo: timeout\}} \\
+\texttt{SessionOpened} & IAM & Policy, Audit & \texttt{\{user, rol, sesion\_id, cookie, mac, ip\}} \\
+\texttt{SessionClosed} & IAM & Policy, Audit & \texttt{\{sesion\_id, motivo: idle/logout\}} \\
+\texttt{ElevationGranted} & Policy & ONOS (I2), Audit & \texttt{\{user, perfil, resource, ttl, op\_id\}} \\
+\texttt{MetricSample} & Monitor & Detection Engine & \texttt{\{dst, pps, bps, new\_flows, sources\}} \\
+\bottomrule
+\end{tabularx}
+\caption{Catálogo de eventos contractuales del sistema.}
+\label{tab:eventos}
+\end{table}
+
+\section{Modelo Analítico Cuantitativo de Detección (R4)}
+Para erradicar la ambigüedad en la detección de ataques de saturación volumétrica (DDoS) y ataques de fuerza bruta, el microservicio Monitor ejecuta un algoritmo en tiempo discreto basado en la Media Móvil Exponencialmente Ponderada (\emph{EWMA}) con cálculo adaptativo de varianza y piso absoluto.
+
+\subsection{Formulación Matemática de la Línea Base}
+El Monitor muestrea contadores OpenFlow cada $\Delta t = 5\text{ s}$ en el conjunto caliente de servicios protegidos. Sea $x_t$ la tasa instantánea observada (en paquetes por segundo o bits por segundo) en la ventana temporal $t$:
+
+\begin{equation}
+\mu_t = \alpha \cdot x_t + (1 - \alpha) \cdot \mu_{t-1}, \quad \text{donde } \alpha = 0.2
+\end{equation}
+
+La varianza adaptativa $\sigma_t^2$ se actualiza concurrentemente para reflejar la dispersión natural del tráfico en el campus:
+
+\begin{equation}
+\sigma_t^2 = \alpha \cdot (x_t - \mu_t)^2 + (1 - \alpha) \cdot \sigma_{t-1}^2, \quad \sigma_t = \sqrt{\sigma_t^2}
+\end{equation}
+
+\subsection{Criterio de Disparo con Histéresis y Piso Absoluto}
+Para evitar falsas alarmas durante periodos de silencio o ráfagas legítimas de baja intensidad, el umbral de detección incorpora un piso estático ineludible y un multiplicador de desviación:
+
+\begin{equation}
+\text{Condición de Alarma} \iff x_t > \mu_t + \max\left(k_{\text{in}} \cdot \sigma_t, \; \text{Piso}_{\text{pps}}\right)
+\end{equation}
+
+Con parámetros calibrados en:
+\begin{itemize}
+    \item $k_{\text{in}} = 4$: Multiplicador de entrada estricto (4 desviaciones estándar sobre la media).
+    \item $\text{Piso}_{\text{pps}} = 200\text{ pps}$ (equivalente a $2\text{ Mbps}$ en tráfico mixto TCP/UDP): Previene que fluctuaciones de 3 a 10 pps disparen anomalías en servicios silenciosos.
+    \item $N = 3\text{ ventanas sostenidas}$: La condición de alarma debe cumplirse de forma ininterrumpida durante $3 \times 5\text{ s} = 15\text{ s}$ antes de que Detection Engine emita \texttt{AnomalyDetected}.
+\end{itemize}
+
+Para la desactivación de la mitigación se implementa \textbf{histéresis}: el tráfico debe retornar por debajo de un umbral más bajo:
+\begin{equation}
+\text{Condición de Normalización} \iff x_t < \mu_t + k_{\text{out}} \cdot \sigma_t, \quad \text{donde } k_{\text{out}} = 2
+\end{equation}
+
+\subsection{Presupuesto Temporal de Mitigación ($T_{\text{mitigate}}$)}
+El tiempo transcurrido desde el inicio de un ataque hasta su contención física verificada se descompone analíticamente:
+
+\begin{equation}
+T_{\text{mitigate}} = T_{\text{detect}} + T_{\text{event}} + T_{\text{policy}} + T_{\text{I2}} + T_{\text{OF}} + T_{\text{ASIC}}
+\end{equation}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{llr}
+\toprule
+\textbf{Fase del Proceso} & \textbf{Componente / Mecanismo} & \textbf{Presupuesto} \\
+\midrule
+$T_{\text{detect}}$ & Detección EWMA sostenida ($N=3$, $\Delta t=5\text{ s}$) & $15.000\text{ s}$ \\
+$T_{\text{event}}$ & Tránsito y encolamiento en RabbitMQ ($I5$) & $0.015\text{ s}$ \\
+$T_{\text{policy}}$ & Evaluación de reglas ABAC y Escalera de Mitigación & $0.025\text{ s}$ \\
+$T_{\text{I2}}$ & Petición síncrona REST HTTPS hacia ONOS & $0.080\text{ s}$ \\
+$T_{\text{OF}}$ & Traducción interna y comando OpenFlow \texttt{BARRIER} & $0.045\text{ s}$ \\
+$T_{\text{ASIC}}$ & Programación física de TCAM / Meters en Pica8 PicOS & $0.020\text{ s}$ \\
+\midrule
+\textbf{Total Estimado} & \textbf{Tiempo Total de Enforcement Activo} & $\mathbf{15.185\text{ s}}$ \\
+\bottomrule
+\end{tabular}
+\caption{Presupuesto temporal para mitigación de anomalías en peor caso.}
+\label{tab:tiempos}
+\end{table}
+
+En ataques de saturación brutal que alcancen tasas de saturación de enlace inmediatas ($x_t \gg 10 \cdot \text{Piso}$), el detector cuenta con una vía rápida de confirmación de 1 sola ventana ($N=1$), reduciendo $T_{\text{mitigate}}$ a solo $\mathbf{5.185\text{ s}}$.
+
+% ==============================================================================
+% CAPÍTULO 4
+% ==============================================================================
+\chapter{Vista de Control y Conmutación: OpenFlow 1.3 y TCAM}
+
+\section{Controlador SDN ONOS y Motor de Traducción}
+El controlador ONOS 2.7 LTS (\texttt{10.0.0.20}) actúa estrictamente como la capa de abstracción de red y traductor de políticas. En su interior corre una aplicación personalizada (\emph{SDN Security Translation Engine}) que expone la API Northbound $I2$ y habla OpenFlow 1.3 mediante el canal Southbound $I1$.
+
+\subsection{Especificación de la Interfaz Northbound $I2$}
+La interfaz $I2$ es una API REST/JSON autenticada sobre TLS en la red de gestión. Expone los siguientes contratos formales:
+\begin{itemize}[leftmargin=*]
+    \item \texttt{POST /api/v1/ordenes}: Invocado por Policy Engine. Acepta tres comandos principales:
+    \begin{enumerate}
+        \item \texttt{APLICAR\_PERFIL}: Recibe tupla de sujeto, dispositivo, perfil y vigencia. Instala reglas de sesión (prioridad 200).
+        \item \texttt{APLICAR\_MITIGACION}: Recibe tupla de objetivo, switches de ingreso, acción (\texttt{RATE\_LIMIT}, \texttt{BLOCK\_SOURCE}, \texttt{ISOLATE\_DEVICE}) y parámetros de meter. Instala reglas de alta prioridad (prioridad 1000).
+        \item \texttt{RETIRAR}: Recibe cookie de sesión o incidente. Ejecuta un \texttt{FLOW\_MOD DELETE} atómico.
+    \end{enumerate}
+    \item \textbf{Estructura de Cookies OpenFlow de 64 bits:} Para garantizar reversibilidad quirúrgica sin colisiones, ONOS codifica las cookies según la convención:
+    \begin{equation}
+    \text{Cookie} = (\text{Tipo} \ll 48) \mid (\text{ID Correlativo})
+    \end{equation}
+    Donde $\text{Tipo} = \texttt{0x01}$ para Sesiones (\texttt{SES-xxxx}), $\texttt{0x02}$ para Incidentes (\texttt{INC-xxxx}), $\texttt{0x03}$ para Esqueleto BASE permanente y $\texttt{0x04}$ para Caminos de Forwarding.
+\end{itemize}
+
+\section{Pipeline de Flujos OpenFlow y Jerarquía de Prioridades}
+El plano de datos implementa una jerarquía inmutable de prioridades en el switch (Tabla~\ref{tab:pipeline}). Una prioridad superior invalida a una inferior de forma determinista.
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\linewidth}{lp{4.2cm}p{4.2cm}X}
+\toprule
+\textbf{Prioridad} & \textbf{Propósito / Regla} & \textbf{Campos de Coincidencia (Match)} & \textbf{Acción OpenFlow} \\
+\midrule
+\textbf{1000} & Mitigación Activa: Rate Limit & $\text{IP}_{\text{src}} = \text{Atacante}, \text{IP}_{\text{dst}} = \text{Servidor}$ & \texttt{METER: meter\_id} $\rightarrow$ Salida \\
+\textbf{1000} & Mitigación Activa: Bloqueo & $\text{IP}_{\text{src}} = \text{Atacante}$ & \texttt{DROP} \\
+\textbf{1000} & Aislamiento / Cuarentena & $\text{Eth}_{\text{src}} = \text{MAC}_{\text{comprometida}}$ & \texttt{DROP} total \\
+\textbf{200} & Sesión Activa / Elevación & $\text{Eth}_{\text{src}} = \text{MAC}, \text{IP}_{\text{src}} = \text{IP}, \text{IP}_{\text{dst}} \in \text{Perfil}$ & Salida hacia caminos \\
+\textbf{150} & Redirección Portal Pre-Login & $\text{IP}_{\text{dst}} = 10.0.0.5, \text{TCP}_{\text{dst}} = 443$ & Salida hacia caminos \\
+\textbf{120} & Par MAC/IP Aprendido & $\text{Eth}_{\text{src}} = \text{MAC}_{\text{host}}, \text{IP}_{\text{src}} = \text{IP}_{\text{host}}$ & Salida hacia caminos \\
+\textbf{110} & Anti-Spoofing Estricto & $\text{IP}_{\text{src}} = \text{IP}_{\text{host}}, \text{Eth}_{\text{src}} \neq \text{MAC}_{\text{host}}$ & \texttt{DROP} (Mitiga R3.3) \\
+\textbf{100} & Denegación Red de Gestión & $\text{IP}_{\text{dst}} = 10.0.0.0/24$ & \texttt{DROP} (Aislamiento OOB) \\
+\textbf{20} & Caminos / Enrutamiento L2/L3 & $\text{IP}_{\text{dst}} = \text{Subred}$ & Salida por puerto de trunk \\
+\textbf{10} & Servicios Básicos de Red & $\text{UDP}_{\text{dst}} \in \{53, 67, 68\}$ & Salida hacia DNS/DHCP \\
+\textbf{0} & Table-Miss por Defecto & Match Any (*) & \texttt{CONTROLLER (PACKET\_IN)} \\
+\bottomrule
+\end{tabularx}
+\caption{Jerarquía inmutable de prioridades en el pipeline de conmutación.}
+\label{tab:pipeline}
+\end{table}
+
+\section{Demostración Analítica y Dimensionamiento de TCAM}
+La capacidad de la Memoria Direccionable por Contenido Ternaria (TCAM) en hardware de conmutación es un recurso finito crítico. Los switches Pica8 con PicOS reservan un espacio de TCAM física para OpenFlow típicamente acotado a $C_{\text{TCAM}} = 2,000\text{ flujos}$ exactos.
+
+El número de reglas instaladas en un switch dado $s$ en el instante $t$ se formula rigurosamente como:
+
+\begin{equation}
+N_{\text{reglas}}(s) = N_{\text{base}}(s) + N_{\text{sesiones}}(s) + N_{\text{caminos}}(s) + N_{\text{mitigación}}(s)
+\end{equation}
+
+Analizando el peor escenario de saturación concurrente en el switch de acceso más exigido ($A1$, donde residen los 16 hosts virtuales de usuarios):
+\begin{itemize}[leftmargin=*]
+    \item $N_{\text{base}}(A1)$: 16 hosts $\times$ 6 reglas por host (par aprendido, anti-spoofing, drop a gestión, portal, DHCP, DNS) = $\mathbf{96\text{ reglas}}$.
+    \item $N_{\text{sesiones}}(A1)$: 16 hosts concurrentemente autenticados con sesión activa $\times$ 4 reglas de alcance = $\mathbf{64\text{ reglas}}$.
+    \item $N_{\text{caminos}}(A1)$: Tablas de reenvío hacia 8 destinos calculados = $\mathbf{8\text{ reglas}}$.
+    \item $N_{\text{mitigación}}(A1)$: Escenario extremo con hasta 20 reglas temporales de meters/drops concurrentes = $\mathbf{20\text{ reglas}}$.
+\end{itemize}
+
+\begin{equation}
+N_{\text{máximo}}(A1) = 96 + 64 + 8 + 20 = \mathbf{188\text{ reglas}}
+\end{equation}
+
+La tasa de utilización máxima de hardware se calcula como:
+
+\begin{equation}
+U_{\text{TCAM}}(A1) = \frac{188}{2,000} \times 100\% = \mathbf{9.40\%}
+\end{equation}
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\linewidth}{Xcccc}
+\toprule
+\textbf{Rol del Switch en Topología} & \textbf{Flujos Nominales} & \textbf{Flujos Peor Caso} & \textbf{Capacidad TCAM} & \textbf{Utilización Máxima} \\
+\midrule
+Acceso Usuarios ($A1$, $A2$) & 120 & 188 & 2,000 & 9.40\% (Margen $>90\%$) \\
+Acceso Servidores ($A3$) & 22 & 31 & 2,000 & 1.55\% (Margen $>98\%$) \\
+Acceso Borde ($A4$) & 25 & 35 & 2,000 & 1.75\% (Margen $>98\%$) \\
+Distribución ($D1$, $D2$) & 20 & 36 & 2,000 & 1.80\% (Margen $>98\%$) \\
+Núcleo ($NC1$, $NC2$) & 18 & 36 & 2,000 & 1.80\% (Margen $>98\%$) \\
+\midrule
+\textbf{Total en Red Completa (8 switches)} & \textbf{363 reglas} & \textbf{586 reglas} & \textbf{16,000 globales} & \textbf{3.66\% global} \\
+\bottomrule
+\end{tabularx}
+\caption{Presupuesto y utilización de TCAM demostrada por switch.}
+\label{tab:tcam}
+\end{table}
+
+\textbf{Conclusión de diseño:} La envolvente nominal de \textbf{350 a 450 reglas} distribuida en los ocho switches es matemáticamente sólida y garantiza un margen de seguridad superior al 90\% frente a desbordamientos de TCAM (\texttt{OFPFMFC\_TABLE\_FULL}).
+
+% ==============================================================================
+% CAPÍTULO 5
+% ==============================================================================
+\chapter{Vista Física y de Infraestructura: Data Plane y Despliegue}
+
+\section{Topología Física del Prototipo}
+La infraestructura de conmutación se compone de ocho switches físicos Pica8 enlazados en una jerarquía estricta de tres niveles con doble enlace ascendente (\emph{dual-homed}):
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Capa de Núcleo (Core):} Dos switches $NC1$ y $NC2$ interconectados por un enlace inter-núcleo troncal directo en sus interfaces $p3 \leftrightarrow p3$ transportando tráfico 802.1Q de todas las VLANs de datos.
+    \item \textbf{Capa de Distribución:} Dos switches $D1$ y $D2$ conectados en malla completa hacia ambos núcleos ($D1/p1 \leftrightarrow NC1/p1$, $D1/p2 \leftrightarrow NC2/p1$, $D2/p1 \leftrightarrow NC1/p2$, $D2/p2 \leftrightarrow NC2/p2$).
+    \item \textbf{Capa de Acceso:} Cuatro switches $A1, A2, A3, A4$ con redundancia física: cada switch de acceso conecta su puerto $p1$ a $D1$ y su puerto $p2$ a $D2$ totalizando 13 enlaces inter-switch.
+\end{itemize}
+
+\section{Plano de Puertos, Espejo SPAN e Hipervisor}
+El servidor de laboratorio actúa como hipervisor KVM/libvirt alojando a los terminales virtuales y a la plataforma de contenedores. Se conecta físicamente mediante 5 interfaces de red dedicadas (Tabla~\ref{tab:puertos}).
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\linewidth}{p{1.8cm}p{3.2cm}p{2.5cm}X}
+\toprule
+\textbf{Switch/Port} & \textbf{Destino Físico} & \textbf{VLAN / Modo} & \textbf{Descripción y Función de Red} \\
+\midrule
+$A1$ / $p20$ & Hipervisor \texttt{NIC-B} & VLAN 10 Untagged & 16 Hosts Académicos (\texttt{10.1.0.10} a \texttt{.25}). \\
+$A2$ / $p6$ & Hipervisor \texttt{NIC-E} & VLAN 10 Untagged & 2 Operadores (\texttt{.30}, \texttt{.31}), Atacante Interno (\texttt{.50}) y puente demo \texttt{MAC\_Moved}. \\
+$A3$ / $p3$ & Servidor Virtual 1 & VLAN 30 Untagged & Servicio General Académico (\texttt{10.2.0.10}). \\
+$A3$ / $p4$ & Servidor Virtual 2 & VLAN 30 Untagged & Servicio Privilegiado Investigación (\texttt{10.2.0.11}). \\
+$A3$ / $p5$ & Servidor Virtual 3 & VLAN 30 Untagged & Servicio Crítico Base de Datos (\texttt{10.2.0.12}). \\
+$A3$ / $p6$ & Hipervisor \texttt{NIC-A} & VLAN 20 Tagged & Trunk de Gestión. Conecta los 7 microservicios, ONOS, PostgreSQL y RabbitMQ. \\
+$A4$ / $p3$ & Puerto de Acceso & VLAN 40 Untagged & Terminal de red externa de laboratorio. \\
+$A4$ / $p4$ & Hipervisor \texttt{NIC-C} & VLAN 40 Tagged & Máquina virtual de Atacante Externo (\texttt{10.3.0.10}). \\
+$A4$ / $p47$ & Hipervisor \texttt{NIC-D} & \textbf{SPAN Espejo RX} & \textbf{Puerto espejo perimetral dedicado hacia sensor Suricata IDS. Solo recepción (sin IP, fuera de reenvío).} \\
+\bottomrule
+\end{tabularx}
+\caption{Plano detallado de asignación de puertos y cableado de datos.}
+\label{tab:puertos}
+\end{table}
+
+\section{Separación Física: Data Plane vs Canal Out-of-Band}
+Para blindar al sistema frente a ataques volumétricos que saturen el plano de datos, se aplica una separación física radical (RP-02, RA-09):
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Canal de Control Out-of-Band (OOB):} Cada uno de los 8 switches Pica8 posee una interfaz de gestión física dedicada \texttt{ma1}. Las 8 interfaces conectan a un switch de gestión Ethernet aislado del plano de datos enlazado exclusivamente con la IP \texttt{10.0.0.20} del controlador ONOS.
+    \item \textbf{VLAN 20 de Servicios de Plataforma:} La VLAN 20 es una red de datos que transita por los puertos $p1$--$p6$ de los switches para permitir que los usuarios alcancen el Portal Cautivo (\texttt{10.0.0.5}). Los flujos OpenFlow jamás circulan por la VLAN 20.
+\end{itemize}
+
+\section{Despliegue y Co-locación de VMs y Contenedores}
+Se formaliza el criterio de ejecución: \textbf{todo elemento que deba poseer una identidad de red individual y puerto de conmutación es una Máquina Virtual; todo proceso de servicio sin identidad de red propia es un Contenedor}.
+El prototipo totaliza 23 Máquinas Virtuales desplegadas en el hipervisor KVM asignando memoria de forma óptima para operar dentro de un servidor de $\ge 32\text{ GB}$ de RAM (Tabla~\ref{tab:vms}).
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\linewidth}{p{4.2cm}p{1.2cm}p{3.2cm}X}
+\toprule
+\textbf{Grupo de Ejecución} & \textbf{Cant.} & \textbf{Identidad / IP} & \textbf{Asignación de Recursos} \\
+\midrule
+Hosts Virtuales Académicos & 16 VMs & \texttt{10.1.0.10} a \texttt{.25} & 1 vCPU, 1 GB RAM por VM \\
+Hosts de Operadores & 2 VMs & \texttt{10.1.0.30}, \texttt{.31} & 1 vCPU, 1 GB RAM por VM \\
+Atacante Interno y Externo & 2 VMs & \texttt{10.1.0.50}, \texttt{10.3.0.10} & 1 vCPU, 1 GB RAM por VM \\
+Servidores Protegidos (VLAN 30) & 3 VMs & \texttt{10.2.0.10}, \texttt{.11}, \texttt{.12} & 1 vCPU, 1 GB RAM por VM \\
+Sensor Perimetral Suricata 7 & 1 VM & \texttt{10.0.0.27} (+ NIC SPAN) & 2 vCPU, 2 GB RAM \\
+Servicios en Contenedores & 10 cont. & VLAN 20 (Plataforma) & 8 vCPU, 8 GB RAM agregados \\
+\bottomrule
+\end{tabularx}
+\caption{Inventario consolidado de máquinas virtuales y contenedores.}
+\label{tab:vms}
+\end{table}
+
+% ==============================================================================
+% CAPÍTULO 6
+% ==============================================================================
+\chapter{Vista de Escenarios, Resiliencia y Validación}
+
+\section{Cobertura de Casos de Uso y Catálogo de Amenazas}
+La solución cubre de extremo a extremo los casos de uso contractuales del proyecto:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{CU-01 (Acceso Autorizado - R1):} Host conecta $\rightarrow$ regla table-miss $\rightarrow$ ONOS instala perfil BASE $\rightarrow$ usuario navega a portal cautivo $\rightarrow$ IAM valida contra IdP $\rightarrow$ Policy Engine ordena \texttt{APLICAR\_PERFIL} $\rightarrow$ ONOS instala reglas de sesión (prioridad 200) con \texttt{idle\_timeout = 1800 s}.
+    \item \textbf{CU-02 y CU-04 (Acceso No Autorizado y Protección de Servidores - R1, R2):} Host en perfil BASE intenta alcanzar \texttt{10.0.0.0/24} o servidores privilegiados $\rightarrow$ match con prioridad 100 (\texttt{DROP}) $\rightarrow$ paquete descartado en hardware en $A1$.
+    \item \textbf{CU-05 (Port / Network Scanning - R3):} Atacante sondea múltiples destinos $\rightarrow$ Monitor detecta dispersión de destinos en 60 s ($>20$) $\rightarrow$ Detection emite \texttt{AnomalyDetected} $\rightarrow$ Policy Engine escala a \texttt{RATE\_LIMIT} o \texttt{BLOCK\_SOURCE}.
+    \item \textbf{CU-06 (IP / MAC Spoofing - R3):} Host altera su dirección IP declarada $\rightarrow$ coincide con prioridad 110 (\texttt{Anti-spoofing}) al no coincidir con el par aprendido en prioridad 120 $\rightarrow$ descarte inmediato en ASIC. Si mueve su MAC a otro switch ($A1 \rightarrow A2$), el controlador detecta incoherencia determinista, emite \texttt{MAC\_Moved}, invalida la sesión en IAM y retorna el puerto a BASE.
+    \item \textbf{CU-07 (DDoS Brute-Force Interno - R4):} Inundación hacia servidor \texttt{10.2.0.10} $\rightarrow$ Monitor detecta superación de umbral EWMA durante 15 s $\rightarrow$ Policy Engine ordena \texttt{APLICAR\_MITIGACION} $\rightarrow$ ONOS programa \texttt{METER\_MOD} de descarte a 35 Mbps en $A1$ y $A2$ $\rightarrow$ Monitor mide tráfico residual y emite \texttt{MitigationVerified}.
+    \item \textbf{CU-08 (Ataque Externo Perimetral - R5):} Atacante en VLAN 40 emite exploits hacia el borde $\rightarrow$ tráfico replicado por SPAN $A4/p47$ a Suricata $\rightarrow$ Suricata detecta firma y escribe alerta en \texttt{eve.json} $\rightarrow$ Adaptador emite \texttt{AnomalyDetected} $\rightarrow$ Policy Engine ordena bloqueo de IP en $A4$.
+    \item \textbf{CU-09 y CU-10 (Gestión de Políticas y Recuperación):} Administrador ajusta umbral desde Consola $I7$ $\rightarrow$ expiración de ataque por timeout $\rightarrow$ switch emite \texttt{FLOW\_REMOVED} $\rightarrow$ retiro de reglas por cookie $\rightarrow$ restablecimiento automático del estado nominal (P10).
+\end{itemize}
+
+\section{Matriz de Fallos y Tolerancia a Desconexiones}
+El diseño de resiliencia garantiza degradación elegante sin interrupción del tráfico de datos en curso (Tabla~\ref{tab:fallos}).
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\linewidth}{p{2.8cm}p{3.2cm}Xp{2.5cm}}
+\toprule
+\textbf{Elemento Afectado} & \textbf{Detección} & \textbf{Comportamiento y Recuperación} & \textbf{Métrica a Medir} \\
+\midrule
+Corte de enlace de acceso ($A1 \leftrightarrow D1$) & Mensaje OpenFlow \texttt{PORT\_STATUS} en ONOS & Grupo \emph{Fast-Failover} conmuta localmente el tráfico al enlace $A1 \leftrightarrow D2$ sin intervención del controlador. & Tiempo de conmutación ($\le 50\text{ ms}$). \\
+Caída de switch de núcleo ($NC1$) & Detección de pérdida de adyacencia LLDP & ONOS recalcula caminos topológicos redirigiendo la distribución a través de $NC2$. & Tiempo de convergencia global ($\le 200\text{ ms}$). \\
+Caída temporal de Controlador ONOS & Switches detectan pérdida de latido \texttt{ECHO} (15 s) & Switches entran en modo de degradación segura: mantienen flujos instalados hasta su timeout. No hay nuevas admisiones. & Consistencia de sesiones vigentes. \\
+Caída de RabbitMQ & Excepción de conexión en librerías cliente & Microservicios bufferizan localmente en RAM (hasta 10,000 msgs) con retroceso exponencial. & Cero eventos perdidos tras reconexión. \\
+Caída del sensor Suricata IDS & Health check de contenedor / VM & Se pierde detección perimetral R5 temporalmente; el tráfico de datos no se interrumpe (sensor fuera de camino). & Tiempo de reinicio de servicio. \\
+\bottomrule
+\end{tabularx}
+\caption{Matriz de escenarios de fallo y resiliencia.}
+\label{tab:fallos}
+\end{table}
+
+\section{Arquitectura de Referencia HA vs Prototipo de Laboratorio}
+Se formaliza la frontera entre el entorno de pruebas desplegado y la arquitectura de campus de producción:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Prototipo Desplegado en Laboratorio:} Una sola instancia de ONOS y RabbitMQ sobre la red de gestión. Permite validar experimentalmente la programación de flujos, conmutación por fallos de enlace y tiempos de mitigación con un coste mínimo de recursos.
+    \item \textbf{Arquitectura de Referencia en Producción:} Clúster de 3 nodos ONOS ejecutando consenso Raft (Atomix). Cada switch Pica8 lleva configurados tres endpoints de controlador en su bloque OpenFlow: \texttt{tcp:10.0.0.20:6653}, \texttt{tcp:10.0.0.21:6653} y \texttt{tcp:10.0.0.22:6653}. La conmutación entre controladores es autónoma por rol Master/Backup.
+\end{itemize}
+
+\section{Matriz Maestra de Trazabilidad y Verificación}
+La Tabla~\ref{tab:maestra} consolida la alineación final de la arquitectura conectando cada requerimiento con el componente responsable, el mecanismo físico utilizado, la métrica numérica a evaluar y el protocolo de prueba en laboratorio.
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabularx}{\linewidth}{p{1.0cm}p{2.6cm}p{3.2cm}p{3.2cm}X}
+\toprule
+\textbf{Req.} & \textbf{Componente} & \textbf{Mecanismo SDN} & \textbf{Métrica de Evaluación} & \textbf{Protocolo Experimental} \\
+\midrule
+\textbf{R1} & IAM, Registry, Policy, ONOS & Portal cautivo, verificación IdP, \texttt{FLOW\_MOD} prioridad 200 & Latencia de login, tiempo de instalación ($\le 150\text{ ms}$) & Prueba CU-01 con login simultáneo de 16 hosts. \\
+\textbf{R2} & Policy Engine, Switches Pica8 & Aislamiento VLAN 30, reglas DROP gestión (prioridad 100) & Bloqueo 100\% de accesos no autorizados & Peticiones HTTP/SSH no autorizadas desde VLAN 10. \\
+\textbf{R3} & Monitor, Detection, ONOS & Incoherencia de par (MAC, IP), evento \texttt{MAC\_Moved} & Tiempo de detección de spoofing ($\le 1\text{ s}$) & Tráfico con IP suplantada y migración de VM de $A1$ a $A2$. \\
+\textbf{R4} & Monitor, Detection, Policy, ONOS & Línea base EWMA, umbral $k=4\sigma$, \texttt{METER\_MOD} 35 Mbps & $T_{\text{detect}} \le 15\text{ s}$, $T_{\text{mitigate}} \le 15.2\text{ s}$, Tráfico residual $\le 5\%$ & Ataque flood UDP/TCP hacia \texttt{10.2.0.10} con tráfico legítimo concurrente. \\
+\textbf{R5} & Suricata IDS, Adaptador, $A4$ & Espejo SPAN en $A4/p47$, reglas DROP en borde & Tiempo de alerta a bloqueo ($\le 3\text{ s}$) & Tráfico de exploit generado desde VM atacante externa. \\
+\bottomrule
+\end{tabularx}
+\caption{Matriz maestra de validación experimental.}
+\label{tab:maestra}
+\end{table}
+
+\end{document}

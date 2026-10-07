@@ -74,9 +74,10 @@ Cuántas reglas simultáneas admite el dispositivo condiciona el dimensionamient
 ```text
 esqueleto BASE por dispositivo conectado   ~6 reglas
 reglas de sesión por dispositivo activo    ~4 reglas
+caminos por destino                        una entrada por switch del camino
 mitigaciones simultáneas (peor caso R4)    decenas
 ─────────────────────────────────────────────────────────
-prototipo completo (≈ 20 dispositivos)     ≈ 200–300 entradas
+prototipo completo (ocho switches, ~23 dispositivos)     ≈ 350–450 entradas
 ```
 
 La cifra medida se reporta como parte del cierre de RNF-05/RA-08 y del análisis de «exceso de reglas SDN» (B-03 §5). Si resultara menor que el escenario, las palancas ya están previstas: timeouts más agresivos, retiro por cookie (nada queda pegado), y agregación de mitigaciones por switch de ingreso —todo ello sin cambiar la arquitectura.

@@ -79,7 +79,7 @@ Los servicios de §2 corren sobre imagen propia — Python 3.12, un solo ecosist
 - **Los servidores de servicio** representan los activos protegidos de R2; su clasificación (general / privilegiado / crítico) es la de [`A-02`](../A-Modelo_de_dominio/02_recursos_y_servicios.md).
 - **El sensor** tiene dos NIC: la del espejo (solo recepción, sin IP) y la de gestión. Fuera del camino de reenvío (P8).
 - **Las cinco NIC del servidor:** NIC-A ↔ A3 p6 (trunk de gestión, VLAN 20) · NIC-B ↔ A1 p20 (hosts virtuales académicos) · NIC-C ↔ A4 p4 (atacante externo, VLAN 40) · NIC-D = el espejo desde A4 p47, entregada a la VM del sensor (su NIC de gestión va por el puente de NIC-A) · NIC-E ↔ A2 p6 (operadores, atacante interno y el puente de la demostración de `MAC_Moved` entre A1 y A2). El plano puerto a puerto está en [`05`](05_puertos.md).
-- **Total del servidor:** 23 VMs ≈ 27 GB de RAM con 1 GB/VMs de host + contenedores ≈ 8 GB → dimensionamiento de 32 GB declarado en [`01`](01_infraestructura_fisica.md) §2, con la variante recortada de 16 GB.
+- **Total del servidor:** 24 VMs (23 de host a 1 GB + el sensor a 2 GB, ≈ 25 GB) y contenedores ≈ 8 GB → dimensionamiento de 32 GB declarado en [`01`](01_infraestructura_fisica.md) §2, con la variante recortada de 16 GB.
 
 ## 5. La referencia: la misma regla a escala
 
