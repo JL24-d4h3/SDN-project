@@ -12,7 +12,7 @@ La vista completa de la fase: qué se decidió, contra qué requisito responde c
 
 | Papel | Decisión | Documento |
 |---|---|---|
-| Controlador SDN | ONOS, instancia única; API de órdenes sobre su REST | [`01`](01_controlador_y_api_northbound.md) |
+| Controlador SDN | ONOS, clúster de tres nodos (Atomix/Raft); API de órdenes sobre su REST | [`01`](01_controlador_y_api_northbound.md) |
 | Plano de datos | PicOS OpenFlow 1.3; primitivas verificadas contra el dispositivo | [`02`](02_plano_de_datos_pica8.md) |
 | Identidad | FreeRADIUS + OpenLDAP (I4); repositorio propio con TOTP para operadores | [`03`](03_identidad_sesiones_y_portal.md) |
 | Sesión | Cookie opaca ligada al dispositivo; I7 = REST por servicio con rol validado en servidor | [`03`](03_identidad_sesiones_y_portal.md) |
@@ -32,7 +32,7 @@ La vista completa de la fase: qué se decidió, contra qué requisito responde c
 |---|---|---|
 | Controlador ONOS | RA-02, RT-03, RT-05, D-06 | Orden de perfil extremo a extremo; caída y reinstalación ([`01`](01_controlador_y_api_northbound.md) §8) |
 | API de órdenes (I2) | RT-04, R2.10, RNF-04 | Latencia orden → confirmación; rechazo de órdenes inválidas |
-| Redundancia y failover | RA-07, D-09, E-04 | Convergencia ante corte de enlace y caída de switch (desplegado: ocho switches dual-homed); clúster del controlador documentado, no desplegado |
+| Redundancia y failover | RA-07, D-09, E-04 | Convergencia ante corte de enlace y caída de switch (desplegado: diez switches dual-homed, zona C1/C2 incluida); clúster ONOS de tres nodos desplegado — caída de un nodo, re-maestría y reconciliación |
 | Primitivas PicOS | RT-05, R4.6, R4.7, C-04 §5 | Checklist V1–V7 ([`02`](02_plano_de_datos_pica8.md) §4) |
 | Capacidad de reglas | RNF-05, RA-08, D-11 | Experimento de llenado de tabla ([`02`](02_plano_de_datos_pica8.md) §5) |
 | I4 RADIUS + LDAP | R1.2, R1.9 | Login de comunidad con accounting ([`03`](03_identidad_sesiones_y_portal.md) §7) |
@@ -95,11 +95,11 @@ Los pendientes que [`E-02`](../E-Validacion_del_HLD/02_requisitos_a_componentes.
 | R4.10 (tiempos e impacto) | Cronometría por escenario | R4.10, RNF-04 |
 | RNF-03 (sobrecarga) | Barrido de frecuencias de sondeo + carga del espejo | RNF-03 |
 | RNF-11/12 (reproducibilidad y verificabilidad) | Repetición de escenarios con parámetros registrados ([`08`](08_entorno_del_prototipo.md) §4) | RNF-11, RNF-12 |
-| Capacidad y escala (R1.10, RA-08) | Llenado de tablas + carga creciente sobre los ocho switches | RA-08, R1.10 |
+| Capacidad y escala (R1.10, RA-08) | Llenado de tablas + carga creciente sobre los diez switches | RA-08, R1.10 |
 | Tiempos de recuperación (RA-07) | Corte de enlace y caída de switch con caminos alternativos; caída del controlador; drill de restauración; reconciliación | RA-07 |
 
 ## 5. Fronteras: qué queda para las fases siguientes
 
 - **Fase G (LLD):** esquemas de datos definitivos, estructura interna de cada servicio, contratos de eventos al detalle de campo, configuración del pipeline del switch.
-- **Fase H (despliegue):** escrita — la topología física quedó fijada en ocho switches dual-homed ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3); lo que queda como análisis de referencia: clúster del controlador y multi-controlador en operación, feeds externos de inteligencia, cifrado en reposo y política de respaldo de un despliegue real, canal in-band.
+- **Fase H (despliegue):** escrita — la topología física quedó fijada en diez switches dual-homed con la zona de control y servicios C1/C2 ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3); lo que queda como análisis de referencia: el clúster repartido en hosts físicos distintos, feeds externos de inteligencia, cifrado en reposo y política de respaldo de un despliegue real, canal in-band.
 - **Prototipo (medición):** todo lo de §4 — la fase F decidió el mecanismo y el experimento; el número final es un resultado, no un supuesto.

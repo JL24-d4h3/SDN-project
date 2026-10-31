@@ -68,7 +68,7 @@ Los servicios de §2 corren sobre imagen propia — Python 3.12, un solo ecosist
 
 | Grupo | VMs | MAC (convención) | IP | vCPU / RAM |
 |---|---|---|---|---|
-| Hosts académicos | 16 | `52:54:00:01:01`–`52:54:00:01:10` | 10.1.0.10–.25 | 1 / 1 GB |
+| Hosts académicos | 16 | `52:54:00:01:01`–`52:54:00:01:10` | 10.1.0.10–.25 | 1 / 512 MB |
 | Hosts de operadores | 2 | `52:54:00:04:01`–`.02` | 10.1.0.30–.31 | 1 / 1 GB |
 | Atacante interno | 1 | `52:54:00:03:02` | 10.1.0.50 | 1 / 1 GB |
 | Atacante externo | 1 | `52:54:00:03:01` | 10.3.0.10 | 1 / 1 GB |
@@ -78,8 +78,8 @@ Los servicios de §2 corren sobre imagen propia — Python 3.12, un solo ecosist
 - **Convención de MAC** (`52:54:00:` local, tercer octeto = clase, cuarto = correlativo): legible en cualquier captura y en el registro de asociaciones. La clase de un dispositivo se ve en su MAC — útil para el reporte, jamás como criterio de seguridad (la política mira el catálogo y las reglas, no el prefijo).
 - **Los servidores de servicio** representan los activos protegidos de R2; su clasificación (general / privilegiado / crítico) es la de [`A-02`](../A-Modelo_de_dominio/02_recursos_y_servicios.md).
 - **El sensor** tiene dos NIC: la del espejo (solo recepción, sin IP) y la de gestión. Fuera del camino de reenvío (P8).
-- **Las cinco NIC del servidor:** NIC-A ↔ A3 p6 (trunk de gestión, VLAN 20) · NIC-B ↔ A1 p20 (hosts virtuales académicos) · NIC-C ↔ A4 p4 (atacante externo, VLAN 40) · NIC-D = el espejo desde A4 p47, entregada a la VM del sensor (su NIC de gestión va por el puente de NIC-A) · NIC-E ↔ A2 p6 (operadores, atacante interno y el puente de la demostración de `MAC_Moved` entre A1 y A2). El plano puerto a puerto está en [`05`](05_puertos.md).
-- **Total del servidor:** 24 VMs (23 de host a 1 GB + el sensor a 2 GB, ≈ 25 GB) y contenedores ≈ 8 GB → dimensionamiento de 32 GB declarado en [`01`](01_infraestructura_fisica.md) §2, con la variante recortada de 16 GB.
+- **Las cinco NIC del servidor:** NIC-A ↔ C1/C2 p6 (trunk de gestión y servidores, VLAN 100 + 20) · NIC-B ↔ A1 p20 (hosts virtuales académicos) · NIC-C ↔ A4 p4 (atacante externo, VLAN 30) · NIC-D = el espejo desde A4 p47, entregada a la VM del sensor (su NIC de gestión va por el puente de NIC-A) · NIC-E ↔ A2 p6 (operadores, atacante interno y el puente de la demostración de `MAC_Moved` entre A1 y A2). El plano puerto a puerto está en [`05`](05_puertos.md).
+- **Total del servidor:** 24 VMs (16 académicos a 512 MB = 8 GB · 7 de host a 1 GB = 7 GB · el sensor a 2 GB → ≈ 17 GB) y contenedores ≈ 12 GB (incluidos los **tres nodos ONOS a 2 GB cada uno**) → ≈ 29 GB de los 32 GB declarados en [`01`](01_infraestructura_fisica.md) §2 — margen estrecho; los académicos bajaron a 512 MB (imagen mínima) para que el clúster quepa. La variante recortada de 16 GB recorta el escenario a 10 hosts y 2 servidores.
 
 ## 5. La referencia: la misma regla a escala
 

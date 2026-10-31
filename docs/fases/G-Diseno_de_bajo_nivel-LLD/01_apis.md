@@ -17,7 +17,7 @@ Y una tercera superficie, **I3**: los formularios del portal — la única API q
 
 ## 2. I2 — órdenes al controlador
 
-Un solo recurso de órdenes y una confirmación en dos niveles ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §4.4). Las cuatro órdenes fijadas en F —`APLICAR_PERFIL`, `APLICAR_MITIGACION`, `RETIRAR`, `CONSULTAR`— se materializan así: las tres primeras por `POST /api/v1/ordenes`; `CONSULTAR` se realiza como la familia `GET` de la tabla siguiente (estado de órdenes, asociaciones, reglas, topología, contadores, servicios). Autenticación: clave de servicio por cliente sobre TLS.
+Un solo recurso de órdenes y una confirmación en dos niveles ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §4.4). Las cuatro órdenes fijadas en F —`APLICAR_PERFIL`, `APLICAR_MITIGACION`, `RETIRAR`, `CONSULTAR`— se materializan así: las tres primeras por `POST /api/v1/ordenes`; `CONSULTAR` se realiza como la familia `GET` de la tabla siguiente (estado de órdenes, asociaciones, reglas, topología, contadores, servicios). Autenticación: clave de servicio por cliente sobre TLS. **Transporte:** REST/HTTPS · JSON · TCP 8181, en la red de gestión; con el clúster desplegado, cualquier nodo (`.20`/`.30`/`.40`) atiende y el cliente reintenta en el siguiente ante 503 o timeout — para los servicios, I2 sigue siendo un único extremo lógico ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6).
 
 | Recurso | Uso |
 |---|---|
@@ -34,7 +34,7 @@ Un solo recurso de órdenes y una confirmación en dos niveles ([`F-01`](../F-De
 POST /api/v1/ordenes            (HTTPS, red de gestión)
 {
   "orden": "APLICAR_PERFIL",
-  "dispositivo": { "mac": "52:54:00:01:01", "switch": "SA1", "puerto": "p3" },
+  "dispositivo": { "mac": "52:54:00:01:01", "switch": "A1", "puerto": "p20" },
   "vigencia":    { "idle_timeout_s": 1800, "hard_timeout_s": 43200 },
   "contexto":    { "cookie": "SES-000123", "solicitante": "iam",
                    "motivo": "login-academico" }
@@ -59,7 +59,7 @@ POST /api/v1/ordenes            (HTTPS, red de gestión)
   "orden": "APLICAR_MITIGACION",
   "accion": "RATE_LIMIT",
   "objetivo": { "tipo": "servicio", "ip": "10.2.0.10" },
-  "origenes": [ { "mac": "52:54:00:03:02", "switch": "SA1", "puerto": "p9" } ],
+  "origenes": [ { "mac": "52:54:00:03:02", "switch": "A2", "puerto": "p6" } ],
   "parametros": { "tasa_pps": 1000, "ttl_s": 300 },
   "contexto": { "cookie": "INC-0042", "incidente": "INC-0042",
                 "solicitante": "policy-engine", "motivo": "flood",

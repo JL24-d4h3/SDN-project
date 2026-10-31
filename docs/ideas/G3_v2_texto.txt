@@ -1,0 +1,547 @@
+PORTADA                                                                                                                                                                                                         G3 · H0892 · TEL354 │ 1/11
+
+
+
+TEL354 — REDES DEFINIDAS POR SOFTWARE · 2026-2
+
+Solución de seguridad SDN                                                                                                     PLATAFORMA
+                                                                                                                              observa y decide
+
+para una red de campus                                                                                                        10 servicios · eventos AMQP (RabbitMQ)
+                                                                                                                                                                                                      ›
+                                                                                                                                                                                                            Observar
+                                                                                                                                                                                                                            ›
+académico
+                                                                                                                                             I2 · REST/HTTPS · TCP 8181
+                                                                                                                                             orden + confirmación
+                                                                                                                                                                                          Verificar                              Detectar
+
+Exposición parcial — arquitectura, infraestructura y diseño de R1 · R2 · R4                                                   CLÚSTER ONOS · 3 nodos                                                      bucle cerrado
+  versión 2 · tras revisión con el coach                                                                                      traduce y coordina                                           ›          la regla instalada no es        ›
+                                                                                                                              Atomix/Raft · tolera la caída de un nodo                                la mitigación verificada
+
+    La plataforma decide; el controlador traduce; los switches                                                                               I1 · OpenFlow 1.3 · TCP 6653
+                                                                                                                                                                                          Ejecutar                               Decidir
+    ejecutan.                                                                                                                                diseño in-band · prototipo fuera de banda
+                                                                                                                                                                                                      ›                     ›
+                                                                                                                                                                                                            Traducir
+Alcance de este documento                                                                                                     SWITCHES Pica8 (10)
+  R1 · implementado       R2 · implementado       R4 · implementado        R3 · solo diseño   R5 · solo diseño                ejecutan y reportan
+                                                                                                                              a velocidad de línea, en el switch de ingreso
+General          Arquitectura + infraestructura                                                                  30 pts
+Doc/Pres.        Documentación y presentación                                      10 pts                                 Fig. 1 — Tres planos con responsabilidades que no se cruzan, cada salto con su protocolo, y un bucle que no se da
+                                                                                                                          por cerrado hasta que el tráfico real lo confirma.
+R1               Acceso según rol                                                  10 pts
+R2               Recursos privilegiados                                            10 pts
+                                                                                                                            Qué cambia en la v2 (observaciones del coach)
+R4               DDoS brute-force interno                                                        20 pts
+                                                                                                                              1 Zona de control y servicios. C1/C2 colgados del núcleo: ONOS, servidores protegidos,
+R3               Ataques encubiertos                                                             20 pts                         plataforma e IDS salen del acceso; A3 queda libre.
+R5               Seguridad perimetral                                                            20 pts                       2 Plano de control. Diseño in-band (VLAN 20 priorizada) · implementación fuera de banda por
+                                                                                                                                ma1.
+Peso en la rúbrica. R3 y R5 se cubren a nivel de arquitectura (reutilizan la cadena de R4).
+                                                                                                                              3 Redundancia de control. Clúster ONOS de 3 nodos desplegado: cae uno y el clúster sigue
+  Rodrigo Rojas Soplin                                            Piero Oropeza León                                            decidiendo.
+  Líder                                                           Arquitecto                                                  4 Protocolos explícitos. Cada interfaz y cada flujo (R1, R2, R4) indica protocolo y puerto.
+                                                                                                                              5 IDS en el núcleo. Suricata recibe espejo (SPAN) de NC1 y NC2, fuera de camino.
+  Camila Altamirano Ramírez                                       Vincenzo Tavella Rivero
+  PM / QA                                                         DevOps / SRE
+Grupo 3 · Horario H0892 · Coach: Germán Espinoza · Prof. Christian Quispe · Octubre 2026 · v2 · Base: commit 9626b2b
+ARQUITECTURA                                                                                                                                                                                                                          G3 · H0892 · TEL354 │ 2/11
+
+
+Arquitectura de la solución: capas × planos
+Separación estricta de planos: la decisión es una sola, central y auditable; la ejecución es distribuida, en el switch de ingreso de cada flujo. Cada interfaz declara su protocolo.
+
+              INTERACCIÓN                    Portal cautivo .5                            Consola .17                                   Grafana .26                                                                 Actores
+                                       login / elevación · HTTPS 443                 operadores · HTTPS 443                      solo lectura · HTTP 3000                                       académico · especialista TI · admin · superadmin
+
+                                                                 I3 · HTTPS                                                           I7 · REST/HTTPS
+                                    IDENTIDAD                                                OBSERVABILIDAD                                                                     RESPUESTA                                                GOBIERNO
+
+              APLICACIÓN                     Registro                  IAM/AAA                      Monitor                Detección             Adaptador IDS                         Incidentes                 Políticas                       Auditoría
+              10 servicios                      .11                        .10                         .12                      .13                          .18                          .14                         .15                            .16
+   NÓITSEG
+
+
+
+
+                                              ¿quién es? ¿puede intentarlo?                                         ¿qué pasa? ¿es anómalo?                                                       ¿qué hacemos?                               ¿quién hizo qué?
+                                                                       I4 · RADIUS
+                                                      I5
+                                                                                                             RabbitMQ .21 · AMQP 0-9-1 · TCP 5672
+              EVENT BROKER
+                                                                                                             colas durables + DLQ · I5: los eventos informan, no ordenan
+
+
+                                      PostgreSQL .22              FreeRADIUS .23           LDAP .24               chrony .25                 DNS .28                    DHCP                    Grafana ← BD                IdP institucional simulado:
+              SOPORTE                    SQL 5432 · I6              UDP 1812/1813           TCP 389               NTP UDP 123               UDP/TCP 53              UDP 67/68 (ref.)       SQL de solo lectura              FreeRADIUS + OpenLDAP
+
+                                                                                      I8 · REST GET /contadores · 5 s / 60 s                                                              I2 · REST/HTTPS · TCP 8181 · orden + confirmación
+
+                                  aprende · traduce                                                    CLÚSTER ONOS 2.7
+   LORTNOC
+
+
+
+
+              CONTROL SDN
+                                  confirma · retira                                                    3 nodos · VLAN 20                                ONOS-1 .20                              ONOS-2 .30                         ONOS-3 .40
+                                  app G3: API de órdenes I2 · traductor                                                                                      + Atomix                              + Atomix                            + Atomix
+                                  a OpenFlow · cookies por sesión/incidente                            I9 · Raft (Atomix TCP 5679 · clúster 9876)
+
+
+
+
+              INFRAESTRUCTURA                                              I1 · OpenFlow 1.3 · TCP 6653 — diseño in-band (VLAN 20) · prototipo fuera de banda (ma1)
+   S O TA D
+
+
+
+
+              10 switches Pica8
+                                                                                                                                                                                                                              hosts · servidores
+                                        C1                 C2              NC1              NC2                D1                 D2                    A1                A2                A3                   A4           perímetro
+                                                                                                                                                                                                                              VLAN 10/20/30/40
+                                  zona de control y servicios
+Fig. 2 — Arquitectura en capas superpuesta a los tres planos SDN. Línea azul gruesa = la única orden que llega a la red (Políticas → clúster ONOS, REST/HTTPS); gris = observación; violeta discontinua = eventos AMQP.
+
+  Cuatro estilos, cuatro dimensiones                             Tres patrones, cada uno en su sitio                                  Evento informa, comando ejecuta                                         Clúster en el plano de control        v2
+  Capas (estructura) · Eventos/Broker (reacción) ·               Broker entre servicios · Pipe-and-Filter solo                        Lo que exige confirmación (perfil, mitigación)                          Cualquier nodo atiende I2; el estado (cookies,
+  Cliente-servidor (login, consola, órdenes) ·                   dentro de Detección · Repository: una base por                       viaja síncrono por REST (I2); su eco se publica                         sesiones, incidentes en curso) se replica por
+  Microservicios (descomposición).                               servicio, sin JOIN entre bases.                                      por AMQP (I5) para Auditoría y Consola.                                 Atomix y sobrevive a la caída de un nodo.
+ARQUITECTURA                                                                                                                                                                                                             G3 · H0892 · TEL354 │ 3/11
+
+
+Módulos, interfaces y protocolos
+Cada servicio responde una sola pregunta; cada interfaz declara con qué protocolo y por qué puerto se comunica.
+  Portal .5                            HTTPS 443 → I3        IAM/AAA .10                        REST · RADIUS 1812    Interfaces y protocolos              v2
+
+  ¿Por dónde se acredita?                                    ¿Quién es?                                                ID           Entre                              Protocolo · puerto                                       Sincronía
+  Única superficie que BASE alcanza (regla p150)             IdP vía RADIUS/LDAP · operadores con TOTP
+                                                                                                                       I1           ONOS ↔ switches                    OpenFlow 1.3 · TCP 6653 · diseño in-band (VLAN 20) ·     mixta (xid + eventos)
+                                                                                                                                                                       prototipo por ma1
+  Registro .11                             REST/HTTPS        Monitor .12                      REST (I8) · AMQP pub
+                                                                                                                       I2           Políticas · Monitor · IAM → REST/HTTPS · JSON · TCP 8181 · POST /api/v1/ordenes síncrona + BARRIER
+  ¿Puede intentar un rol privilegiado?                       ¿Qué está pasando?
+  La MAC es atributo, no credencial                          Contadores + línea base EWMA; verifica                                 ONOS
+                                                             mitigaciones                                              I3           Portal → IAM                       HTTPS (formularios → REST/JSON) · 443                    síncrona
+                                                                                                                       I4           IAM → IdP                          RADIUS UDP 1812/1813 → LDAP TCP 389                      síncrona · 3 s × 2
+  Detección .13                          AMQP sub/pub        Incidentes .14                       AMQP · REST (I7)
+  ¿Es anómalo?                                               ¿Qué incidente y en qué estado?                           I5           servicio ↔ servicio                AMQP 0-9-1 · RabbitMQ TCP 5672                           asíncrona
+  Pipe-and-Filter: captura → features → clasificación        ABIERTO → EN_MITIGACIÓN → MITIGADO →                      I6           servicio → su base                 SQL · PostgreSQL TCP 5432 (una BD por servicio)          síncrona local
+                                                             CERRADO
+                                                                                                                       I7           Consola → servicios                REST/HTTPS · JSON · sesión del operador                  síncrona
+  Políticas .15                  REST cliente I2 · AMQP      Auditoría .16                         AMQP sub · SQL      I8           Monitor → ONOS →                   REST GET /contadores → OF MULTIPART                      periódica 5 s / 60 s
+  ¿Qué puede hacer, aquí y ahora?                            ¿Quién hizo qué, cuándo y por qué?                                     switch
+  ABAC + escalera · único que emite órdenes I2               JSONL append-only con cadena SHA-256                      I9 v2        ONOS ↔ ONOS                        Atomix/Raft TCP 5679 · mensajería de clúster TCP 9876    consenso
+                                                                                                                       aux          tiempo · nombres · IDS             NTP UDP 123 (chrony) · DNS 53 · espejo SPAN NC1/NC2      —
+  Consola .17                         HTTPS · REST (I7)      Adaptador IDS .18                  EVE JSON → AMQP
+                                                                                                                                                                       → Suricata
+  ¿Cómo opera el humano?                                     ¿Qué vio el perímetro?
+  Alertas, aprobación de elevaciones, políticas              Traduce EVE JSON de Suricata a AnomalyDetected           Tabla 1 — Cada interfaz con su protocolo y puerto. Lo que exige confirmación (I2) es síncrono; lo que informa (I5) es
+                                                                                                                      asíncrono.
+Fig. 3 — Diez servicios, una pregunta cada uno, y el protocolo por el que la responden (arriba a la derecha de cada
+tarjeta). Separación lógica innegociable; en despliegue se co-localizan por afinidad (pág. 6).                                              Broker (RabbitMQ · AMQP)                        ¿Por qué ONOS?
+                                                                                                                                                                                                                   ONOS          Ryu        Floodlight
+¿Por dónde viaja cada protocolo?
+                                                                                                                            Detección        Políticas     Auditoría     + nuevo módulo
+                                                                                                                                                                                            API northbound         REST nativa vía          nativa
+  VLAN 10 / 30 / 40 · datos               VLAN 20 · gestión                      Canal de control · I1                Fig. 4 — Un módulo nuevo se suscribe al bus: nadie más                                                   app
+  Tráfico de los hosts: DHCP,             I2–I9: REST/HTTPS, AMQP,               Solo OpenFlow 1.3. Prototipo:        cambia.
+                                                                                                                                                                                            OF 1.3 meters · groups sí            sí         parcial
+  DNS, ARP, HTTP/HTTPS al                 RADIUS/LDAP, SQL, Raft,                ma1 fuera de banda. Diseño:
+  portal (p150) y a los                   NTP. Nadie fuera de gestión            VLAN 20 in-band, prioridad                                                                                 Clúster HA nativo      Atomix/Raft no           no
+  servidores .10–.12. Aquí se             la alcanza (DROP p100).                máxima.                                                                                                    Lenguaje / equipo      Java          Python Java
+  aplica la política.
+                                                                                                                        ¿Por qué un broker?                                                    ¿Por qué REST en I2?
+                                                                                                                        Un ataque es un suceso que muchos deben                                Es la API northbound nativa de ONOS: la orden
+                                                                                                                        conocer sin que el emisor se acople a nadie. Colas                     espera su 201 APLICADA, que solo llega tras el
+                                                                                                                        durables, DLQ e idempotencia por evento_id.                            BARRIER_REPLY del switch.
+INFRAESTRUCTURA                                                                                                                                                                                                         G3 · H0892 · TEL354 │ 4/11
+
+
+Infraestructura física y lógica del prototipo (v2)
+Servidores, plataforma, IDS y controladores suben a la zona de control y servicios (C1/C2), colgada del núcleo; ningún fallo único de enlace o switch aísla un acceso ni un servidor.
+
+                            ZONA DE CONTROL Y SERVICIOS · VLAN 20 (gestión) · VLAN 30 (servidores) · colgada del núcleo
+PLANO DE
+CONTROL Y                              Clúster ONOS (3 nodos)                                    Servidores protegidos                                                Plataforma                                     IDS · Suricata (VM)
+SERVICIOS                          ONOS-1 .20 · ONOS-2 .30 · ONOS-3 .40                           general .10 · privilegiado .11                             Portal .5 · IAM .10 · … · Consola .17                     .27 · fuera de camino
+                                      Atomix/Raft · app G3 · REST 8181                            crítico .12 (BD institucional)                              RabbitMQ .21 · PostgreSQL .22                        espejo (SPAN) de NC1 y NC2
+                                    a switches: OpenFlow por ma1 (OOB)                       10.2.0.0/24 · VLAN 30 · NIC-A (trunk)                         FreeRADIUS .23 · LDAP .24 · DNS .28                       alertas → cadena R4/R5
+
+
+
+                                                                                                            C1 ↔ C2
+                                                                       C1                                                                             C2
+
+
+
+                                                                                                          NC1 ↔ NC2
+NÚCLEO                                                                NC1                                                                            NC2
+                                                                                                                                                                                                                                 espejo (SPAN)
+                                                                                                                                                                                                                                  de NC1 y NC2
+
+
+                                                                                                                                                                                                                18 enlaces · 10 switches
+                                                                                                                                                                                                                acceso dual-homed a D1 y D2
+DISTRIBUCIÓN                                     D1                                                                                                                              D2                             C1/C2 a NC1 y NC2: directo (—)
+                                                                                                                                                                                                                y cruzado (- -)
+                                                                                                                                                                                                                servicios dual-homed a C1 y C2
+
+
+
+
+ACCESO                        A1                                                        A2                                                         A3                                                           A4
+
+                      16 académicos                                       operadores + atacante int.                                               libre                                                  borde externo
+                    10.1.0.10–.25 · VLAN 10                                      10.1.0.30–.31 · .50                                   antes: servidores + gestión                                       10.3.0.10 · VLAN 40
+                          NIC-B → p20                                               NIC-E → p6                                         reservado para crecimiento                                      NIC-C → p4 · entrada R5
+
+  CANAL DE CONTROL — IMPLEMENTACIÓN: FUERA DE BANDA · interfaz ma1 de los 10 switches → ONOS-1/2/3 · OpenFlow 1.3 ·                                DISEÑO: IN-BAND · el mismo OpenFlow viaja por los enlaces de datos en VLAN 20
+  TCP 6653 · red de gestión del laboratorio, físicamente separada del tráfico de datos                                                             priorizada hasta C1/C2 (pág. 5)
+Fig. 5 — Topología v2: los recursos sensibles (controladores, servidores, plataforma, IDS) se concentran en una zona de control y servicios colgada del núcleo; el acceso queda solo para usuarios y borde. Cada población entra por una NIC distinta
+del servidor de laboratorio.
+
+  VLAN 10 · USUARIOS                           10.1.0.0/24      VLAN 20 · GESTIÓN                            10.0.0.0/24      VLAN 30 · SERVIDORES                             10.2.0.0/24      VLAN 40 · EXTERNA                          10.3.0.0/24
+  académicos · operadores · atacante interno                    plataforma · clúster ONOS · broker · BD · IdP — en            general .10 · privilegiado .11 · crítico .12 — en C1/C2           origen de los escenarios R5 (borde A4)
+                                                                C1/C2
+La VLAN no concede permisos: agrupa y direcciona; el permiso vive en las reglas del pipeline. VLAN 20 ≠ canal OOB: en el prototipo la VLAN 20 es un segmento del plano de datos y ma1 es el canal de control; en el diseño in-band, la VLAN 20
+también transporta OpenFlow.
+PLANO DE CONTROL              v2                                                                                                                                                                                         G3 · H0892 · TEL354 │ 5/11
+
+
+Plano de control: diseño in-band, implementación fuera de banda y clúster ONOS
+Dos decisiones del coach en una página: dónde viaja OpenFlow (in-band en diseño, ma1 en el prototipo) y quién lo emite (clúster de 3 nodos que tolera la caída de uno).
+
+   DISEÑO · IN-BAND                                                                     la arquitectura de referencia          IMPLEMENTACIÓN · FUERA DE BANDA                                                        lo que se despliega y se mide
+
+                                OpenFlow TCP 6653 por los enlaces de datos · VLAN 20 · p65000 · cola estricta                                                           los enlaces de datos solo llevan datos; OpenFlow va por ma1
+
+       Clúster ONOS                     C1                   NC1                     D1                      A1                   Clúster ONOS                        C1                   NC1                      D1                     A1
+        .20 · .30 · .40                                                                                                             .20 · .30 · .40
+                                                                                                                                                                        ma1                    ma1                    ma1                   ma1
+                                                                                                                                            2.ª NIC
+      IP de gestión de cada switch en una interfaz VLAN 20 (in-band).                                                                                                             red de gestión del laboratorio (física, separada)
+      ONOS instala primero las reglas del canal (p65000, TCP 6653) en cada tramo.
+                                                                                                                                  ma1 de los 10 switches → red del laboratorio → 2.ª NIC de cada nodo ONOS.
+      Cola estricta / DSCP CS6 para el control: el tráfico de usuario no lo desplaza.                                             Arranque inmediato: el control no depende de reglas en el plano de datos.
+      El control nunca cae en table-miss: evita el bucle PACKET_IN → ONOS.                                                        Las pruebas de R4 pueden saturar enlaces sin riesgo de perder el control.
+                                                                                                                                  Misma I1, mismas reglas de seguridad: solo cambia el medio físico.
+Fig. 6 — El mismo canal I1 por dos medios. Izquierda: OpenFlow comparte los enlaces de datos en VLAN 20 priorizada. Derecha: OpenFlow va por la interfaz ma1 a una red física aparte.
+
+Diseño vs implementación: qué cambia y qué no                                                                                 Clúster ONOS de 3 nodos                desplegado en v2
+
+ Aspecto                      Diseño · in-band                                                Prototipo · fuera de banda                               Raft (I9): el estado — cookies, sesiones, incidentes — se replica en los 3
+ Medio de I1                  enlaces de datos, VLAN 20                                       ma1 + red de gestión del
+                                                                                              laboratorio                                  ONOS-1 .20                              ONOS-2 .30                                 ONOS-3 .40
+                                                                                                                                          ONOS 2.7 + Atomix                       ONOS 2.7 + Atomix                         ONOS 2.7 + Atomix
+ Arranque                     bootstrap: el canal hacia C1/C2 se instala antes que            inmediato: ma1 ya alcanza a
+                              cualquier regla de usuario                                      ONOS
+ Reglas extra                 +4 por switch (canal ida/vuelta, LLDP)                          0
+ Riesgo principal             un DDoS satura el enlace que también lleva el control           sin enlace compartido
+ Contención                   cola estricta + R4 corta el ataque en el switch de ingreso, —
+                              antes del núcleo
+ Coste en campus real         bajo: no exige cableado de gestión a cada switch                alto fuera del laboratorio             C1           C2         NC1        NC2          D1         D2          A1           A2           A3        A4
+ Arquitectura                      Sin cambios: mismas interfaces I1–I9, mismo pipeline, mismos servicios. Migrar es                                 línea = maestro (MASTER) · los otros dos nodos quedan como SLAVE
+                                                         cambiar dónde escucha el switch.                                                            OFPT_ROLE_REQUEST · cada switch conoce los 3 endpoints (TCP 6653)
+Tabla 2 — La decisión in-band/OOB vive solo en I1; el resto de la arquitectura es idéntica en ambos casos.                    Fig. 7 — Maestría repartida: cada switch tiene un maestro y dos respaldos. Si cae ONOS-1, C1·NC1·D1·A1 piden
+                                                                                                                              MASTER a ONOS-2/3 y la red sigue recibiendo decisiones.
+  Por qué esta combinación
+  El diseño in-band es lo que escala en un campus real (no exige una red de gestión cableada a cada switch).                     ¿Por qué 3 y no 2?                                            Northbound con clúster
+  La implementación fuera de banda permite medir R4 saturando enlaces sin arriesgar el canal de control, y                       Raft exige mayoría. Con 2 nodos, si cae uno                   Políticas conoce los 3 endpoints REST (8181); si
+  aprovecha la red ma1 que el laboratorio ya tiene.                                                                              queda 1 de 2: sin quórum, el clúster deja de                  uno no responde en 2 s reintenta en el siguiente.
+                                                                                                                                 decidir. Con 3, quedan 2 de 3 y sigue. Tolera                 Las órdenes son idempotentes por orden_id.
+                                                                                                                                 ⌊(n−1)/2⌋ caídas.
+INFRAESTRUCTURA                                                                                                                                                                                                      G3 · H0892 · TEL354 │ 6/11
+
+
+Despliegue, redundancia y tolerancia a fallos
+Prototipo v2: clúster ONOS de 3 nodos desplegado y redundancia del plano de datos en núcleo, distribución y zona de servicios.
+
+  Servidor de laboratorio · KVM/libvirt · 32 GB                                        5 NIC · una por población      Falla                   Comportamiento                                                             Métrica
+                                                                                                                      Cae enlace A1–D1        PORT_STATUS → camino por D2 (fast-failover o recálculo)                    tiempo de conmutación
+    IDENTIDAD                                               OBSERVABILIDAD
+                                                                                                                      Cae NC1                 núcleo completo por NC2; C1 sigue por su enlace cruzado a NC2              tiempo de recuperación
+          Portal           IAM           Registro              Monitor         Detección         Adaptador
+                                                                                                                      Cae C1 v2               servidores, plataforma y ONOS siguen por C2 (dual-homed)                   pérdida de paquetes
+      FreeRADIUS          LDAP                                 Grafana
+                                                                                                                      Cae ONOS-1 v2           sus switches piden MASTER a ONOS-2/3; reglas instaladas intactas; tiempo de re-maestría
+                                                                                                                                              las decisiones nuevas continúan
+    RESPUESTA                                               GOBIERNO
+                                                                                                                      Caen 2 nodos ONOS sin quórum: las reglas instaladas siguen; las decisiones nuevas                  duración de degradación
+       Incidentes        Políticas                             Auditoría        Consola
+                                                                                                                                        esperan
+                                                                                                                      Cae RabbitMQ            colas durables + DLQ; huecos declarados, no inventados                     tiempo de recuperación
+
+    INFRAESTRUCTURA (contenedores en VLAN 20)
+                                                                                                                      Cae Detección           sin detecciones nuevas; mitigaciones vigentes siguen                       duración de degradación
+                                                                                                                      Cae Suricata            R5 pierde detección; la red NO se corta (fuera de camino)                  tiempo de recuperación
+       ONOS-1 .20        ONOS-2 .30      ONOS-3 .40          RabbitMQ        PostgreSQL        chrony · DNS
+                                                                                                                    Fig. 9 — Matriz de fallos. Verde: redundancia desplegada y medible en vivo. Ámbar: degradación explícita, nunca silenciosa.
+
+    24 VMs — LO QUE LA RED VE COMO EQUIPO REAL                                                                      Qué se despliega y qué se diseña
+    16 académicos (512 MB) · 2 operadores · 2 atacantes · 3 servidores · 1 sensor                                    Elemento                Prototipo                          Referencia (campus)
+    cada una con MAC/IP/puerto propios                                                                               Controlador             clúster ONOS ×3 v2                 3 nodos en hosts físicos distintos
+                                                                                                                     Canal de control        fuera de banda (ma1)               in-band, VLAN 20 priorizada
+Fig. 8 — Despliegue por afinidad: mismo host no es mismo servicio. Lo que la red debe ver como equipo
+(MAC/IP/puerto propios) es VM; un proceso sin identidad de red es contenedor. Los 3 nodos ONOS suben de 2 GB         Zona C1/C2              desplegada, dual-homed             igual
+c/u; los hosts académicos bajan a 512 MB (imagen mínima) para caber en 32 GB.
+                                                                                                                     Broker / BD             1 instancia c/u                    RabbitMQ quorum queues · PostgreSQL con réplica
+
+  Integración campus                                          Crecimiento                                                     Servidores protegidos                                      Monitoreo
+  IdP institucional vía RADIUS (UDP 1812) / LDAP              Nuevo acceso = dual-homed a D1/D2 (A3 ya                        Zona de control y servicios (C1/C2, VLAN 30)               Contadores OpenFlow (puerto/flujo) vía ONOS
+  (TCP 389) · DNS .28 · DHCP en la regla BASE                 disponible) · nuevo servidor = dual-homed a C1/C2               colgada del núcleo + DROP desde BASE a gestión             (REST, I8) → Grafana; reloj común chrony (NTP)
+  (hosts del prototipo con IP fija por                        · nueva VLAN → nuevas reglas, no nuevo diseño.                  (p100) en el ingreso y de nuevo en C1/C2.                  para correlacionar.
+  reproducibilidad).
+
+Cómo se demuestra la redundancia en vivo               v2
+
+ Prueba                     Acción en el laboratorio                                           Se observa                                                        Criterio de éxito
+ RD1 · enlace               apagar el puerto A1→D1 con tráfico continuo (ping/iperf)           PORT_STATUS · pérdida de paquetes                                 el flujo sigue por D2 sin intervención manual
+ RD2 · nodo de control      docker stop onos-1 durante un login (CU-01)                        ROLE_REQUEST hacia ONOS-2/3 · tiempo de re-maestría               el login se completa y su FLOW_MOD llega al switch
+ RD3 · zona C1/C2           apagar C1 mientras un académico usa srv .10                        reconvergencia vía C2 · sesiones vigentes                         el servicio responde; ninguna sesión se pierde
+ RD4 · quórum               detener 2 de 3 nodos ONOS                                          reglas instaladas vs. decisiones nuevas                           el tráfico ya permitido sigue; lo nuevo espera (degradación declarada)
+R1 · CONTROL DE ACCESO                Implementado · 10 pts                                                                                                                                                                  G3 · H0892 · TEL354 │ 7/11
+
+
+R1 — Controlar el acceso a la red según el rol
+     OpenFlow 1.3 · TCP 6653             REST/HTTPS · JSON              AMQP 0-9-1 · RabbitMQ 5672                 RADIUS UDP 1812 · LDAP TCP 389              tráfico del host (datos)
+          Dispositivo                     Switch A1                    Clúster ONOS                       Portal .5                      IAM/AAA .10                         IdP                     RabbitMQ .21                   Políticas .15
+         host académico                      ingreso                     maestro de A1                     VLAN 20                         VLAN 20               FreeRADIUS .23 · LDAP .24                bus I5                         decide
+
+
+    Pasos 1–4 · el dispositivo aún no es nadie: perfil BASE
+
+                 1                                  conecta · DHCP DISCOVER / ARP Ethernet · DHCP UDP 67/68
+                                                2                                   PACKET_IN (table-miss) OpenFlow 1.3 · TCP 6653 · por ma1
+                                                                                3    FLOW_MOD esqueleto BASE (p150–p10) + BARRIER OpenFlow 1.3
+                4                                                                                                  navegador → redirección al portal (regla p150) → GET /login HTTP 80 → HTTPS 443
+    Pasos 5–11 · la identidad se exige para salir de BASE
+
+                                                                                                              5                                   POST /login {usuario, clave [, TOTP]} REST/HTTPS · JSON (I3)
+                                                                                                                                              6                                    Access-Request RADIUS UDP 1812 → LDAP bind TCP 389 (I4)
+                                                                                                                                                                               7    Access-Accept · Class = perfil RADIUS
+                                                                                                                                              8    operador: + TOTP (RFC 6238, verificado en el IAM)
+                                                       GET /api/v1/asociaciones?ip=… → ata sesión a (MAC, switch:puerto, IP) REST/HTTPS · 8181 (I2, consulta)
+                                                                                                                                  9
+                                                                                    publica SessionOpened AMQP 0-9-1 · TCP 5672 (I5) 10
+                                                                                                                                                        entrega SessionOpened AMQP (cola durable)           11
+    Pasos 12–17 · la decisión baja a la red y se confirma
+                                                                                                                                                                 ABAC → perfil efectivo (rol ∧ contexto ∧ vigencia)                        12
+                                                                                                    POST /api/v1/ordenes · APLICAR_PERFIL (perfil, ubicación, vigencia) REST/HTTPS · TCP 8181 (I2, síncrono)
+                                                                                                                                                                                                                                           13
+                                                                               14 FLOW_MOD p200 · cookie SES-… · idle_timeout · + BARRIER_REQUEST OpenFlow 1.3 · TCP 6653
+                                               15                                   BARRIER_REPLY (regla en hardware) OpenFlow 1.3
+                                                                                                                                             201 APLICADA HTTP 201 · JSON
+                                                                               16
+                                                                                                                                                  eco: perfil aplicado → Auditoría · Consola AMQP (I5)                                     17
+                                               200 · sesión activa HTTPS 443
+                                                                                                              18
+
+Fig. 10 — Flujo de conexión y login (CU-01) con el protocolo de cada salto. Monitor y Detección no participan. El Portal es solo la puerta: no valida nada; solo Políticas ordena a la red (paso 13) y la orden no se da por cumplida hasta el
+BARRIER_REPLY (paso 15).
+
+  BASE                      permanente          ACADÉMICO              30 min idle · 12 h     ELEVADO                          TTL 1 h
+  presencia física → DHCP · DNS · ARP ·         login contra el IdP → servicios                                                             OPERADOR                 15 min idle · 8 h
+                                                                                              solicitud + aprobación admin →                registro + credencial + TOTP → según             Permiso efectivo = Rol ∧ Recurso ∧ Acción ∧ Contexto ∧
+  portal                                        académicos + Internet                         laboratorio / investigación                   rol TI / Admin / Superadmin                      Vigencia ∧ Estado de seguridad
+                                                                                                                                                                                             Métricas: latencia login→regla · éxito/fallo · logins/s
+Fig. 11 — Escalera de perfiles: cada peldaño exige más identidad y dura menos.
+R2 · RECURSOS PRIVILEGIADOS                  Implementado · 10 pts                                                                                                                                                  G3 · H0892 · TEL354 │ 8/11
+
+
+R2 — Flujo de acceso a un recurso privilegiado
+     OpenFlow 1.3 · TCP 6653            REST/HTTPS · JSON                AMQP 0-9-1 · RabbitMQ 5672          RADIUS UDP 1812 · LDAP TCP 389               tráfico del host (datos)
+          Usuario                   Portal .5                IAM/AAA .10                RabbitMQ .21               Consola .17                Políticas .15              Clúster ONOS                 Switch A1                 Srv .11
+      sesión ACADÉMICA                                        + Registro .11                 bus I5                 administrador                 decide                   maestro de A1                 ingreso            10.2.0.11 · vía C1
+
+
+   Solicitud · la elevación se pide, no se toma
+
+              1                              POST /elevacion {recurso: 10.2.0.11, motivo} HTTPS 443 (ya en perfil ACADÉMICO)
+
+                                         2                               solicitud de elevación REST/HTTPS (I3)
+                                                                     3     ¿MAC registrada y rol elegible? → Registro (REST)
+
+                                                                     4                              publica ElevationRequested AMQP · TCP 5672 (I5)
+
+                                                                                               5                             alerta en vivo AMQP
+   Aprobación · un humano con rol de administrador decide
+
+                                                                                                                         6                               POST /elevaciones/{id}/aprobar REST/HTTPS (I7) · sesión admin + TOTP
+                                                                                                                                                     7     ABAC: rol ∧ recurso ∧ horario ∧ estado de seguridad ✓
+
+                                       POST /api/v1/ordenes · APLICAR_PERFIL ELEVADO · TTL 3600 s REST/HTTPS · TCP 8181 (I2, síncrono)              8
+
+                                                                FLOW_MOD p200 · ipv4_src → 10.2.0.11 · cookie ELV-… · hard_timeout 3600 OpenFlow 1.3 · TCP 6653                      9
+
+                                                                                                                                                                                                            10 BARRIER_REPLY OpenFlow 1.3
+
+                                                                                                                                                                                 11      201 APLICADA HTTP 201 · JSON
+
+                                                                                                                                                    12 eco ElevationGranted → Auditoría · Consola AMQP (I5)
+   Uso y expiración · el permiso vive en el ASIC del switch de ingreso y caduca solo
+                                                     SSH TCP 22 / HTTPS 443 → coincide p200 en A1 → D1/D2 → NC1/NC2 → C1 → srv .11 reenvío a velocidad de línea · ningún PACKET_IN
+              13
+
+                                                                                                                             FLOW_REMOVED (hard_timeout) OpenFlow 1.3                                       14
+
+                                                                                                                                                                                 15 aviso de expiración REST/HTTPS (callback app G3)
+
+                                                                                                                                                    16 ElevationExpired → Auditoría AMQP (I5)
+
+Fig. 12 — Elevación a un recurso privilegiado (CU-04) con el protocolo de cada salto: se pide por HTTPS, se aprueba por REST (I7), se ordena por REST (I2), se instala por OpenFlow y se audita por AMQP.
+
+  Camino denegado                                               Defensa en profundidad         v2                              Quién puede ordenar                                             Trazabilidad
+  Un académico sin elevación que intenta llegar a               Con los servidores en C1/C2 hay un segundo                     Solo Políticas habla I2. La Consola aprueba (I7), el            Cada paso con efecto deja evento AMQP:
+  10.2.0.11 no encuentra regla p200 que lo permita:             punto de control: C1/C2 repiten el DROP a gestión              IAM identifica (I3/I4); ninguno toca al controlador             Requested → Granted → Expired, con cookie
+  el paquete se queda en el esqueleto BASE y se                 (p100) y solo aceptan hacia VLAN 30 lo que llega               ni a los switches.                                              ELV-… para correlacionar con la regla.
+  descarta en A1, antes de entrar al núcleo. No sube            por los caminos instalados.
+  al controlador.
+R2 · RECURSOS PRIVILEGIADOS                       Implementado · 10 pts                                                                                                                                                        G3 · H0892 · TEL354 │ 9/11
+
+
+R2 — Clasificación, pipeline de reglas y capacidad
+                       General                             Prio. Regla                                Acción                                 Lo que realmente llega al switch (OpenFlow 1.3)
+               srv .10 · perfil ACADÉMICO
+                                                         65000 Canal de control                       TCP 6653 ↔ ONOS ·                        // R2 · paso 9 de la Fig. 12 — elevación (lo que ONOS envía a A1)
+                    Privilegiado                                      diseño in-band                  permanente
+                srv .11 · elevación + TTL                                                                                                      OFPT_FLOW_MOD command=ADD table=0 priority=200
+                                                                                                                                                 cookie=0xE1000042 (ELV-0042) idle=0 hard_timeout=3600 flags=SEND_FLOW_REM
+                       Crítico                             1000 Mitigación                            meter / DROP · cookie                      match: in_port=p20 eth_src=52:54:00:01:01 eth_type=0x0800
+                    srv .12 · BD inst.
+                                                                                                      incidente · TTL                                    ipv4_src=10.1.0.10 ipv4_dst=10.2.0.11
+                    ONOS ×3 · IdP
+                     switches · logs                        200 Sesión / elevación                    allow al perfil · cookie sesión            instr: apply_actions → output:p1 (hacia D1)
+                   solo VLAN 20 + OOB                                                                                                          OFPT_BARRIER_REQUEST → OFPT_BARRIER_REPLY ⇒ 201 APLICADA
+                                                            150 Portal pre-login                      → 10.0.0.5
+                                                                                                                                               // R4 · paso 6 de la Fig. 17 — RATE_LIMIT del atacante interno (A2)
+                                                            120 Par MAC/IP aprendido                  → caminos                                OFPT_METER_MOD command=ADD meter_id=7 flags=KBPS
+                                                             110 Anti-spoofing                        IP ok ∧ MAC ≠ → DROP                       band: type=DROP rate=35000 (35 Mbps)
+                                                                                                                                               OFPT_FLOW_MOD command=ADD table=0 priority=1000 cookie=0xC0000007 (INC-0007)                       hard=300
+                                                            100 Destino gestión                       DROP permanente (ingreso y                 match: in_port=p6 ipv4_src=10.1.0.50 ipv4_dst=10.2.0.10
+                                                                                                      C1/C2)                                     instr: meter:7 → apply_actions → output:p1
+Fig. 13 — Recursos clasificados (R2.2). Cuanto
+                                                             20 Caminos                               ipv4_dst → puerto (todos los           Fig. 15 — Dos órdenes de la plataforma ya traducidas por ONOS: la elevación de R2 y la mitigación de R4. Valores
+más al centro, más controles; la
+infraestructura de la propia solución es crítica.                                                     tramos)                                de ejemplo.
+En v2 todos viven en la zona C1/C2.                           10 DHCP / DNS                           UDP 67/68, 53
+                                                              — Table-miss                            PACKET_IN → aprender / portal
+                                                        Fig. 14 — Pipeline lógico en el switch de ingreso: la prioridad es jerarquía de
+                                                        autoridad. La sesión vence al esqueleto pero no lo reemplaza: el DROP a
+                                                        gestión es permanente. La fila 65000 existe solo en el diseño in-band.
+
+                                                                    capacidad supuesta ≈ 2.000 por switch (fuera de escala)               Mecanismo                                                   Carga del controlador
+                                                                                         A1 peor caso: 188 / 2.000 ≈ 9,4 %                RBAC con atributos (ABAC): Políticas decide,                Solo el primer paquete sube (PACKET_IN); lo
+   200                                                                                 188      188                                       ONOS traduce, el switch de ingreso bloquea antes            demás se resuelve en hardware. Las reglas se
+                                                                                                                                          de que el flujo llegue al recurso.                          instalan por perfil, no por paquete.
+
+    150
+                                                                                                                                          Escenarios de TCAM        v2                                A medir (V1)
+                                                                                                                                          Nominal ≈ 440 entradas en los 10 switches                   Capacidad real del Pica8: instalar por lotes hasta
+    100
+                                                                                                                                          (envolvente 420–520); peor caso concurrente ≈               OFPFMFC_TABLE_FULL. El 2.000 es supuesto hasta
+                                                                                                                                          665. El diseño in-band suma +4 por switch (≈                medirlo.
+                                                                                                                                          +40).
+     50       44              44
+                                            36     36          36          36                                           35
+                                                                                                             22
+
+      0
+              C1              C2            NC1   NC2          D1         D2           A1        A2         A3          A4
+Fig. 16 — Entradas estimadas por switch, peor caso concurrente (prototipo OOB). NA1 ≈ 16 base + 144 sesión + 8 caminos
++ 20 mitigación = 188. A3 queda solo con el esqueleto.
+R4 · DDOS BRUTE-FORCE                                             Implementado · 20 pts · diferenciador                                                                                                                                          G3 · H0892 · TEL354 │ 10/11
+
+
+R4 — Detectar y mitigar DDoS brute-force en la intranet
+                                        OBSERVAR                           OBSERVAR                             DETECTAR                           DECIDIR                             DECIDIR                             TRADUCIR                             EJECUTAR
+ 1                                                                 2                                   3                                   4                                  5                                     6                               7
+                                         Ataque                           Monitor .12                         Detección .13                     Incidentes .14                      Políticas .15                       Clúster ONOS                     Switch ingreso
+                                       entra por A1/A2                 contadores 5 s / 60 s                  EWMA · 4σ · piso                  INC-xxxx ABIERTO                        escalera                        METER_MOD · p1000               meter / DROP en ASIC
+
+                                                         OF MULTIPART                          MetricSample                      AnomalyDetected                   IncidentOpened                   MitigationRequired             METER_MOD + FLOW_MOD
+                                                    vía ONOS · REST GET (I8)                    AMQP (I5)                           AMQP (I5)                         AMQP (I5)                     REST/HTTPS 8181 (I2)              OpenFlow 1.3 · TCP 6653
+                                                                                                                                                                                                                                  si no cumple → ESCALADO → siguiente peldaño
+
+                                                                                                 VERIFICAR · MitigationVerified (AMQP) en la siguiente ventana de 5 s: ¿bajó el tráfico real? — METER_STATS / FLOW_STATS por OF MULTIPART
+Fig. 17 — Bucle cerrado de R4 con el protocolo de cada salto. ONOS confirma que instaló (BARRIER_REPLY → 201); solo el Monitor confirma que el tráfico bajó. La mitigación se aplica en el switch donde entra el ataque, no junto al destino — y así
+protege también al núcleo y a la zona C1/C2.
+
+                                                               detección: 3 ventanas (15 s)       RATE_LIMIT activo (meter, TTL 300 s)                     1 RATE_LIMIT
+                                                                                                                                                             meter (35 Mbps inicial) · automático · TTL 300 s
+                                       900
+                                                                                                                                                              2 BLOCK_SOURCE
+                                                                                                                                                                DROP del origen · si persiste o es inequívoco
+
+                                                                                                                                                                   3 ISOLATE_DEVICE
+                                                                                                                                                                     DROP total del dispositivo · TTL 10 min
+                                       500
+                                                                                                       atacante limitado + tráfico legítimo                          4 QUARANTINE
+                                                                                                                                                                       alto impacto · requiere aprobación humana
+                                                  umbral = μ + máx(4σ, piso)
+                                                                                                                                                         Fig. 19 — Escalera de mitigación: proporcional y reversible.
+     )√ alacse( 01.0.2.01 aicah spbM
+
+
+
+
+                                       250                                                                                                               Patrón lento: Tmitigate ≈ 15,2 s · vía rápida (N = 1): ≈ 5,2 s
+                                                  línea base μ (EWMA, α = 0,2)                                                                                                            T_detect = 3 ventanas × 5 s = 15 s                                           +185 ms
+                                                                                                                                                         evento AMQP 15 · política 25 · I2 REST/HTTPS 80 · OpenFlow 45 · ASIC 20 (ms) — presupuesto de diseño. Casi todo el
+                                       100                                                                                                               tiempo es decidir con confianza, no ejecutar.
+                                                                                                                                                          Clase            Indicador                Regla inicial
+                                                                                                                                                          Flood /          pps, bps a destino       ≥ 4σ y piso, 3 ventanas
+                                                                                                                                                          DDoS
+                                                                                                                                                          Brute-force      solicitudes/s por        ≥ 20/s sostenidas
+                                                                                                                                                                           origen
+                                        0
+             t=0                                       inicio del ataque                                 ventanas de 5 s →                                Distribuido      fuentes distintas        ≥ 10 en 60 s → mitiga en cada ingreso (cada maestro ONOS instala en sus
+Fig. 18 — Detección adaptativa (ilustrativo): el umbral sigue al tráfico normal, pero un piso de 200 pps / 2 Mbps evita                                                                             switches)
+disparos triviales; histéresis 4σ entrada / 2σ salida; 30 min de calentamiento.
+R3 · R5 · TRAZABILIDAD                                                                                                                                                                                                  G3 · H0892 · TEL354 │ 11/11
+
+
+R3 y R5 a nivel de arquitectura, y trazabilidad completa
+  R3 · diseño    Ataques encubiertos en la intranet                                                                           R5 · diseño    Seguridad perimetral           v2: espejo en el núcleo
+
+  IP spoofing                               MAC_Moved                                 Scanning                                                                                          el tráfico sigue
+  IP ok, MAC distinta                       misma MAC, otro puerto                    ≥ 20 destinos en 60 s
+  DROP en el ASIC (p110)                    (PORT_STATUS / PACKET_IN)                 misma cadena que R4                         Internet                  A4 borde                      NC1 / NC2                        intranet
+  determinista · sin latencia de            IAM invalida la sesión                    AnomalyDetected (AMQP) →
+  decisión                                  el puerto vuelve a BASE · sin             escalera
+                                            umbral                                                                                                                                                espejo SPAN
+
+Fig. 20 — Lo determinista se resuelve en el switch o por incoherencia; lo estadístico reutiliza la cadena de R4. La sesión                                                              Suricata .27                           Adaptador .18
+ata identidad a ubicación: moverse la rompe.                                                                                                                                            fuera de camino                       → AnomalyDetected
+                                                                                                                                                                                                                EVE JSON                    AMQP
+
+                                                                                                                                                                          cadena R4 completa → I2 (REST) → bloqueo en A4 (OpenFlow)
+                                                                                                                             Fig. 21 — IDS fuera de camino con espejo de NC1/NC2: ve lo que entra desde el borde y también el tráfico este-oeste que
+                                                                                                                             cruza el núcleo. Si cae, se degrada R5 pero no se corta el campus. Pendiente: listas negras dinámicas y filtrado DNS.
+
+Trazabilidad: requisito → módulo → mecanismo → métrica → prueba
+             Módulos                                               Mecanismo                                                                           Métrica                                                  Prueba
+ R1          IAM · Registro · Políticas · ONOS                     portal (HTTPS) + RADIUS/LDAP · TOTP · FLOW_MOD p200 + cookie +                      latencia login→regla · éxito/fallo · logins/s            CU-01 · CU-02 · elevación con TTL
+                                                                   idle_timeout
+ R2          Políticas · switch de ingreso · C1/C2 · Auditoría     ABAC · DROP a gestión (p100, ingreso + C1/C2) · anti-spoofing (p110)                permitidas/denegadas · entradas TCAM                     CU-03 · CU-04 · llenado de tabla
+ R4          Monitor · Detección · Incidentes · Políticas ·        EWMA + piso + N = 3 · METER / DROP p1000 · verificación                             T_detect · T_mitigate · residual · FP · tráfico          CU-07 con tráfico legítimo en
+             ONOS                                                                                                                                      legítimo                                                 paralelo
+ R3          Monitor · Detección · IAM                             p110 · MAC_Moved · scanning                                                         cobertura · T_detect                                     CU-05 · CU-06
+ R5          Suricata · Adaptador · Políticas                      espejo NC1/NC2 → IDS → bloqueo SDN en A4                                            tiempo de alerta y de bloqueo                            CU-08
+ HA v2       Clúster ONOS · C1/C2 · D1/D2                          Raft · ROLE_REQUEST · dual-homing                                                   re-maestría · conmutación · pérdida                      RD1–RD4 (pág. 6)
+
+  El laboratorio debe cerrar: V1 capacidad TCAM real y multi-tabla · V2 meters nativos · V3 grupos fast-failover · M1 T_detect · T_mitigate · residual · FP · M2 carga ONOS a 5/30/60 s · M3 tiempo de re-maestría del clúster v2 ·
+  M4 latencia I2 (REST) por nodo v2
+
+Observaciones del coach → dónde se resuelven                       v2
+
+ Observación                                                  Cambio aplicado                                                                                                                                                         Páginas
+ Servidores sensibles conectados al núcleo                    zona de control y servicios C1/C2 dual-homed a NC1/NC2; A3 liberado; IDS con espejo de NC1/NC2; DROP a gestión repetido en C1/C2                                        4 · 6 · 8 · 11
+ Diseño in-band, implementación out-of-band                   I1 por VLAN 20 priorizada (p65000, cola estricta) en el diseño; por ma1 en el prototipo; arquitectura idéntica en ambos                                                 2·4·5·9
+ Redundancia del plano de control                             clúster ONOS de 3 nodos desplegado (Atomix/Raft, maestría repartida, ROLE_REQUEST); pruebas RD1–RD4 y métrica M3                                                        2 · 5 · 6 · 11
+ Protocolos visibles en los flujos                            tabla de interfaces I1–I9 con puerto; cada salto de R1, R2 y R4 etiquetado; ejemplos de FLOW_MOD y METER_MOD                                                            3 · 7 · 8 · 9 · 10
+Todas las cifras de este documento son de diseño, no resultados experimentales.
+

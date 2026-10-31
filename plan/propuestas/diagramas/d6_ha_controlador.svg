@@ -5,10 +5,10 @@
     </marker>
   </defs>
 
-  <title>Alta disponibilidad del controlador: arquitectura de referencia</title>
+  <title>Alta disponibilidad del controlador: clúster ONOS desplegado en el prototipo</title>
 
-  <text x="40" y="34" font-size="17" font-weight="bold" fill="#0F172A">Alta disponibilidad del controlador — ARQUITECTURA DE REFERENCIA (analizada, no desplegada)</text>
-  <text x="40" y="54" font-size="11" fill="#64748B">El prototipo usa una sola instancia de ONOS; el clúster es la evolución de producción documentada (F-01 §6, C-04 §4)</text>
+  <text x="40" y="34" font-size="17" font-weight="bold" fill="#0F172A">Alta disponibilidad del controlador — CLÚSTER ONOS DE 3 NODOS, DESPLEGADO EN EL PROTOTIPO</text>
+  <text x="40" y="54" font-size="11" fill="#64748B">consenso Atomix/Raft (I9: TCP 5679 · 9876) · un maestro por switch · tolera la caída de un nodo, no la del host físico (F-01 §6)</text>
 
   <g>
     <rect x="140" y="90" width="180" height="70" rx="10" fill="#FBE4E2" stroke="#E15A50" stroke-width="1.8"/>
@@ -42,5 +42,5 @@
 
   <rect x="40" y="340" width="960" height="46" rx="10" fill="#FEF9C3" stroke="#CA8A04" stroke-width="1.3"/>
   <text x="520" y="358" font-size="11" text-anchor="middle" fill="#713F12">La red instalada continúa durante la caída: los switches conservan las reglas y sus timeouts (P2, P10).</text>
-  <text x="520" y="374" font-size="11" text-anchor="middle" fill="#713F12">La redundancia del plano de datos sí se despliega (8 switches dual-homed); la del plano de control se documenta.</text>
+  <text x="520" y="374" font-size="11" text-anchor="middle" fill="#713F12">Límite honesto: los tres nodos comparten el host físico del laboratorio — el campus real los reparte en tres hosts.</text>
 </svg>

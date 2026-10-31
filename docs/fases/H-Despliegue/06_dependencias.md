@@ -45,7 +45,7 @@ TIEMPO ──────────────► PERSISTENCIA ────�
 1. **Tiempo (chrony)** — todos los nodos sincronizan antes de operar; el desfase se verifica (RNF-09).
 2. **Persistencia (PostgreSQL)** — las seis bases; chequeo `pg_isready` por base.
 3. **Intermediario (RabbitMQ)** — vhost `plataforma`, exchange, colas y políticas ([`G-02`](../G-Diseno_de_bajo_nivel-LLD/02_eventos.md) §4).
-4. **Controlador (ONOS) + switches (PicOS)** — configuración scriptada del plano de datos (modo OpenFlow, canal, espejo), `HELLO`/`FEATURES_REPLY`, whitelist; el esqueleto de dispositivos conocidos se reinstala.
+4. **Controlador (clúster ONOS) + switches (PicOS)** — primero se forma el clúster (tres nodos, Atomix con quórum, I9); recién entonces se conectan los switches (`HELLO`/`FEATURES_REPLY`, `ROLE_REQUEST`, whitelist de los tres endpoints) y se reinstala el esqueleto de dispositivos conocidos. En el diseño in-band (referencia), el arranque es escalonado desde C1 — cada tramo instala el canal del siguiente (p65000) antes de cualquier regla de usuario ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §3).
 5. **Identidad institucional (FreeRADIUS + OpenLDAP)** — cuentas de prueba, `radtest` de control.
 6. **Servicios de la plataforma** — IAM, Registro, Incidentes, Políticas, Auditoría, Monitor, Detección, Portal, Consola; cada uno declara `/health` *ready*.
 7. **Sensor perimetral + visualización** — el sensor confirma el espejo; los tableros cargan sus datasources.

@@ -11,7 +11,7 @@
 El despliegue tiene **dos vistas**, y la distinción es la de [`C-04`](../C-Contexto/04_alcance_de_la_infraestructura.md):
 
 - **El prototipo** — lo que el proyecto **despliega** en el laboratorio y sobre lo que valida. Toda la serie lo describe al detalle de puerto y parámetro.
-- **La referencia** — el campus que la solución describe. Se **analiza por diseño, no se despliega** ([`C-04`](../C-Contexto/04_alcance_de_la_infraestructura.md) §4): redundancia de nodos y enlaces, clúster del controlador en operación, canal in-band, feeds externos de inteligencia, cifrado en reposo y política de respaldo — exactamente lo que [`F-09`](../F-Decisiones_tecnologicas/09_sintesis_y_trazabilidad.md) §5 dejó para esta fase. Cada documento la recoge en su sección final, con sus condiciones de habilitación.
+- **La referencia** — el campus que la solución describe. Se **analiza por diseño, no se despliega** ([`C-04`](../C-Contexto/04_alcance_de_la_infraestructura.md) §4): redundancia de nodos y enlaces, el clúster del controlador repartido en hosts físicos distintos, canal in-band, feeds externos de inteligencia, cifrado en reposo y política de respaldo — exactamente lo que [`F-09`](../F-Decisiones_tecnologicas/09_sintesis_y_trazabilidad.md) §5 dejó para esta fase. Cada documento la recoge en su sección final, con sus condiciones de habilitación.
 
 **La regla de lectura** es la misma que en G ([`G-00`](../G-Diseno_de_bajo_nivel-LLD/00_metodo_y_mapa.md) §1): primero lo general —el plano, la jerarquía, el criterio— y luego lo particular —la máquina, el puerto, el valor.
 
@@ -28,7 +28,7 @@ El despliegue tiene **dos vistas**, y la distinción es la de [`C-04`](../C-Cont
 
 ## 3. Invariantes del despliegue
 
-- **Topología:** ocho switches — dos núcleo, dos distribución, cuatro acceso — dual-homed, 13 enlaces ([`01`](01_infraestructura_fisica.md) §3): la redundancia del plano de datos **se despliega y se mide**; la del plano de control (clúster del controlador) se documenta, no se despliega (C-04 §4).
+- **Topología:** diez switches — dos núcleo, dos distribución, cuatro acceso y la zona de control y servicios C1/C2 — todo dual-homed, 18 enlaces ([`01`](01_infraestructura_fisica.md) §3): la redundancia del plano de datos **se despliega y se mide**; la del plano de control (clúster ONOS de tres nodos) **también se despliega**, con el límite honesto del host físico compartido ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6, C-04 §4).
 - **Canal de control fuera de banda** (RP-02): las interfaces de gestión de los switches nunca atraviesan el plano de datos; la variante in-band es un objetivo aspiracional analizado, no desplegado.
 - **Todo tráfico de ataque es interno al entorno del proyecto** (RP-06, RP-08): nada malicioso hacia redes del campus ni de terceros.
 - **IPv4** (RP-12): direccionamiento privado, estático donde la reproducibilidad lo exige.
@@ -54,51 +54,52 @@ La **infraestructura física es el soporte real del despliegue**: las máquinas,
 
 | Elemento | Cantidad | Papel | Dónde |
 |---|---|---|---|
-| Switches del plano de datos (Pica8/PicOS) | 8 (NC1, NC2, D1, D2, A1–A4) | Plano de datos SDN: esqueleto, sesiones, mitigaciones | Laboratorio (RP-11) |
+| Switches del plano de datos (Pica8/PicOS) | 10 (NC1, NC2, D1, D2, A1–A4, C1, C2) | Plano de datos SDN: esqueleto, sesiones, mitigaciones | Laboratorio (RP-11) |
 | Servidor de laboratorio | 1 | Hipervisor: todas las VMs y los contenedores | Laboratorio |
-| Interfaces de gestión (`ma1`) | 8 | Canal de control OpenFlow, fuera de banda | Red de gestión del laboratorio o puertos dedicados del servidor |
-| Cableado de datos | 13 enlaces entre switches + accesos + espejo | La malla dual-homed ([`05`](05_puertos.md)) | Etiquetado por puerto |
+| Interfaces de gestión (`ma1`) | 10 | Canal de control OpenFlow, fuera de banda | Red de gestión del laboratorio o puertos dedicados del servidor |
+| Cableado de datos | 18 enlaces entre switches + accesos + espejo | La malla dual-homed con la zona de control y servicios ([`05`](05_puertos.md)) | Etiquetado por puerto |
 | Cable del espejo | 1 | A4 p47 → NIC dedicada del sensor | Directo, sin pasar por ningún otro equipo |
 
-**Sobre el hardware disponible.** Los ocho switches son Pica8 del laboratorio —el único lugar donde las primitivas OpenFlow se verifican de verdad ([`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §4)—. El servidor es una máquina del laboratorio con ≥ 32 GB de RAM y ≥ 8 núcleos; con 16 GB se recorta el escenario a 10 hosts de usuario y 2 servidores de servicio ([`02`](02_vms_y_contenedores.md) §4). Si el slice no reuniera los ocho Pica8, el recorte evaluado es **seis** — dos núcleo y cuatro acceso, sin nivel de distribución—: se pierde la jerarquía completa, no la demostración de failover. Las **ventanas de uso del laboratorio condicionan cuándo corre la verificación física**; fuera de ellas rige el apoyo virtual declarado en [`F-08`](../F-Decisiones_tecnologicas/08_entorno_del_prototipo.md) §1 ([`06`](06_dependencias.md) §5).
+**Sobre el hardware disponible.** Los diez switches son Pica8 del laboratorio —el único lugar donde las primitivas OpenFlow se verifican de verdad ([`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §4)—. El servidor es una máquina del laboratorio con ≥ 32 GB de RAM y ≥ 8 núcleos; con 16 GB se recorta el escenario a 10 hosts de usuario y 2 servidores de servicio ([`02`](02_vms_y_contenedores.md) §4). Si el slice no reuniera los diez Pica8, el recorte evaluado es **ocho** —se prescinde de la zona C1/C2 y los servidores vuelven a un acceso (la topología anterior)—: se pierde la zona de servicios, no la demostración de failover. Las **ventanas de uso del laboratorio condicionan cuándo corre la verificación física**; fuera de ellas rige el apoyo virtual declarado en [`F-08`](../F-Decisiones_tecnologicas/08_entorno_del_prototipo.md) §1 ([`06`](06_dependencias.md) §5).
 
 ## 3. La topología del prototipo
 
 ```text
-   A1      A2      A3      A4        ← acceso: usuarios, usuarios, servidores, borde + espejo
-    │╲     ╱│       │╲     ╱│
-    │ ╲   ╱ │       │ ╲   ╱ │         ← cada acceso conecta con D1 Y con D2 (dual-homed)
-    │  ╲ ╱  │       │  ╲ ╱  │
-    │  ╱ ╲  │       │  ╱ ╲  │
-    │╱     ╲│       │╱     ╲│
-   D1        D2                      ← distribución
+   C1 ────── C2                        ← zona de control y servicios (plataforma, ONOS, servidores)
     │╲       ╱│
-    │ ╲     ╱ │                       ← cada distribución conecta con NC1 Y con NC2
+    │ ╲     ╱ │                         ← C1/C2, cada uno al núcleo por directo y cruzado
     │  ╲   ╱  │
     │   ╲ ╱   │
-    │    ╳    │
-    │   ╱ ╲   │
-    │  ╱   ╲  │
-    │ ╱     ╲ │
-    │╱       ╲│
    NC1 ────── NC2                     ← núcleo, enlazados entre sí
+    │╲       ╱│
+    │ ╲     ╱ │
+    │  ╲   ╱  │                         ← cada distribución conecta con NC1 Y con NC2
+    │   ╳    │
+   D1        D2                       ← distribución
+    │╲       ╱│
+    │ ╲     ╱ │
+    │  ╲   ╱  │                         ← cada acceso conecta con D1 Y con D2 (dual-homed)
+    │   ╲ ╱   │
+   A1      A2      A3      A4         ← usuarios, usuarios, libre (crecimiento), borde + espejo
 
-   13 enlaces entre switches; todo acceso, toda distribución y todo destino
-   quedan a un fallo de enlace o de switch del resto de la red.
+   18 enlaces entre switches; todo acceso, toda distribución, todo destino y
+   la zona de servicios quedan a un fallo de enlace o de switch del resto de la red.
 ```
 
-**Dos núcleo, dos distribución y cuatro acceso**, con doble enlace desde cada acceso y enlace directo entre núcleos: la jerarquía de tres niveles de [`D-10`](../D-ARQUITECTURA_DE_ALTO_NIVEL-HLD/10_topología_lógica.md) materializada. Cada corte cuenta una historia, y todas se miden:
+**Dos núcleo, dos distribución, cuatro acceso y la zona de control y servicios C1/C2**, con doble enlace desde cada acceso, doble enlace de cada distribución al núcleo, enlace directo entre núcleos y C1/C2 colgados del núcleo por enlaces directo y cruzado: la jerarquía de [`D-10`](../D-ARQUITECTURA_DE_ALTO_NIVEL-HLD/10_topología_lógica.md) materializada con su bloque de servicios. Cada corte cuenta una historia, y todas se miden:
 
 | Falla | Qué ocurre | Qué se mide |
 |---|---|---|
 | Corte de un enlace de acceso (A1–D1) | `PORT_STATUS`; el tráfico sigue por D2 — con grupo *fast-failover* la conmutación es local del switch, sin controlador (P2); sin él, el controlador reinstala el camino alternativo ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §4) | Tiempo de conmutación |
-| Caída de un núcleo (NC1) | La red sigue completa por NC2; los caminos se recalculan | Tiempo de re-enrutamiento global |
+| Caída de un núcleo (NC1) | La red sigue completa por NC2; C1 sigue por su enlace cruzado; los caminos se recalculan | Tiempo de re-enrutamiento global |
+| Caída de la zona (C1) | Servidores, plataforma y ONOS siguen por C2 (dual-homed a C1/C2) | Pérdida de paquetes |
 | Caída de un acceso (A1) | Su segmento se aísla; el resto no se entera (E-04) | Aislamiento del fallo |
-| Caída del controlador | Lo instalado sigue operando y expira por timeout (P2); el clúster documentado en [`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6 es la vía de HA | — |
+| Caída de un nodo ONOS | Sus switches piden MASTER a los otros dos (`ROLE_REQUEST`); las reglas instaladas quedan intactas y las decisiones nuevas continúan ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6) | Tiempo de re-maestría (M3) |
+| Caída de dos nodos ONOS (sin quórum) | Las reglas instaladas siguen hasta su timeout; las decisiones nuevas esperan (degradación declarada) | Duración de degradación |
 
 **La redundancia no cuesta un protocolo de árbol.** No hay STP esperando a que converja un anillo: el controlador ya tiene el grafo, y el camino alternativo es un recálculo o una conmutación local del propio plano de datos — la demostración de P2 en vivo, con números (RA-07).
 
-**El reparto de papeles.** A4 es el **borde**: concentra lo externo (segmento EXTERNA) y el espejo hacia el sensor ([`G-04`](../G-Diseno_de_bajo_nivel-LLD/04_interfaces.md) §5). A1 y A2 cargan la política de ingreso de usuarios; A3 sirve a los servidores y recibe la gestión (VLAN 20). Con orígenes de ataque en A1, A2 y A4, un ataque distribuido se mitiga **simultáneamente en tres switches de ingreso** (P9) — la demostración de concurrencia. La escala —ocho switches, ~23 dispositivos, ~350–450 reglas ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §4)— hace creíbles los experimentos de capacidad, y el sondeo I8 deja de ser simbólico: barre los ocho dispositivos.
+**El reparto de papeles.** A4 es el **borde**: concentra lo externo (segmento EXTERNA) y el espejo hacia el sensor ([`G-04`](../G-Diseno_de_bajo_nivel-LLD/04_interfaces.md) §5). A1 y A2 cargan la política de ingreso de usuarios; **A3 queda libre** —solo esqueleto, reservado para crecimiento—. La **zona C1/C2** cuelga la plataforma, el clúster ONOS y los servidores protegidos del núcleo (VLAN 100/20 por el trunk de NIC-A), y repite el DROP a gestión como segundo punto de control (defensa en profundidad). Con orígenes de ataque en A1, A2 y A4, un ataque distribuido se mitiga **simultáneamente en tres switches de ingreso** (P9) — la demostración de concurrencia, con cada maestro ONOS instalando en sus switches. La escala —diez switches, ~23 dispositivos, ≈ 420–520 reglas ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §4)— hace creíbles los experimentos de capacidad, y el sondeo I8 deja de ser simbólico: barre los diez dispositivos.
 
 ## 4. La referencia: lo que se analiza, no se despliega
 
@@ -108,7 +109,7 @@ El campus que la solución describe, con sus condiciones de habilitación ([`F-0
 |---|---|---|
 | Jerarquía núcleo / distribución / acceso | El prototipo ya la materializa (§3); la referencia la lleva a la escala del campus: cantidades y enlaces según la red real | Topología definitiva del campus (D-10) |
 | Redundancia de nodos y enlaces | El prototipo ya la **despliega y mide**; la referencia la extiende a doble enlace en todos los accesos y doble núcleo físico | Decisión de la administración de la red (E-04: es despliegue) |
-| Clúster del controlador en operación | Tres instancias ONOS en servidores de gestión separados; switches con los tres endpoints y failover por rol | Migración del prototipo de instancia única (F-01 §6) |
+| Clúster del controlador en hosts físicos distintos | El prototipo ya despliega los tres nodos (§3, [`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6); la referencia los reparte en servidores de gestión separados — el prototipo tolera la caída de un nodo, no la del host | Topología definitiva de la administración (F-01 §6) |
 | Canal in-band | VLAN de gestión priorizada sobre los enlaces de datos; los flujos del canal se instalan antes que nada | Aprobación de la administración; supervivencia verificada ante ataque volumétrico (C-04 §6) |
 | Feeds externos de inteligencia | Listas de reputación para R5.6, con la regla de promoción del prototipo como filtro | Acuerdo con el proveedor del feed; fuera del entorno controlado (F-07 §4) |
 | Cifrado en reposo y política de respaldo | Volúmenes de las bases cifrados; respaldo con retención y drill periódico | Procedimientos de la administración de la red |
@@ -120,10 +121,13 @@ La referencia **no** es una lista de tareas del proyecto: es la forma del diseñ
 
 | Prueba | Mide | Cierra |
 |---|---|---|
-| Inventario completo presente y conectado (8 switches, 13 enlaces, espejo, gestión) | Correspondencia con [`05`](05_puertos.md), puerto a puerto | C-04 §5 |
+| Inventario completo presente y conectado (10 switches, 18 enlaces, espejo, gestión) | Correspondencia con [`05`](05_puertos.md), puerto a puerto | C-04 §5 |
 | Corte de un enlace de acceso (A1–D1) | Tiempo de conmutación al camino por D2 — grupo fast-failover o recálculo | RA-07, P2, E-04 |
 | Caída de NC1 | La red sigue completa por NC2; tiempo de re-enrutamiento global | RA-07 |
-| Ataque distribuido desde A1, A2 y A4 | Mitigación simultánea en los tres switches de ingreso (P9) | R3.5 |
+| Caída de C1 (RD3) | Servidores, plataforma y ONOS siguen por C2; ninguna sesión se pierde | RA-07 |
+| Caída de un nodo ONOS durante un login (RD2) | El login se completa: re-maestría y `FLOW_MOD` del nuevo maestro | M3, RA-07 |
+| Caída de dos nodos ONOS (RD4) | Lo permitido sigue; lo nuevo espera (quórum) — degradación declarada | P2, P10 |
+| Ataque distribuido desde A1, A2 y A4 | Mitigación simultánea en los tres switches de ingreso (P9), un maestro por switch | R3.5 |
 | Canal de control activo por `ma1` con el plano de datos operando | Separación física de planos | RP-02, RA-09 |
 | Ataque de carga contra el segmento de gestión durante un escenario | El canal out-of-band sostiene el control | RA-09, P2 |
 | Ventanas de laboratorio planificadas | La verificación física corre en el hardware real | RP-11 |
@@ -198,7 +202,7 @@ Los servicios de §2 corren sobre imagen propia — Python 3.12, un solo ecosist
 
 | Grupo | VMs | MAC (convención) | IP | vCPU / RAM |
 |---|---|---|---|---|
-| Hosts académicos | 16 | `52:54:00:01:01`–`52:54:00:01:10` | 10.1.0.10–.25 | 1 / 1 GB |
+| Hosts académicos | 16 | `52:54:00:01:01`–`52:54:00:01:10` | 10.1.0.10–.25 | 1 / 512 MB |
 | Hosts de operadores | 2 | `52:54:00:04:01`–`.02` | 10.1.0.30–.31 | 1 / 1 GB |
 | Atacante interno | 1 | `52:54:00:03:02` | 10.1.0.50 | 1 / 1 GB |
 | Atacante externo | 1 | `52:54:00:03:01` | 10.3.0.10 | 1 / 1 GB |
@@ -208,8 +212,8 @@ Los servicios de §2 corren sobre imagen propia — Python 3.12, un solo ecosist
 - **Convención de MAC** (`52:54:00:` local, tercer octeto = clase, cuarto = correlativo): legible en cualquier captura y en el registro de asociaciones. La clase de un dispositivo se ve en su MAC — útil para el reporte, jamás como criterio de seguridad (la política mira el catálogo y las reglas, no el prefijo).
 - **Los servidores de servicio** representan los activos protegidos de R2; su clasificación (general / privilegiado / crítico) es la de [`A-02`](../A-Modelo_de_dominio/02_recursos_y_servicios.md).
 - **El sensor** tiene dos NIC: la del espejo (solo recepción, sin IP) y la de gestión. Fuera del camino de reenvío (P8).
-- **Las cinco NIC del servidor:** NIC-A ↔ A3 p6 (trunk de gestión, VLAN 20) · NIC-B ↔ A1 p20 (hosts virtuales académicos) · NIC-C ↔ A4 p4 (atacante externo, VLAN 40) · NIC-D = el espejo desde A4 p47, entregada a la VM del sensor (su NIC de gestión va por el puente de NIC-A) · NIC-E ↔ A2 p6 (operadores, atacante interno y el puente de la demostración de `MAC_Moved` entre A1 y A2). El plano puerto a puerto está en [`05`](05_puertos.md).
-- **Total del servidor:** 24 VMs (23 de host a 1 GB + el sensor a 2 GB, ≈ 25 GB) y contenedores ≈ 8 GB → dimensionamiento de 32 GB declarado en [`01`](01_infraestructura_fisica.md) §2, con la variante recortada de 16 GB.
+- **Las cinco NIC del servidor:** NIC-A ↔ C1/C2 p6 (trunk de gestión y servidores, VLAN 100 + 20) · NIC-B ↔ A1 p20 (hosts virtuales académicos) · NIC-C ↔ A4 p4 (atacante externo, VLAN 30) · NIC-D = el espejo desde A4 p47, entregada a la VM del sensor (su NIC de gestión va por el puente de NIC-A) · NIC-E ↔ A2 p6 (operadores, atacante interno y el puente de la demostración de `MAC_Moved` entre A1 y A2). El plano puerto a puerto está en [`05`](05_puertos.md).
+- **Total del servidor:** 24 VMs (16 académicos a 512 MB = 8 GB · 7 de host a 1 GB = 7 GB · el sensor a 2 GB → ≈ 17 GB) y contenedores ≈ 12 GB (incluidos los **tres nodos ONOS a 2 GB cada uno**) → ≈ 29 GB de los 32 GB declarados en [`01`](01_infraestructura_fisica.md) §2 — margen estrecho; los académicos bajaron a 512 MB (imagen mínima) para que el clúster quepa. La variante recortada de 16 GB recorta el escenario a 10 hosts y 2 servidores.
 
 ## 5. La referencia: la misma regla a escala
 
@@ -256,24 +260,25 @@ La **red del despliegue es la materialización de los segmentos lógicos** ([`F-
     │╱       ╲│
    NC1 ────── NC2                     ← núcleo, enlazados entre sí
 
-   A1: académicos (10.1.0.10–.25)          A3: servidores (10.2.0.10–.12)
+   A1: académicos (10.1.0.10–.25)          A3: libre (reservado para crecimiento)
    A2: operadores (.30–.31) + atacante interno (.50)     A4: atacante externo (10.3.0.10)
-   GESTIÓN 10.0.0.0/24 cuelga de A3 (VLAN 20, por el servidor):
-     portal .5 · servicios .10–.17 · adaptador .18 · controlador .20 ·
-     intermediario .21 · persistencia .22 · identidad .23/.24 · tiempo .25 ·
-     visualización .26 · sensor .27 · DNS .28
-   canal de control (OpenFlow): ma1 de cada uno de los ocho switches ──► red de gestión
+   ZONA C1/C2 (VLAN 100 y 20, por NIC-A del servidor, colgada del núcleo):
+     GESTIÓN 10.0.0.0/24: portal .5 · servicios .10–.17 · adaptador .18 ·
+     controlador ONOS .20 · .30 · .40 · intermediario .21 · persistencia .22 ·
+     identidad .23/.24 · tiempo .25 · visualización .26 · sensor .27 · DNS .28
+     SERVIDORES 10.2.0.0/24: general .10 · privilegiado .11 · crítico .12
+   canal de control (OpenFlow): ma1 de cada uno de los diez switches ──► red de gestión
 ```
 
 ## 2. El direccionamiento, tabla a tabla
 
 | Segmento | Subred | Hosts | Nota |
 |---|---|---|---|
-| GESTIÓN | `10.0.0.0/24` | **la plataforma:** portal `10.0.0.5` · IAM `.10` · registro `.11` · monitor `.12` · detección `.13` · incidentes `.14` · políticas `.15` · auditoría `.16` · consola `.17` · adaptador del sensor `.18` — **la infraestructura:** controlador (ONOS) `.20` · intermediario (RabbitMQ) `.21` · persistencia (PostgreSQL) `.22` · identidad institucional (FreeRADIUS `.23` + directorio `.24`) · tiempo (chrony) `.25` · visualización (Grafana) `.26` · DNS `.28` — **el sensor perimetral (Suricata, VM):** `.27` (gestión; el espejo no lleva IP) | El portal conserva la dirección de los flujos (`10.0.0.5`); es la única superficie que BASE alcanza, y solo por la regla 150 ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §3) |
+| GESTIÓN | `10.0.0.0/24` | **la plataforma:** portal `10.0.0.5` · IAM `.10` · registro `.11` · monitor `.12` · detección `.13` · incidentes `.14` · políticas `.15` · auditoría `.16` · consola `.17` · adaptador del sensor `.18` — **la infraestructura:** controlador (clúster ONOS: `.20` · `.30` · `.40`) · intermediario (RabbitMQ) `.21` · persistencia (PostgreSQL) `.22` · identidad institucional (FreeRADIUS `.23` + directorio `.24`) · tiempo (chrony) `.25` · visualización (Grafana) `.26` · DNS `.28` — **el sensor perimetral (Suricata, VM):** `.27` (gestión; el espejo no lleva IP) | El portal conserva la dirección de los flujos (`10.0.0.5`); es la única superficie que BASE alcanza, y solo por la regla 150 ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §3). Los tres nodos ONOS comparten la VLAN 100; su canal hacia los switches va por la red OOB (`ma1`), nunca por esta subred |
 | USUARIOS | `10.1.0.0/24` | académicos `.10–.25` · operadores `.30–.31` · atacante interno `.50` | Política de ingreso en A1 y A2 |
-| SERVIDORES | `10.2.0.0/24` | general `.10` · privilegiado `.11` · crítico `.12` | Los activos protegidos de R2; ingreso por A3 |
+| SERVIDORES | `10.2.0.0/24` | general `.10` · privilegiado `.11` · crítico `.12` | Los activos protegidos de R2; ingresan por la zona C1/C2 (VLAN 20, trunk de NIC-A) |
 | EXTERNA | `10.3.0.0/24` | atacante `.10` · «red externa» representada por el puerto de A4 | Origen de los escenarios R5 |
-| Canal de control | red de gestión del laboratorio (o puertos dedicados del servidor) | `ma1` de los ocho switches | Fuera de banda (RP-02); no es una subred del prototipo |
+| Canal de control | red de gestión del laboratorio (o puertos dedicados del servidor) | `ma1` de los diez switches → 2.ª NIC de cada nodo ONOS | Fuera de banda (RP-02); no es una subred del prototipo |
 
 - **DNS interno:** `10.0.0.28` resuelve los nombres del entorno de laboratorio; el esqueleto BASE permite UDP 53 pre-login ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §3). Los hosts usan IP estáticas; DHCP queda reservado para la referencia — en el prototipo la regla de DHCP existe en el esqueleto, pero el direccionamiento no depende de ella.
 - **El segmento de gestión es alcanzable por el plano de datos — y esa es la frontera que se demuestra.** El DROP del esqueleto (prioridad 100) usa exactamente esta ruta (R1.6, RA-09): BASE intenta, la regla niega, y la elevación del operador (200) la abre para quien corresponde. El canal de control, en cambio, **no** pasa por el plano de datos — son dos cosas distintas y ambas existen.
@@ -308,12 +313,13 @@ El **segmento lógico se materializa en una VLAN con su subred**: la VLAN agrupa
 | VLAN | Segmento | Subred | Vive en | Nota |
 |---|---|---|---|---|
 | 10 | USUARIOS | `10.1.0.0/24` | Puertos de acceso de A1 y A2; trunks hacia la distribución | Hosts académicos, operadores, atacante interno |
-| 20 | GESTIÓN | `10.0.0.0/24` | Trunk del servidor en A3; transita hacia la distribución y el núcleo | Los servicios de la plataforma; alcanzable por el plano de datos **solo** por la frontera de reglas ([`03`](03_red.md) §2) |
-| 30 | SERVIDORES | `10.2.0.0/24` | Puertos de acceso de A3; transita hacia la distribución y el núcleo | Los activos protegidos de R2 |
-| 40 | EXTERNA | `10.3.0.0/24` | Puerto de A4 (y trunk del servidor para la VM atacante) | Origen de los escenarios R5 |
+| 100 | GESTIÓN | `10.0.0.0/24` | Trunk del servidor en C1/C2; transita hacia la distribución y el núcleo | Los servicios de la plataforma; alcanzable por el plano de datos **solo** por la frontera de reglas ([`03`](03_red.md) §2) |
+| 20 | SERVIDORES | `10.2.0.0/24` | Trunk del servidor en C1/C2; transita hacia la distribución y el núcleo | Los activos protegidos de R2 |
+| 30 | EXTERNA | `10.3.0.0/24` | Puerto de A4 (y trunk del servidor para la VM atacante) | Origen de los escenarios R5 |
 
-- **Tagging:** untagged en los puertos de acceso (los hosts no etiquetan); tagged (802.1Q) en los trunks, que transportan varias VLAN — los enlaces acceso–distribución llevan 10, 20 y 30 (40 en el borde); los enlaces distribución–núcleo y el enlace de núcleo llevan todas las VLAN de datos. La asignación puerto a puerto está en [`05`](05_puertos.md).
-- **El tránsito de la VLAN 20 es deliberado:** el segmento de gestión cruza los trunks para que la frontera de reglas exista — BASE intenta alcanzarlo, la prioridad 100 lo niega, la elevación (200) lo abre para quien corresponde (R1.6, RA-09). El **canal de control**, en cambio, no es esta VLAN: son las interfaces `ma1`, fuera de banda (RP-02).
+- **Tagging:** untagged en los puertos de acceso (los hosts no etiquetan); tagged (802.1Q) en los trunks, que transportan varias VLAN — los enlaces acceso–distribución llevan 10, 20 y 100 (30 en el borde); los enlaces distribución–núcleo y el enlace de núcleo llevan todas las VLAN de datos. La asignación puerto a puerto está en [`05`](05_puertos.md).
+- **El tránsito de la VLAN 100 es deliberado:** el segmento de gestión cruza los trunks para que la frontera de reglas exista — BASE intenta alcanzarlo, la prioridad 100 lo niega, la elevación (200) lo abre para quien corresponde (R1.6, RA-09). El **canal de control**, en cambio, no es esta VLAN: son las interfaces `ma1`, fuera de banda (RP-02).
+- **La VLAN 1 no se usa:** es la VLAN por defecto del switch, viaja sin etiquetar como nativa en los trunks, transporta los protocolos de control y es el punto de partida clásico del salto de VLAN. La gestión ocupa la VLAN 100 —fuera del rango de datos 10/20/30— y la VLAN 1 queda sin asignación.
 - **DHCP:** los hosts del prototipo usan IP estática (reproducibilidad, RNF-11); DHCP queda reservado para la referencia. La regla de DHCP del esqueleto existe para que el diseño no dependa de esa reserva.
 
 ## 3. La cuarentena y el canal in-band: dos reservas
@@ -330,9 +336,9 @@ En el campus real cada segmento existe como VLAN institucional con su subred adm
 | Prueba | Mide | Cierra |
 |---|---|---|
 | Dispositivo en VLAN 10 sin alcanzar 10.0.0.0/24 salvo el portal | La frontera de reglas sobre la VLAN | R1.6, RA-09 |
-| Elevación abre VLAN 20 para el operador y expira al TTL | La escalera sobre el tránsito | R1.8, P10 |
+| Elevación abre VLAN 100 para el operador y expira al TTL | La escalera sobre el tránsito | R1.8, P10 |
 | Tráfico entre VLANs enruta por caminos del controlador | Sin router: el plano de datos resuelve | flows/05 |
-| Etiquetado de trunks correcto (10/20/30 según enlace) | Correspondencia con [`05`](05_puertos.md) | R2.6 |
+| Etiquetado de trunks correcto (10/20/100 según enlace) | Correspondencia con [`05`](05_puertos.md) | R2.6 |
 
 # Puertos
 
@@ -347,44 +353,55 @@ El **plano de puertos es la asignación física que materializa los enlaces**: c
 ## 2. La asignación, switch por switch
 
 ```text
-        A1 (acceso usuarios)            A2 (acceso usuarios)           A3 (acceso servidores)
+        A1 (acceso usuarios)            A2 (acceso usuarios)           A3 (acceso libre)
         p1 trunk ↔ D1 · p2 ↔ D2         p1 ↔ D1 · p2 ↔ D2              p1 ↔ D1 · p2 ↔ D2
-        p3–p19 acceso VLAN 10           p3–p5 acceso VLAN 10            p3–p5 acceso VLAN 30
-        p20 NIC-B (hosts virtuales)     p6 NIC-E (operadores,           p6 NIC-A trunk VLAN 20
-        ma1 gestión                        atacante interno,               (gestión, por el servidor)
-                                           puente demo MAC_Moved)          ma1 gestión
+        p3–p19 acceso VLAN 10           p3–p5 acceso VLAN 10            p3–p19 reservados (crecimiento)
+        p20 NIC-B (hosts virtuales)     p6 NIC-E (operadores,           ma1 gestión
+        ma1 gestión                        atacante interno,
+                                           puente demo MAC_Moved)
                                         ma1 gestión
 
         A4 (borde)                      D1 y D2 (distribución)          NC1 y NC2 (núcleo)
         p1 ↔ D1 · p2 ↔ D2               p1 ↔ NC1 · p2 ↔ NC2             p1 ↔ D1 · p2 ↔ D2
-        p3 acceso VLAN 40               p3 ↔ A1 · p4 ↔ A2               p3 ↔ NC1–NC2 (enlace de núcleo)
-        p4 NIC-C trunk VLAN 40             p5 ↔ A3 · p6 ↔ A4            ma1 gestión
-           (atacante externo)           ma1 gestión
+        p3 acceso VLAN 30               p3 ↔ A1 · p4 ↔ A2               p3 ↔ NC1–NC2 (enlace de núcleo)
+        p4 NIC-C trunk VLAN 30             p5 ↔ A3 · p6 ↔ A4            p4 ↔ C1 (directo) · p5 ↔ C2 (cruzado)
+           (atacante externo)           ma1 gestión                     ma1 gestión
         p47 espejo → NIC-D (sensor)
+        ma1 gestión
+
+        C1 y C2 (zona de control y servicios)
+        p1 ↔ NC1 (C1 directo) · p2 ↔ NC2 (C1 cruzado)
+        p1 ↔ NC2 (C2 directo) · p2 ↔ NC1 (C2 cruzado)
+        p3 ↔ C2/C1 (enlace de la zona)
+        p6 NIC-A trunk VLAN 100 + 20 (plataforma y servidores)
         ma1 gestión
 ```
 
 | Puerto | Papel | VLANs | Nota |
 |---|---|---|---|
-| A1 p1/p2 ↔ D1/D2 | Trunk de acceso | 10, 20, 30 (tagged) | El camino alternativo nace aquí: dos uplinks |
+| A1 p1/p2 ↔ D1/D2 | Trunk de acceso | 10, 100 (tagged) | El camino alternativo nace aquí: dos uplinks; la 100 transita para alcanzar el portal (.5) |
 | A1 p3–p19 | Acceso de usuarios | 10 (untagged) | Equipos físicos del laboratorio |
 | A1 p20 | NIC-B del servidor | 10 (untagged) | **Los hosts virtuales académicos** comparten este puerto |
-| A2 p1/p2 ↔ D1/D2 | Trunk de acceso | 10, 20, 30 (tagged) | Dual-homed |
+| A2 p1/p2 ↔ D1/D2 | Trunk de acceso | 10, 100 (tagged) | Dual-homed |
 | A2 p3–p5 | Acceso de usuarios | 10 (untagged) | Equipos físicos |
 | A2 p6 | NIC-E del servidor | 10 (untagged) | Operadores, atacante interno y el **puente de la demostración de `MAC_Moved`** |
-| A3 p1/p2 ↔ D1/D2 | Trunk de acceso | 20, 30 (tagged) | Dual-homed |
-| A3 p3–p5 | Acceso de servidores | 30 (untagged) | Los activos protegidos, uno por puerto |
-| A3 p6 | NIC-A del servidor | 20 (tagged) | Por aquí conecta todo el plano de contenedores (gestión) |
-| A4 p1/p2 ↔ D1/D2 | Trunk del borde | 40 (tagged) | Dual-homed |
-| A4 p3 | Acceso externo | 40 (untagged) | Equipo externo real, si el laboratorio lo ofrece |
-| A4 p4 | NIC-C del servidor | 40 (tagged) | La VM atacante externa, por el servidor |
+| A3 p1/p2 ↔ D1/D2 | Trunk de acceso | 10 (tagged) | Dual-homed; **libre en v2** — reservado para crecimiento |
+| A3 p3–p19 | Reservados | — | Solo esqueleto; sin poblaciones |
+| A4 p1/p2 ↔ D1/D2 | Trunk del borde | 30 (tagged) | Dual-homed |
+| A4 p3 | Acceso externo | 30 (untagged) | Equipo externo real, si el laboratorio lo ofrece |
+| A4 p4 | NIC-C del servidor | 30 (tagged) | La VM atacante externa, por el servidor |
 | A4 p47 → NIC-D | **Espejo del perímetro** | — | Replica el ingreso del segmento externo (p3+p4) hacia el sensor; el sensor solo recibe, nunca emite por esta interfaz ([`G-04`](../G-Diseno_de_bajo_nivel-LLD/04_interfaces.md) §5) |
-| D1/D2 p1/p2 ↔ NC1/NC2 | Trunks de distribución | 10, 20, 30, 40 (tagged) | Cada distribución llega a ambos núcleos |
+| D1/D2 p1/p2 ↔ NC1/NC2 | Trunks de distribución | 10, 100, 30 (tagged) | Cada distribución llega a ambos núcleos |
 | D1/D2 p3–p6 ↔ A1–A4 | Trunks de acceso | según el acceso | La agregación de los cuatro accesos |
-| NC1 p3 ↔ NC2 p3 | Enlace de núcleo | 10, 20, 30, 40 (tagged) | El núcleo es un par enlazado, no un anillo |
-| `ma1` ×8 | Canal de control | — | OpenFlow fuera de banda (RP-02); whitelist del controlador ([`G-04`](../G-Diseno_de_bajo_nivel-LLD/04_interfaces.md) §2) |
+| NC1 p3 ↔ NC2 p3 | Enlace de núcleo | 10, 100, 30 (tagged) | El núcleo es un par enlazado, no un anillo |
+| NC1/NC2 p4/p5 ↔ C1/C2 | Trunks de la zona de servicios | 100, 20 (tagged) | Directo y cruzado: cada C llega a ambos núcleos |
+| C1 p3 ↔ C2 p3 | Enlace de la zona | 100, 20 (tagged) | C1/C2 son un par enlazado, igual que el núcleo |
+| C1/C2 p6 ↔ NIC-A | Trunk de la plataforma | 100, 20 (tagged) | Por aquí entran los diez servicios, el clúster ONOS, las bases, el IdP y los tres servidores protegidos |
+| `ma1` ×10 | Canal de control | — | OpenFlow fuera de banda (RP-02); whitelist de los tres controladores ([`G-04`](../G-Diseno_de_bajo_nivel-LLD/04_interfaces.md) §2) |
 
-- **Los hosts virtuales comparten un puerto por población** — es la concesión práctica del laboratorio: cada grupo de VMs entra por una NIC del servidor (A1 p20 para académicos, A2 p6 para operadores y atacante interno). La red las ve como MAC distintas en el mismo puerto; las reglas del esqueleto y de sesión son por MAC, no por puerto, así que la política no se entera.
+- **Los hosts virtuales comparten un puerto por población** — es la concesión práctica del laboratorio: cada grupo de VMs entra por una NIC del servidor (A1 p20 para académicos, A2 p6 para operadores y atacante interno, NIC-A para plataforma y servidores). La red las ve como MAC distintas en el mismo puerto; las reglas del esqueleto y de sesión son por MAC, no por puerto, así que la política no se entera.
+- **La zona C1/C2 es el segundo punto de control** ([`01`](01_infraestructura_fisica.md) §3): repite el DROP a gestión (p100) y solo acepta hacia VLAN 20 lo que llega por los caminos instalados — defensa en profundidad.
+- **El portal es alcanzable por BASE a través del plano de datos:** por eso la VLAN 100 transita A→D→NC→C1/C2 hasta NIC-A — la única superficie que BASE alcanza (regla 150).
 - **La demostración de `MAC_Moved` cruza switches:** mover la vNIC de una VM del puente de A1 (NIC-B) al de A2 (NIC-E) hace que la MAC aparezca en **otro switch** — el movimiento más fuerte que el prototipo puede producir, y el `MAC_Moved` determinista de [`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §4 lo aísla.
 - **El espejo no comparte cable con nada** ([`01`](01_infraestructura_fisica.md) §2): A4 p47 → NIC dedicada del sensor, directo.
 - **Reservas de la referencia:** puertos sensibles (infraestructura, zonas restringidas) con port security y 802.1X — reservados por diseño desde D-07 §3, fuera del prototipo ([`01`](01_infraestructura_fisica.md) §4).
@@ -450,7 +467,7 @@ TIEMPO ──────────────► PERSISTENCIA ────�
 1. **Tiempo (chrony)** — todos los nodos sincronizan antes de operar; el desfase se verifica (RNF-09).
 2. **Persistencia (PostgreSQL)** — las seis bases; chequeo `pg_isready` por base.
 3. **Intermediario (RabbitMQ)** — vhost `plataforma`, exchange, colas y políticas ([`G-02`](../G-Diseno_de_bajo_nivel-LLD/02_eventos.md) §4).
-4. **Controlador (ONOS) + switches (PicOS)** — configuración scriptada del plano de datos (modo OpenFlow, canal, espejo), `HELLO`/`FEATURES_REPLY`, whitelist; el esqueleto de dispositivos conocidos se reinstala.
+4. **Controlador (clúster ONOS) + switches (PicOS)** — primero se forma el clúster (tres nodos, Atomix con quórum, I9); recién entonces se conectan los switches (`HELLO`/`FEATURES_REPLY`, `ROLE_REQUEST`, whitelist de los tres endpoints) y se reinstala el esqueleto de dispositivos conocidos. En el diseño in-band (referencia), el arranque es escalonado desde C1 — cada tramo instala el canal del siguiente (p65000) antes de cualquier regla de usuario ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §3).
 5. **Identidad institucional (FreeRADIUS + OpenLDAP)** — cuentas de prueba, `radtest` de control.
 6. **Servicios de la plataforma** — IAM, Registro, Incidentes, Políticas, Auditoría, Monitor, Detección, Portal, Consola; cada uno declara `/health` *ready*.
 7. **Sensor perimetral + visualización** — el sensor confirma el espejo; los tableros cargan sus datasources.
@@ -489,4 +506,3 @@ El hardware del laboratorio no está siempre disponible (RP-11): la secuencia de
 | Arranque degradado: sin controlador | Lo instalado sigue operando y expira por timeout | P2, P10 |
 | Caída y retorno del Incident Manager | Reconciliación contra el plano de datos | E-04, P10 |
 | Desfase de reloj tras el arranque | Todos los nodos con hora común | RNF-09 |
-

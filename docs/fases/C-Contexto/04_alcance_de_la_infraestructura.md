@@ -60,7 +60,7 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 
 - la escala real del campus: número de usuarios, de dispositivos y de enlaces;
 - hardware de red específico, cuando el entorno virtual permita validar lo mismo;
-- alta disponibilidad del plano de control (clúster del controlador): se analiza por diseño, no se despliega; la redundancia del plano de datos sí se despliega y se mide — ocho switches dual-homed, fijado en la Fase H;
+- alta disponibilidad del plano de control: **desplegada en el prototipo como clúster ONOS de tres nodos** (Atomix/Raft, maestría repartida; tolera la caída de un nodo, no la del host físico — F-01 §6); la redundancia del plano de datos se despliega y se mide con la topología de diez switches dual-homed fijada en la Fase H;
 - servicios institucionales reales: se representan mediante equivalentes controlados.
 
 ---
@@ -78,7 +78,7 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 
 ## 6. Cuestiones abiertas
 
-- Número de switches y de hosts del prototipo: **cerrado en la Fase H** — ocho switches (dos núcleo, dos distribución, cuatro acceso, dual-homed) y ~23 dispositivos simulados.
+- Número de switches y de hosts del prototipo: **cerrado en la Fase H** — diez switches (dos núcleo, dos distribución, cuatro acceso y dos de la zona de control y servicios C1/C2, todo dual-homed) y ~23 dispositivos simulados.
 - Capacidad de las tablas de flujo de PicOS: condiciona cuántas reglas simultáneas admite la solución (riesgo de exceso de reglas SDN) y si meters/groups están disponibles.
 - Representación del perímetro: firewall simulado, componente del propio entorno o solo reglas en el borde.
 - Si habrá acceso a hardware físico o el prototipo será íntegramente virtual: **cerrado** — hardware físico (Pica8 del laboratorio, RP-11), con apoyo virtual para el desarrollo fuera de las ventanas.

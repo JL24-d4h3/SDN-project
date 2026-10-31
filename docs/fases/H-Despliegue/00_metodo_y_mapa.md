@@ -11,7 +11,7 @@
 El despliegue tiene **dos vistas**, y la distinción es la de [`C-04`](../C-Contexto/04_alcance_de_la_infraestructura.md):
 
 - **El prototipo** — lo que el proyecto **despliega** en el laboratorio y sobre lo que valida. Toda la serie lo describe al detalle de puerto y parámetro.
-- **La referencia** — el campus que la solución describe. Se **analiza por diseño, no se despliega** ([`C-04`](../C-Contexto/04_alcance_de_la_infraestructura.md) §4): redundancia de nodos y enlaces, clúster del controlador en operación, canal in-band, feeds externos de inteligencia, cifrado en reposo y política de respaldo — exactamente lo que [`F-09`](../F-Decisiones_tecnologicas/09_sintesis_y_trazabilidad.md) §5 dejó para esta fase. Cada documento la recoge en su sección final, con sus condiciones de habilitación.
+- **La referencia** — el campus que la solución describe. Se **analiza por diseño, no se despliega** ([`C-04`](../C-Contexto/04_alcance_de_la_infraestructura.md) §4): redundancia de nodos y enlaces, el clúster del controlador repartido en hosts físicos distintos, canal in-band, feeds externos de inteligencia, cifrado en reposo y política de respaldo — exactamente lo que [`F-09`](../F-Decisiones_tecnologicas/09_sintesis_y_trazabilidad.md) §5 dejó para esta fase. Cada documento la recoge en su sección final, con sus condiciones de habilitación.
 
 **La regla de lectura** es la misma que en G ([`G-00`](../G-Diseno_de_bajo_nivel-LLD/00_metodo_y_mapa.md) §1): primero lo general —el plano, la jerarquía, el criterio— y luego lo particular —la máquina, el puerto, el valor.
 
@@ -28,7 +28,7 @@ El despliegue tiene **dos vistas**, y la distinción es la de [`C-04`](../C-Cont
 
 ## 3. Invariantes del despliegue
 
-- **Topología:** ocho switches — dos núcleo, dos distribución, cuatro acceso — dual-homed, 13 enlaces ([`01`](01_infraestructura_fisica.md) §3): la redundancia del plano de datos **se despliega y se mide**; la del plano de control (clúster del controlador) se documenta, no se despliega (C-04 §4).
+- **Topología:** diez switches — dos núcleo, dos distribución, cuatro acceso y la zona de control y servicios C1/C2 — todo dual-homed, 18 enlaces ([`01`](01_infraestructura_fisica.md) §3): la redundancia del plano de datos **se despliega y se mide**; la del plano de control (clúster ONOS de tres nodos) **también se despliega**, con el límite honesto del host físico compartido ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6, C-04 §4).
 - **Canal de control fuera de banda** (RP-02): las interfaces de gestión de los switches nunca atraviesan el plano de datos; la variante in-band es un objetivo aspiracional analizado, no desplegado.
 - **Todo tráfico de ataque es interno al entorno del proyecto** (RP-06, RP-08): nada malicioso hacia redes del campus ni de terceros.
 - **IPv4** (RP-12): direccionamiento privado, estático donde la reproducibilidad lo exige.

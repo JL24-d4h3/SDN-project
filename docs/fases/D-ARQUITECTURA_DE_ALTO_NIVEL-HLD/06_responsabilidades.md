@@ -47,12 +47,12 @@ Qué puede hacer cada rol sobre cada componente, según los permisos de la fase 
 
 | Componente | Usuario académico | Especialista de TI | Administrador de Red | Superadministrador |
 |---|---|---|---|---|
-| Monitor / Detección | — | Consultar métricas y eventos (P06–P09) | Consultar y ajustar umbrales | Todo + política global |
-| Incident Manager | — | Analizar, clasificar, escalar (P10, P11) | Gestionar incidentes | Todo |
+| Monitor / Detección | — | Consultar métricas y eventos (P06–P09) | Consultar y ajustar umbrales dentro del rango (P33) | Todo + límites globales (P33) |
+| Incident Manager | — | Analizar, clasificar, escalar (P10, P11) | Gestionar incidentes y aprobar acciones de alto impacto (P32) | Todo |
 | Policy Engine | Solicitar elevación (P28) | Ejecutar mitigaciones autorizadas (P12) | Crear/modificar políticas; aprobar elevaciones (P17, P29) | Todo (P26) |
-| Controlador SDN | — | — (no opera) | Administrar reglas y topología (P19, P22) | Todo |
+| Controlador SDN | — | Consultar estado (P22-OP, solo lectura) | Operar y administrar reglas y topología (P19, P22-OP) | Todo, incluida la configuración (P22-CFG) |
 | IAM/AAA | Autenticarse en el portal (perfil ACADÉMICO) | Autenticarse como operador | Autenticarse como operador | Autenticarse como operador |
-| Registro de dispositivos | — | — | Registrar dispositivos (P30) | Registrar + auditar (P30, P25) |
+| Registro de dispositivos | — | — | Registrar dispositivos con delegación (P30) | Registrar + auditar (P30, P25) |
 | Auditoría | — | Consultar eventos y logs (P08) | Consultar | Consultar y auditar todo (P25) |
 | Consola | — (no la usa) | Uso con su rol | Uso con su rol | Uso con su rol |
 
@@ -80,12 +80,12 @@ La automatización (RT-08) tiene un tope deliberado (P8, P9):
 |---|---|---|
 | RATE_LIMIT ante anomalía leve | Sistema (Policy → Controlador) | Automático, notificado |
 | BLOCK ante DDoS severo | Sistema + supervisión del Especialista de TI | Automático con notificación |
-| Aislar un segmento completo | Administrador de Red | **Requiere aprobación** |
+| Aislar un segmento completo | Administrador de Red | **Requiere aprobación P32** |
 | Elevación temporal de un académico | Administrador de Red | **Requiere aprobación** (P29) |
 | Alta en el registro de dispositivos | Administrador de Red / Superadministrador | Requiere registro formal (P30) |
 | Política global de la plataforma | Superadministrador | Solo el SA |
 
 ## 6. Cuestiones abiertas
 
-- **Delegación del registro de Especialistas de TI.** Si el Administrador de Red puede darlos de alta en IAM/AAA o solo el Superadministrador (fase A).
-- **Umbrales como política o como configuración técnica.** Quién ajusta los umbrales de detección: el Especialista de TI (operación) o el Administrador de Red (política). La tabla 3 los deja en el Administrador; ajustable.
+- **Delegación del registro de Especialistas de TI.** El Superadministrador puede delegar en el Administrador de Red el registro de Especialistas de TI y sus dispositivos (P30) y la gestión de sus cuentas (P24), con alcance limitado a TI, vigencia explícita y auditoría. La delegación no permite crear otros Administradores de Red ni elevar privilegios propios.
+- **Umbrales como política o como configuración técnica.** El Especialista de TI ajusta los umbrales dentro del rango aprobado (P33); el Administrador de Red fija el rango (P33); el Superadministrador fija los límites globales. Cada cambio registra valor anterior, valor nuevo, responsable, fecha y resultado.

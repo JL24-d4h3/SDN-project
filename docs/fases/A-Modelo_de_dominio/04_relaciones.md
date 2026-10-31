@@ -30,12 +30,12 @@ Un mismo individuo podría tener más de un rol si la política de la plataforma
 **Todo dispositivo conectado recibe un perfil de acceso; el perfil determina las reglas de red que se le aplican.**
 
 ```text
-Dispositivo ── recibe ──> Perfil de acceso (BASE, ACADÉMICO, LABORATORIO, TI, ADMIN_RED, …)
+Dispositivo ── recibe ──> Perfil de acceso (BASE, ACADÉMICO, OPERADOR_TI, OPERADOR_ADMIN, OPERADOR_SA, ELEVACIÓN)
 ```
 
 - **Perfil BASE:** automático por presencia física (RP-13). Todo dispositivo que **no hace match con el registro de dispositivos privilegiados** lo recibe. Deny by default: DHCP, DNS y el portal — el mínimo del dispositivo; los servicios académicos e Internet llegan con el login.
 - **Perfil ACADÉMICO:** la comunidad universitaria lo obtiene al autenticarse en el portal contra el IdP institucional (sin MFA): servicios académicos e Internet.
-- **Perfiles elevados (LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN):** requieren justificación. Los temporales de usuario académico exigen solicitud aprobada y TTL; los de operadores exigen dispositivo registrado + autenticación con MFA.
+- **Perfiles elevados (ELEVACIÓN(scope, TTL), OPERADOR_TI, OPERADOR_ADMIN, OPERADOR_SA):** requieren justificación. Las elevaciones de usuario académico exigen solicitud aprobada y TTL; las sesiones de operadores exigen dispositivo registrado + autenticación con MFA. LABORATORIO es una instancia de ELEVACIÓN; TI, ADMIN_RED y SUPER_ADMIN son alias de los perfiles de operador.
 
 La relación entre dispositivo y perfil no es permanente: los perfiles temporales expiran y las sesiones privilegiadas se cierran (idle_timeout).
 

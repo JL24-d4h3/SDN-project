@@ -20,11 +20,12 @@ Dónde vive la autorización en el modelo de capas: por qué no tiene ni un prot
 │     produce: perfil + duración  (la denegación también se decide)          │
 │                                                                            │
 │   los dos planos                                                           │
-│     RBAC ......... rol → permisos P01–P30, dentro de los servicios (I7)    │
+│     RBAC ......... rol → permisos P01–P36, dentro de los servicios (I7)    │
 │     ABAC-like .... condiciones + vigencia → la conectividad de la sesión   │
 │                                                                            │
 │   los perfiles — la decisión materializada                                 │
-│     BASE · ACADÉMICO · LABORATORIO (TTL) · TI · ADMIN_RED · SUPER_ADMIN    │
+│     BASE · ACADÉMICO · OPERADOR_TI · OPERADOR_ADMIN · OPERADOR_SA          │
+│     · ELEVACIÓN(scope, TTL) — LABORATORIO es una instancia                 │
 ├────────────────────────────────────────────────────────────────────────────┤
 │ CAPAS 5/6 · SESIÓN/PRESENTACIÓN                                            │
 │     sin protocolo propio: la decisión no se negocia — se ordena            │

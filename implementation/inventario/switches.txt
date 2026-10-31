@@ -1,0 +1,191 @@
+Será similar para los otros switches (sw2 y sw3 de mi slice actual):
+
+SALIDA:
+"root@sw1:/tmp# bash inventario_slice.sh 
+
+== IDENTIDAD ==
+hostname=sw1
+fecha_utc=2026-10-30T23:00:49Z
+os=Ubuntu 24.04 LTS
+os_id=ubuntu 24.04
+kernel=6.8.0-142-generic
+arquitectura=x86_64
+virtualizacion=kvm
+uptime=up 4 weeks, 1 day, 13 hours, 50 minutes
+
+== CPU ==
+Architecture:                            x86_64
+CPU(s):                                  1
+Model name:                              Intel Core Processor (Haswell, no TSX, IBRS)
+Thread(s) per core:                      1
+Core(s) per socket:                      1
+Socket(s):                               1
+Virtualization:                          VT-x
+Virtualization type:                     full
+flags_virtualizacion=vmx
+
+== MEMORIA ==
+MemTotal:         984560 kB
+MemAvailable:     625500 kB
+SwapTotal:             0 kB
+               total        used        free      shared  buff/cache   available
+Mem:           961Mi       350Mi       170Mi       5.0Mi       613Mi       610Mi
+Swap:             0B          0B          0B
+
+== DISCO ==
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/vda2      ext4  5.9G  3.2G  2.4G  58% /
+
+== RED — INTERFACES ==
+lo               UNKNOWN        00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> 
+ens3             UP             fa:16:3e:ca:02:88 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+ens4             UP             fa:16:3e:65:0e:96 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+ens5             UP             fa:16:3e:69:81:17 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+ens6             UP             fa:16:3e:5a:a7:aa <BROADCAST,MULTICAST,UP,LOWER_UP> 
+ovs-system       DOWN           7a:0f:a4:25:78:7a <BROADCAST,MULTICAST> 
+sw1              UNKNOWN        a2:23:f2:c0:45:47 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+
+Direcciones:
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+ens3             UP             192.168.0.11/24 fe80::f816:3eff:feca:288/64 
+ens4             UP             fe80::f816:3eff:fe65:e96/64 
+ens5             UP             fe80::f816:3eff:fe69:8117/64 
+ens6             UP             fe80::f816:3eff:fe5a:a7aa/64 
+ovs-system       DOWN           
+sw1              UNKNOWN        172.16.0.1/24 fe80::a023:f2ff:fec0:4547/64 
+
+== RED — DRIVER Y VELOCIDAD ==
+-- ens3 --
+driver: virtio_net
+version: 1.0.0
+bus-info: 0000:00:03.0
+	Speed: Unknown!
+	Duplex: Unknown! (255)
+	Link detected: yes
+-- ens4 --
+driver: virtio_net
+version: 1.0.0
+bus-info: 0000:00:04.0
+	Speed: Unknown!
+	Duplex: Unknown! (255)
+	Link detected: yes
+-- ens5 --
+driver: virtio_net
+version: 1.0.0
+bus-info: 0000:00:05.0
+	Speed: Unknown!
+	Duplex: Unknown! (255)
+	Link detected: yes
+-- ens6 --
+driver: virtio_net
+version: 1.0.0
+bus-info: 0000:00:06.0
+	Speed: Unknown!
+	Duplex: Unknown! (255)
+	Link detected: yes
+-- sw1 --
+driver: openvswitch
+version: 6.8.0-142-generic
+bus-info: 
+	Link detected: yes
+
+== RED — MÓDULOS Y REENVÍO ==
+openvswitch=cargado
+8021q=no cargado
+br_netfilter=no cargado
+vhost_net=no cargado
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 0
+
+== RED — PUENTES ==
+
+== OPEN VSWITCH ==
+ovs-vsctl (Open vSwitch) 3.3.9
+DB Schema 8.5.1
+
+Bridges: sw1
+
+-- ovs-vsctl show --
+320c2af5-847a-452c-a9bc-5365805ae527
+    Bridge sw1
+        fail_mode: secure
+        Port ens4
+            Interface ens4
+        Port sw1
+            Interface sw1
+                type: internal
+        Port ens6
+            Interface ens6
+        Port ens5
+            Interface ens5
+    ovs_version: "3.3.9"
+
+-- datapath --
+system@ovs-system: hit:5511057 missed:385056
+  sw1:
+    ens4 1/4: (system)
+    ens5 2/1: (system)
+    ens6 3/2: (system)
+    sw1 65534/3: (internal)
+
+-- bridge sw1 --
+protocols: [OpenFlow13]
+fail_mode: secure
+tablas: 8
+flujos_instalados: 1
+
+== SWITCH FÍSICO / PICOS ==
+no se detecta PicOS en este nodo
+
+== CONTENEDORES ==
+docker no instalado
+
+== JAVA (controlador ONOS) ==
+java no instalado
+
+== VIRTUALIZACIÓN / KVM ==
+/dev/kvm=presente
+
+== TIEMPO ==
+Timezone=Etc/UTC
+CanNTP=yes
+NTP=yes
+NTPSynchronized=yes
+
+== ENCAMINADO Y FIREWALL ==
+net.ipv4.ip_forward = 1
+default via 192.168.0.1 dev ens3 proto static 
+172.16.0.0/24 dev sw1 proto kernel scope link src 172.16.0.1 
+192.168.0.0/24 dev ens3 proto kernel scope link src 192.168.0.11 
+-P INPUT ACCEPT
+-P FORWARD ACCEPT
+-P OUTPUT ACCEPT
+
+== RESUMEN ==
+rol=switch
+hostname=sw1
+vcpus=1
+mem_total_mb=961
+disco_libre_gb=2
+interfaces_fisicas=5
+openvswitch=si
+openflow=ovs-ofctl (Open vSwitch) 3.3.9
+tablas=8
+meters=no-verificado
+groups=no-verificado
+mirror=no-verificado
+queues=no-verificado
+vlan_trunk=no-verificado
+cookie_timeout=no-verificado
+sflow=no-verificado
+netflow=no-verificado
+docker=no
+compose=no
+java=no
+kvm=si
+chrony=no
+ip_forward=1
+ruta_por_defecto=192.168.0.1
+
+Fin del inventario.
+root@sw1:/tmp#", esta

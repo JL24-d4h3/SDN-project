@@ -98,7 +98,7 @@ El prototipo estará orientado a una red de campus académico representativa. No
 | **Actor** | Entidad que interactúa con el sistema. Puede ser una persona, un dispositivo, un componente de infraestructura o una entidad maliciosa. |
 | **Identidad** | Quién es el actor, establecido mediante autenticación. Solo se exige para salir del perfil BASE: el login de la comunidad (perfil ACADÉMICO) o el de un operador (sesión de rol). |
 | **Rol** | Conjunto de permisos que el sistema concede a una identidad, definido por lo que puede hacer y sobre qué recursos. |
-| **Perfil de acceso** | Conjunto concreto de reglas de red asociadas a un dispositivo o sesión en un momento dado (BASE, ACADÉMICO, LABORATORIO, TI, ADMIN_RED, …). Un perfil puede ser temporal y expirar. |
+| **Perfil de acceso** | Conjunto concreto de reglas de red asociadas a un dispositivo o sesión en un momento dado (BASE, ACADÉMICO, OPERADOR_TI, OPERADOR_ADMIN, OPERADOR_SA, ELEVACIÓN). Un perfil puede ser temporal y expirar; LABORATORIO es una instancia de ELEVACIÓN. |
 | **Nivel de privilegio** | Posición del rol dentro de la jerarquía de autoridad del sistema. |
 
 **Un atacante no es un rol.** Un rol es una etiqueta autorizada que el sistema concede; un atacante es una entidad cuyo comportamiento el sistema debe detectar y controlar. Por eso los actores se separan en dos categorías: actores con roles autorizados (sección 2) y agentes sin rol autorizado (sección 3).
@@ -133,7 +133,7 @@ El rol no define por sí solo el permiso efectivo: el acceso depende también de
 - Autenticarse en el portal contra el IdP institucional y obtener el perfil ACADÉMICO (servicios académicos e Internet).
 - Acceder a los servicios académicos e institucionales permitidos con su perfil ACADÉMICO.
 - Generar tráfico normal hacia servicios permitidos.
-- Solicitar una elevación temporal de privilegios (perfil LABORATORIO, INVESTIGACIÓN o similar) con justificación; la concesión depende del Administrador de Red y siempre expira.
+- Solicitar una elevación temporal de privilegios (perfil ELEVACIÓN con alcance de laboratorio o investigación; LABORATORIO es una instancia) con justificación; la concesión depende del Administrador de Red y siempre expira.
 
 **No puede**
 
@@ -312,7 +312,7 @@ No son actores autorizados ni atacantes: son agentes del sistema que ejecutan de
 El permiso efectivo no depende solo del rol:
 
 ```text
-PERMISO EFECTIVO = ROL + RECURSO + ACCIÓN + CONTEXTO + VIGENCIA + ESTADO DE SEGURIDAD
+PERMISO EFECTIVO = SUJETO × ACCIÓN × RECURSO × CONTEXTO × ESTADO DE SEGURIDAD × VIGENCIA
 ```
 
 Combinaciones que el modelo debe admitir:
@@ -335,8 +335,8 @@ Esto conecta R1 y R2 con R3–R5: la autorización habilita el acceso, pero no s
 
 ## 5. Cuestiones abiertas
 
-- **Delegación del registro de Especialistas de TI.** Si el Administrador de Red puede registrar Especialistas de TI o esa función queda solo en el Superadministrador.
-- **Matriz Actor → Recurso.** Se deriva de este documento y de [`02_recursos_y_servicios.md`](02_recursos_y_servicios.md); corresponde a `03_permisos.md`.
+- **Delegación del registro de Especialistas de TI.** El Superadministrador puede delegar en el Administrador de Red el registro de Especialistas de TI y sus dispositivos (P30) y la gestión de sus cuentas (P24), con alcance limitado a TI, vigencia explícita y auditoría. La delegación no permite crear otros Administradores de Red ni elevar privilegios propios.
+- **Matriz Rol × Permiso.** Cerrada en [`implementation/02_matriz_rol_permiso.md`](../../../implementation/02_matriz_rol_permiso.md); su fuente de verdad es [`implementation/policy/permisos.yaml`](../../../implementation/policy/permisos.yaml).
 
 # Recursos de red, servidores y servicios
 
@@ -419,7 +419,7 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Perfiles de acceso | Recurso | Definición de los perfiles (BASE, ACADÉMICO, LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN) y sus reglas de red asociadas. | Crítico |
+| Perfiles de acceso | Recurso | Definición de los perfiles (BASE, ACADÉMICO, OPERADOR_TI, OPERADOR_ADMIN, OPERADOR_SA, ELEVACIÓN) y sus reglas de red asociadas. LABORATORIO es una instancia de ELEVACIÓN. | Crítico |
 | Registro de dispositivos privilegiados | Recurso | Base de datos de los dispositivos de operadores (MAC, tipo, titular, rol, vigencia, responsable). Solo los dispositivos privilegiados se registran; lo que no hace match recibe perfil BASE. Sirve además de auditoría del alta de dispositivos. | Crítico |
 | AAA / RADIUS | Recurso | Autenticación, autorización y accounting de las poblaciones: la comunidad (contra el IdP) y los operadores (contra el repositorio propio). No cataloga dispositivos: autentica personas. | Crítico |
 | Portal cautivo | Servicio | Punto de autenticación de la red: la comunidad obtiene el perfil ACADÉMICO; los operadores, su sesión de rol. | Alto |
@@ -474,6 +474,12 @@ La matriz Actor → Recurso se construye sobre este catálogo y se documenta en 
 
 # Modelo de Dominio — Permisos
 
+**Proyecto:** Solución de seguridad para una red de campus académico
+**Fase:** A — Modelo de dominio
+**Estado:** Borrador formal para revisión
+
+---
+
 ## 1. Objetivo
 
 Definir las acciones que pueden ejecutar los roles autorizados sobre los recursos y servicios de la solución SDN, aplicando el principio de mínimo privilegio.
@@ -482,46 +488,53 @@ Los permisos representan **acciones autorizadas**; no representan por sí mismos
 
 ## 2. Catálogo de permisos
 
-| ID | Permiso | Descripción |
-|---|---|---|
-| P01 | Autenticarse | Iniciar sesión y acreditar la identidad ante la plataforma. |
-| P02 | Acceder a la red | Obtener acceso a los segmentos de red permitidos según el rol y las políticas vigentes. |
-| P03 | Acceder a servicio | Utilizar un servicio autorizado. |
-| P04 | Consultar recurso | Leer o consultar información de un recurso autorizado. |
-| P05 | Ejecutar operación | Ejecutar una operación funcional sobre un servicio autorizado. |
-| P06 | Consultar estado de red | Consultar el estado, disponibilidad y métricas operativas de la red. |
-| P07 | Consultar tráfico | Consultar información y métricas asociadas al tráfico de red. |
-| P08 | Consultar eventos y logs | Consultar eventos, registros y trazas autorizadas. |
-| P09 | Consultar alertas | Visualizar alertas generadas por los mecanismos de seguridad. |
-| P10 | Analizar incidente | Investigar y analizar un evento o incidente de seguridad. |
-| P11 | Gestionar alerta | Clasificar, confirmar, descartar o escalar una alerta. |
-| P12 | Ejecutar mitigación | Aplicar una medida de contención o mitigación previamente autorizada. |
-| P13 | Aislar nodo | Restringir o aislar un dispositivo identificado como comprometido o malicioso. |
-| P14 | Gestionar usuario | Crear, modificar, bloquear, desbloquear o deshabilitar cuentas de usuario. |
-| P15 | Asignar rol | Asignar o modificar el rol de un usuario. |
-| P16 | Gestionar permisos | Crear, modificar o revocar permisos asociados a roles. |
-| P17 | Gestionar políticas de acceso | Crear, modificar, activar, desactivar o eliminar políticas de autorización. |
-| P18 | Gestionar políticas de seguridad | Configurar reglas de detección, prevención y mitigación. |
-| P19 | Gestionar reglas de red | Crear, modificar o eliminar reglas de forwarding, filtrado o control de tráfico. |
-| P20 | Gestionar segmentación | Crear, modificar o administrar segmentos/VLAN u otros mecanismos de aislamiento lógico. |
-| P21 | Gestionar dispositivos de red | Registrar, configurar, actualizar, habilitar o deshabilitar dispositivos administrados. |
-| P22 | Gestionar controlador SDN | Administrar la configuración y operación del controlador SDN. |
-| P23 | Gestionar mecanismos de seguridad | Administrar IDS, IPS, firewall u otros mecanismos de protección integrados. |
-| P24 | Gestionar administradores | Crear, modificar, bloquear, revocar o eliminar cuentas y privilegios de Administradores de Red y Especialistas de TI. |
-| P25 | Auditar operaciones | Consultar y revisar las acciones realizadas por usuarios y administradores. |
-| P26 | Gestionar configuración global | Modificar parámetros globales de la plataforma SDN y sus componentes críticos. |
-| P27 | Gestionar recuperación | Ejecutar o administrar procedimientos de restauración y recuperación de la plataforma. |
-| P28 | Solicitar elevación | Solicitar un perfil de acceso temporal (p. ej. LABORATORIO) con justificación, alcance y duración. |
-| P29 | Aprobar elevación | Aprobar o rechazar solicitudes de elevación temporal; definir su alcance y TTL. |
-| P30 | Registrar dispositivo privilegiado | Dar de alta, modificar o dar de baja dispositivos en el registro de dispositivos privilegiados, con su información completa (MAC, tipo, titular, rol, vigencia) y dejar constancia para auditoría. |
+| ID | Permiso | Plano | Descripción |
+|---|---|---|---|
+| P01 | Autenticarse | Pre-sesión | Iniciar sesión y acreditar la identidad ante la plataforma. |
+| P02 | Acceder a la red | Red | Obtener el perfil de red que corresponde al sujeto, dispositivo y contexto. |
+| P03 | Acceder a servicio | Servicios | Utilizar un servicio autorizado. |
+| P04 | Consultar recurso | Servicios | Leer o consultar información de un recurso autorizado. |
+| P05 | Ejecutar operación | Servicios | Ejecutar una operación funcional sobre un servicio autorizado. |
+| P06 | Consultar estado de red | Servicios | Consultar el estado, la disponibilidad y las métricas operativas de la red. |
+| P07 | Consultar tráfico | Servicios | Consultar información y métricas asociadas al tráfico de red. |
+| P08 | Consultar eventos y logs | Servicios | Consultar eventos, registros y trazas autorizadas. |
+| P09 | Consultar alertas | Servicios | Visualizar alertas generadas por los mecanismos de seguridad. |
+| P10 | Analizar incidente | Servicios | Investigar y analizar un evento o incidente de seguridad. |
+| P11 | Gestionar alerta | Servicios | Clasificar, confirmar, descartar o escalar una alerta. |
+| P12 | Ejecutar mitigación | Servicios | Aplicar una medida de contención o mitigación previamente autorizada. |
+| P13 | Aislar nodo | Servicios | Restringir o aislar un dispositivo o segmento identificado como comprometido o malicioso. |
+| P14 | Gestionar cuentas locales | Servicios | Crear, modificar, bloquear o deshabilitar cuentas locales de la plataforma. Excluye identidades institucionales, break-glass y cuentas de Superadministrador. |
+| P15 | Asignar rol | Servicios | Asignar o modificar el rol de una identidad. |
+| P16 | Gestionar permisos | Servicios | Crear, modificar o revocar permisos asociados a roles. |
+| P17 | Gestionar políticas de acceso | Servicios | Crear, modificar, activar, desactivar o eliminar políticas de acceso y perfiles. |
+| P18 | Gestionar políticas de seguridad | Servicios | Configurar reglas de detección, prevención y mitigación. |
+| P19 | Gestionar reglas de red | Servicios | Crear, modificar o eliminar reglas de forwarding, filtrado o control de tráfico. |
+| P20 | Gestionar segmentación | Servicios | Crear, modificar o administrar segmentos, VLANs u otros mecanismos de aislamiento lógico. |
+| P21 | Gestionar dispositivos de red | Servicios | Registrar, configurar, actualizar, habilitar o deshabilitar dispositivos administrados. |
+| P22-OP | Operar el controlador SDN | Servicios | Consultar topología, flujos y estado; ejecutar operaciones autorizadas sobre el controlador. |
+| P22-CFG | Configurar el controlador SDN | Servicios | Configurar el clúster, sus aplicaciones y sus parámetros críticos. |
+| P23 | Gestionar mecanismos de seguridad | Servicios | Administrar IDS, IPS, firewall u otros mecanismos de protección integrados, dentro del rango aprobado. |
+| P24 | Gestionar administradores | Servicios | Crear, modificar, bloquear, revocar o eliminar cuentas y privilegios de administradores. |
+| P25 | Auditar operaciones | Servicios | Consultar y verificar la auditoría de las acciones realizadas en la plataforma. |
+| P26 | Gestionar configuración global | Servicios | Modificar parámetros globales de la plataforma SDN y sus componentes críticos. |
+| P27 | Gestionar recuperación | Servicios | Ejecutar o administrar procedimientos de restauración y recuperación de la plataforma. |
+| P28 | Solicitar elevación | Servicios | Solicitar una sesión temporal con alcance elevado, con justificación, alcance y duración. LABORATORIO es una instancia de esta solicitud. |
+| P29 | Aprobar elevación | Servicios | Aprobar o rechazar solicitudes de elevación temporal; definir su alcance y TTL. |
+| P30 | Registrar dispositivo privilegiado | Servicios | Dar de alta, modificar o dar de baja dispositivos en el registro de dispositivos privilegiados, con su información completa y constancia para auditoría. |
+| P31 | Gestionar sesiones | Servicios | Consultar o revocar sesiones de la plataforma. |
+| P32 | Aprobar acción de alto impacto | Servicios | Aprobar cuarentena, aislamiento u otra acción crítica, vinculada a una solicitud concreta. |
+| P33 | Ajustar umbrales de detección | Servicios | Ajustar umbrales de detección dentro del rango aprobado. |
+| P34 | Gestionar claves y certificados | Servicios | Crear, rotar o revocar claves y certificados de la plataforma. |
+| P35 | Solicitar registro de dispositivo | Servicios | Solicitar el registro de un dispositivo; la solicitud no concede confianza ni privilegios. |
+| P36 | Gestionar retención y exportación de auditoría | Servicios | Definir la retención y exportar registros de auditoría. |
 
-> Nota: P28–P30 se incorporan con la introducción del modelo de perfiles de acceso y del registro de dispositivos privilegiados (ver [`01_actores-roles_y_agentes.md`](01_actores-roles_y_agentes.md)); su asignación a roles queda pendiente de la matriz Rol × Permiso.
+P22 designa la familia del controlador; P22-OP y P22-CFG son sus dos permisos. P01 se conserva como acción de pre-sesión y P02 como decisión de red: ninguno de los dos se asigna como permiso RBAC en la matriz.
 
 ## 3. Principios de asignación
 
 1. Un permiso debe concederse explícitamente a uno o más roles.
 2. La posesión de un rol no implica acceso irrestricto a todos los recursos.
-3. El acceso efectivo depende de **rol + permiso + recurso/servicio + política + contexto + vigencia**. Los privilegios concedidos mediante elevación son temporales: expiran por TTL o por cierre de sesión.
+3. El acceso efectivo se evalúa con seis ejes: `SUJETO × ACCIÓN × RECURSO × CONTEXTO × ESTADO DE SEGURIDAD × VIGENCIA`. El contexto se divide en sesión, ambiental y recurso; el estado de seguridad se evalúa como restricción dura y puede anular un permiso.
 4. El acceso base de la red (perfil BASE) no depende de ningún permiso otorgado a una persona: se concede al dispositivo por presencia física y cubre solo lo mínimo (deny by default).
 5. Los permisos administrativos deben mantenerse separados de los permisos de usuario final.
 6. Las operaciones críticas deben quedar registradas mediante auditoría.
@@ -532,26 +545,28 @@ Los permisos representan **acciones autorizadas**; no representan por sí mismos
 ## 4. Niveles conceptuales
 
 ### Permisos de acceso
-P01–P05, P28
+P01–P05, P28, P35
 
-Permiten autenticarse, acceder a la red, utilizar recursos o servicios autorizados y solicitar elevaciones temporales.
+Permiten autenticarse, acceder a la red, utilizar recursos o servicios autorizados y solicitar elevaciones o registros.
 
-### Permisos de supervisión y seguridad
-P06–P13, P25
+### Permisos de supervisión y respuesta
+P06–P13
 
 Permiten observar la red, investigar eventos y ejecutar acciones de respuesta.
 
 ### Permisos de administración
-P14–P23, P27, P29, P30
+P14–P21, P22-OP, P23, P27, P29–P31, P33
 
-Permiten administrar usuarios, políticas, infraestructura y mecanismos de seguridad; aprobar elevaciones y registrar dispositivos privilegiados.
+Permiten administrar cuentas locales, políticas, infraestructura y mecanismos de seguridad; operar el controlador; aprobar elevaciones; registrar dispositivos y ajustar umbrales.
 
-### Permisos de control maestro
-P24, P26
+### Permisos de gobierno
+P22-CFG, P24–P26, P32, P34, P36
 
-Permiten administrar privilegios administrativos y configuración global de la plataforma.
+Permiten configurar el controlador, administrar privilegios administrativos, aprobar acciones de alto impacto, gestionar claves y administrar la auditoría.
 
-> Nota: la asignación definitiva de estos permisos a cada rol se establece en la matriz **Rol × Permiso**. Esta lista define el catálogo de permisos, no sustituye dicha matriz.
+## 5. Matriz y política
+
+La asignación definitiva de estos permisos a cada rol se establece en la matriz **Rol × Permiso** de [`implementation/02_matriz_rol_permiso.md`](../../../implementation/02_matriz_rol_permiso.md). La fuente de verdad ejecutable es [`implementation/policy/permisos.yaml`](../../../implementation/policy/permisos.yaml); la matriz es su vista generada. Este catálogo define los permisos, no sustituye la matriz.
 
 # Modelo de Dominio — Relaciones entre Entidades
 
@@ -585,12 +600,12 @@ Un mismo individuo podría tener más de un rol si la política de la plataforma
 **Todo dispositivo conectado recibe un perfil de acceso; el perfil determina las reglas de red que se le aplican.**
 
 ```text
-Dispositivo ── recibe ──> Perfil de acceso (BASE, ACADÉMICO, LABORATORIO, TI, ADMIN_RED, …)
+Dispositivo ── recibe ──> Perfil de acceso (BASE, ACADÉMICO, OPERADOR_TI, OPERADOR_ADMIN, OPERADOR_SA, ELEVACIÓN)
 ```
 
 - **Perfil BASE:** automático por presencia física (RP-13). Todo dispositivo que **no hace match con el registro de dispositivos privilegiados** lo recibe. Deny by default: DHCP, DNS y el portal — el mínimo del dispositivo; los servicios académicos e Internet llegan con el login.
 - **Perfil ACADÉMICO:** la comunidad universitaria lo obtiene al autenticarse en el portal contra el IdP institucional (sin MFA): servicios académicos e Internet.
-- **Perfiles elevados (LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN):** requieren justificación. Los temporales de usuario académico exigen solicitud aprobada y TTL; los de operadores exigen dispositivo registrado + autenticación con MFA.
+- **Perfiles elevados (ELEVACIÓN(scope, TTL), OPERADOR_TI, OPERADOR_ADMIN, OPERADOR_SA):** requieren justificación. Las elevaciones de usuario académico exigen solicitud aprobada y TTL; las sesiones de operadores exigen dispositivo registrado + autenticación con MFA. LABORATORIO es una instancia de ELEVACIÓN; TI, ADMIN_RED y SUPER_ADMIN son alias de los perfiles de operador.
 
 La relación entre dispositivo y perfil no es permanente: los perfiles temporales expiran y las sesiones privilegiadas se cierran (idle_timeout).
 
@@ -916,8 +931,6 @@ Actor / Dispositivo
 
 Por tanto, **tener un rol no significa tener acceso absoluto, y estar conectado no significa tener privilegios**. El acceso efectivo resulta de la combinación entre el perfil vigente, el rol, los permisos asignados, el recurso o servicio solicitado, el contexto y la vigencia de la política. Todo lo que no esté explícitamente permitido queda denegado.
 
----------------------------------------------------------------------
-
 # 5. Casos de uso mínimos
 
 ## CU-01 — Acceso autorizado
@@ -1081,6 +1094,105 @@ Los cambios de política deberán poder registrarse.
 
 ### ADM-05
 Las acciones automáticas de mitigación deberán poder identificarse posteriormente.
+
+#
+# 14. Trazabilidad inicial
+
+| Objetivo | Requerimiento | Casos de uso | Métricas principales |
+|---|---|---|---|
+| Controlar acceso | R1 | CU-01, CU-02 | bloqueo, latencia |
+| Proteger recursos | R2 | CU-03, CU-04 | precisión de restricción |
+| Proteger intranet | R3 | CU-05, CU-06 | detección, falsos positivos |
+| Preservar disponibilidad | R4 | CU-07 | detección, mitigación, disponibilidad |
+| Proteger perímetro | R5 | CU-08 | detección, bloqueo |
+| Gestionar seguridad | Transversal | CU-09 | aplicación de política |
+| Recuperar operación | Transversal | CU-10 | tiempo de recuperación |
+
+---
+#
+# 15. Riesgos iniciales
+
+| Riesgo | Impacto | Respuesta propuesta |
+|---|---|---|
+| Complejidad excesiva | Alto | Priorizar los tres requerimientos asignados |
+| Falsos positivos | Alto | Medir y ajustar criterios |
+| Sobrecarga del controlador | Alto | Evaluar CPU, memoria y latencia |
+| Exceso de reglas SDN | Alto | Evaluar recursos del switch |
+| Punto único de fallo | Alto | Analizar dependencia del controlador |
+| Bloqueo de usuarios legítimos | Alto | Diseñar recuperación y reglas temporales |
+| Ataques difíciles de reproducir | Medio | Definir escenarios controlados |
+| Integración deficiente | Alto | Definir interfaces desde HLD |
+| Falta de métricas | Alto | Diseñar pruebas antes de implementar |
+| Falta de tiempo | Alto | Priorizar P0 antes de extensiones |
+
+---
+#
+# 16. Priorización
+
+## P0 — Obligatorio
+
+- arquitectura integral R1–R5;
+- tres requerimientos asignados completamente diseñados;
+- implementación de los tres requerimientos;
+- casos de uso principales;
+- plan de pruebas;
+- métricas;
+- integración SDN.
+
+## P1 — Alta prioridad
+
+- monitoreo centralizado;
+- registro y auditoría;
+- gestión de políticas;
+- recuperación;
+- interfaz de administración.
+
+## P2 — Diferencial
+
+- implementación parcial de requerimientos no asignados;
+- automatización avanzada;
+- detección adaptativa;
+- comparación de estrategias;
+- análisis avanzado de anomalías.
+
+---
+#
+# 17. Evolución del documento
+
+Esta versión constituye una **línea base inicial**. Deberá refinarse durante:
+
+1. Concepto de Operación.
+2. Casos de uso.
+3. Arquitectura.
+4. HLD.
+5. Comparación cuantitativa de alternativas.
+6. LLSD.
+7. Topología e infraestructura.
+8. Plan de pruebas.
+9. Implementación.
+10. Evaluación experimental.
+
+Toda modificación deberá conservar trazabilidad entre requisitos, arquitectura, implementación y pruebas.
+
+---
+#
+# 18. Resumen ejecutivo
+
+La solución deberá responder a cuatro preguntas:
+
+**¿Quién puede entrar?**  
+R1 — Identidad, roles y control de acceso.
+
+**¿A qué puede acceder?**  
+R2 — Autorización y protección de recursos privilegiados.
+
+**¿Qué ocurre ante una amenaza interna?**  
+R3/R4 — Detección, mitigación y preservación de disponibilidad.
+
+**¿Qué ocurre ante una amenaza externa?**  
+R5 — Seguridad perimetral, detección y bloqueo.
+
+Todos estos mecanismos deberán integrarse dentro de una arquitectura SDN coherente, modular, verificable y capaz de evolucionar.
 
 # Especificación de Requisitos
 ## Solución de seguridad para una red de campus basada en SDN
@@ -1369,6 +1481,113 @@ Deberá evaluarse el comportamiento ante aumento de usuarios y tráfico.
 ### RA-09 — Protección del plano de control
 El acceso al controlador y sus interfaces administrativas deberá estar restringido.
 
+# Restricciones
+
+**Proyecto:** Solución de seguridad para una red de campus académico
+**Curso:** TEL354 — Redes Definidas por Software
+**Fase:** B — Drivers
+**Origen:** separado de [`01_Requisitos_y_Restricciones_SDN_v0.1.md`](01_Requisitos_y_Restricciones_SDN_v0.1.md)
+
+---
+
+Una restricción es una condición impuesta al proyecto que la arquitectura no puede decidir: debe cumplirla. A diferencia de un requerimiento, no admite alternativa de diseño, y por eso se evalúa como criterio de descarte de alternativas.
+
+---
+
+## 1. Alcance y entregables
+
+### RP-01 — Requerimientos implementados
+
+**Restricción:** el proyecto exige implementar tres de los cinco requerimientos. La calidad de esos tres tiene prioridad sobre funcionalidad adicional.
+
+**Implicación:** la arquitectura debe cubrir R1–R5 de forma integral, pero el diseño detallado, la implementación y la evaluación se concentran en los tres requerimientos asignados. El criterio de alcance se establece en [`../A-Modelo_de_dominio/00_Proyecto_SDN.md`](../A-Modelo_de_dominio/00_Proyecto_SDN.md).
+
+### RP-07 — Complejidad
+
+**Restricción:** no deberán incorporarse tecnologías cuya complejidad no pueda justificarse, implementarse y evaluarse dentro del alcance.
+
+**Implicación:** cada componente tecnológico debe responder a un requerimiento o atributo de calidad identificado; lo que no pueda justificarse ni evaluarse queda fuera.
+
+---
+
+## 2. Arquitectura y hardware
+
+### RP-02 — Paradigma SDN
+
+**Restricción:** la solución deberá ser coherente con el paradigma SDN y con la separación entre plano de control y plano de datos.
+
+**Implicación:** las decisiones de seguridad deben expresarse como políticas aplicables desde el plano de control, no como configuración manual dispositivo por dispositivo.
+
+### RP-11 — Hardware del laboratorio
+
+**Restricción:** la solución deberá ejecutarse sobre los switches disponibles en el laboratorio del curso, de hardware **Pica8** con **PicOS**, y sobre las capacidades OpenFlow que ese sistema expone.
+
+**Implicación:** el protocolo southbound es OpenFlow, y las capacidades del plano de datos (meters, groups, tipos de acción y tamaño de las tablas) quedan condicionadas a lo que PicOS soporte. Ningún mecanismo puede darse por disponible sin verificarlo contra el dispositivo: si una primitiva no está soportada, el diseño debe degradarla explícitamente (p. ej. rate limiting sin meters, por muestreo y reglas del controlador).
+
+### RP-12 — Alcance de protocolo IPv4
+
+**Restricción:** el flujo de operación de la solución considera exclusivamente IPv4. IPv6, Neighbor Discovery y sus protocolos asociados quedan fuera del alcance.
+
+**Implicación:** los escenarios de inicialización se describen con ARP y DHCPv4; no se modela tráfico de control IPv6.
+
+### RP-13 — Confianza física como condición de acceso base
+
+**Restricción:** el acceso físico controlado al campus se considera condición de confianza inicial suficiente para la obtención del perfil mínimo de red (perfil BASE), sin autenticación digital.
+
+**Implicación:** la seguridad física del campus forma parte del perímetro de seguridad. La autenticación digital se reserva para salir del perfil mínimo (el login de la comunidad o de un operador) y para las elevaciones temporales; la presencia física jamás justifica privilegios elevados.
+
+### RP-09 — Coherencia tecnológica
+
+**Restricción:** cada tecnología deberá responder a una necesidad concreta y tener una responsabilidad definida.
+
+**Implicación:** no se admiten tecnologías solapadas ni componentes sin responsable claro dentro de la arquitectura.
+
+---
+
+## 3. Tiempo y recursos
+
+### RP-03 — Tiempo
+
+**Restricción:** el diseño e implementación deberán ajustarse al cronograma del curso.
+
+**Implicación:** la priorización es la herramienta de control del alcance; no hay holgura para exploración tecnológica abierta.
+
+### RP-04 — Recursos
+
+**Restricción:** la solución deberá utilizar los recursos computacionales disponibles.
+
+**Implicación:** el diseño se acota al laboratorio disponible; la escalabilidad se demuestra por diseño y medición, no por despliegue a escala real.
+
+---
+
+## 4. Entorno y ejecución de pruebas
+
+### RP-05 — Entorno
+
+**Restricción:** las validaciones deberán ejecutarse en un entorno de laboratorio o simulación controlado y representativo.
+
+**Implicación:** no es necesario reproducir la escala real del campus, pero sí los escenarios y las métricas definidos.
+
+### RP-06 — Seguridad de las pruebas
+
+**Restricción:** los ataques simulados deberán ejecutarse únicamente sobre infraestructura controlada por el proyecto.
+
+### RP-08 — Aislamiento
+
+**Restricción:** las pruebas y los mecanismos de mitigación no deberán afectar sistemas ajenos al entorno del proyecto.
+
+**Implicación:** RP-06 y RP-08 delimitan el alcance legítimo de los escenarios de ataque; ninguna prueba puede salir del entorno controlado por el proyecto.
+
+---
+
+## 5. Verificación
+
+### RP-10 — Verificabilidad
+
+**Restricción:** toda funcionalidad crítica deberá contar con un mecanismo objetivo de validación.
+
+**Implicación:** un requisito sin métrica ni prueba asociada no puede considerarse satisfecho.
+
 # Priorización de drivers
 
 **Proyecto:** Solución de seguridad para una red de campus académico
@@ -1494,7 +1713,65 @@ D-10 y D-14 no activan decisiones de esa lista: fijan criterios de diseño (pres
 - **Presupuesto de latencia.** RNF-04 no fija un valor; hay que establecer el límite que se considerará aceptable.
 - **Capacidad de reglas.** Cuántas reglas simultáneas admite el dispositivo elegido es asunto de la Fase C y de la Fase F.
 
---------------------------------------------------------------------
+# 11. Decisiones arquitectónicas pendientes
+
+En esta primera versión no se consideran definitivas las siguientes decisiones:
+
+- controlador SDN;
+- protocolo southbound;
+- diseño de northbound API;
+- mecanismo de monitoreo;
+- IDS, IPS o ambos;
+- algoritmo/método de detección;
+- umbrales estáticos o dinámicos;
+- rate limiting;
+- honeypot
+- bloqueo;
+- segmentación;
+- ubicación de componentes de seguridad;
+- almacenamiento de logs;
+- visualización;
+- virtualización/simulación;
+- estrategia de recuperación.
+
+Cada decisión deberá justificarse por requisitos, restricciones, complejidad y resultados cuantitativos.
+
+---
+#
+# 12. Principios arquitectónicos
+
+La solución deberá procurar:
+
+1. mínimo privilegio;
+2. separación de responsabilidades;
+3. políticas centralizadas;
+4. aplicación programable;
+5. monitoreo continuo;
+6. respuesta automatizada cuando corresponda;
+7. trazabilidad;
+8. modularidad;
+9. escalabilidad;
+10. reversibilidad;
+11. verificabilidad;
+12. integración de R1–R5.
+
+---
+#
+# 13. Criterios de aceptación de la arquitectura
+
+La arquitectura se considerará adecuada cuando:
+
+- represente los cinco requerimientos;
+- identifique actores y componentes;
+- defina responsabilidades;
+- muestre flujos de información y decisión;
+- explique cómo las políticas llegan a la infraestructura SDN;
+- contemple operación normal y escenarios de ataque;
+- defina mecanismos de mitigación;
+- considere restricciones;
+- establezca criterios de éxito;
+- permita derivar HLD y LLSD;
+- sea viable dentro del alcance del curso.
 
 # Límite del sistema
 
@@ -1820,7 +2097,7 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 
 - la escala real del campus: número de usuarios, de dispositivos y de enlaces;
 - hardware de red específico, cuando el entorno virtual permita validar lo mismo;
-- alta disponibilidad del plano de control (clúster del controlador): se analiza por diseño, no se despliega; la redundancia del plano de datos sí se despliega y se mide — ocho switches dual-homed, fijado en la Fase H;
+- alta disponibilidad del plano de control: **desplegada en el prototipo como clúster ONOS de tres nodos** (Atomix/Raft, maestría repartida; tolera la caída de un nodo, no la del host físico — F-01 §6); la redundancia del plano de datos se despliega y se mide con la topología de diez switches dual-homed fijada en la Fase H;
 - servicios institucionales reales: se representan mediante equivalentes controlados.
 
 ---
@@ -1838,7 +2115,7 @@ La segmentación anterior es una propuesta de referencia. Su definición definit
 
 ## 6. Cuestiones abiertas
 
-- Número de switches y de hosts del prototipo: **cerrado en la Fase H** — ocho switches (dos núcleo, dos distribución, cuatro acceso, dual-homed) y ~23 dispositivos simulados.
+- Número de switches y de hosts del prototipo: **cerrado en la Fase H** — diez switches (dos núcleo, dos distribución, cuatro acceso y dos de la zona de control y servicios C1/C2, todo dual-homed) y ~23 dispositivos simulados.
 - Capacidad de las tablas de flujo de PicOS: condiciona cuántas reglas simultáneas admite la solución (riesgo de exceso de reglas SDN) y si meters/groups están disponibles.
 - Representación del perímetro: firewall simulado, componente del propio entorno o solo reglas en el borde.
 - Si habrá acceso a hardware físico o el prototipo será íntegramente virtual: **cerrado** — hardware físico (Pica8 del laboratorio, RP-11), con apoyo virtual para el desarrollo fuera de las ventanas.

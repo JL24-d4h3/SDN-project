@@ -52,7 +52,7 @@ Académico → portal → credenciales → IAM/AAA → IdP (identidad válida)
           → perfil ACADÉMICO: servicios académicos e Internet (idle_timeout)
 Operador  → portal → paso 1: repositorio propio · paso 2: TOTP
           → identidad + dispositivo (match con registro) + contexto
-          → decisión: sesión de rol (p. ej. ADMIN_RED)
+          → decisión: sesión de rol (p. ej. OPERADOR_ADMIN)
 IAM → evento SessionOpened
 Policy Engine → comando northbound al Controlador
 Controlador → FLOW_MOD: acceso de persona y destinos del rol

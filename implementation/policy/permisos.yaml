@@ -1,0 +1,813 @@
+# Política de permisos de la plataforma
+# Fuente de verdad de roles, perfiles, permisos, condiciones y asignaciones.
+# La matriz Rol x Permiso se genera desde este archivo.
+# Versión: 2.0 — Etapa 0 cerrada (2026-10-28); ajustes 2026-10-31:
+#   - recurso_red entra al catálogo de tipos (usado por P04 y R002)
+#   - hard_constraints: el campo 'permission' pasa a 'requires'
+
+version: 2
+name: permisos-plataforma-sdn
+description: >
+  Modelo de autorización de la solución SDN. Cubre el plano de servicios
+  (RBAC con condiciones) y el plano de red (perfiles ABAC). No contiene
+  secretos ni credenciales.
+
+defaults:
+  effect: deny
+  deny_overrides: true
+  fail_safe: deny
+  audit: true
+  require_session: true
+  require_security_state: true
+
+# ---------------------------------------------------------------------------
+# Roles
+# ---------------------------------------------------------------------------
+
+roles:
+  academico:
+    name: Académico
+    level: 0
+    population: estudiantes y docentes
+    identity_source: idp_institucional
+    mfa_required: false
+    privileged_session: false
+
+  especialista_ti:
+    name: Especialista de TI
+    level: 1
+    population: soporte y operación de servicios
+    identity_source: repositorio_propio
+    mfa_required: true
+    privileged_session: true
+
+  administrador_red:
+    name: Administrador de Red
+    level: 2
+    population: operación de la red y del controlador
+    identity_source: repositorio_propio
+    mfa_required: true
+    privileged_session: true
+
+  superadministrador:
+    name: Superadministrador
+    level: 3
+    population: gobierno de la plataforma
+    identity_source: repositorio_propio
+    mfa_required: true
+    privileged_session: true
+
+# ---------------------------------------------------------------------------
+# Perfiles de red
+# ---------------------------------------------------------------------------
+
+profiles:
+  base:
+    name: BASE
+    type: fijo
+    auth_required: false
+    scope: [portal, dhcp, dns]
+    priority:
+      portal: 150
+      dhcp_dns: 10
+    notes: >
+      Esqueleto pre-sesión. Deny by default hacia la red de gestión.
+
+  academico:
+    name: ACADÉMICO
+    type: fijo
+    auth_required: true
+    scope: [servicios_academicos, internet]
+    priority:
+      session: 190
+    notes: >
+      Valor provisional de pruebas. El valor de despliegue se fija con la
+      medición de access/02 §3; debe quedar entre portal (150) y sesión
+      privilegiada (200).
+
+  operador_ti:
+    name: OPERADOR_TI
+    type: derivado
+    from_role: especialista_ti
+    scope: [consola, api_seguridad]
+    priority:
+      session: 200
+
+  operador_admin:
+    name: OPERADOR_ADMIN
+    type: derivado
+    from_role: administrador_red
+    scope: [red_gestion]
+    priority:
+      session: 200
+
+  operador_sa:
+    name: OPERADOR_SA
+    type: derivado
+    from_role: superadministrador
+    scope: [red_gestion, acceso_remoto]
+    priority:
+      session: 200
+
+  elevacion:
+    name: ELEVACIÓN
+    type: parametrizado
+    params: [scope, ttl_s]
+    requires: [P28, P29]
+    priority:
+      session: 200
+    instances:
+      laboratorio:
+        scope: laboratorio
+        ttl_s: 1800
+        notes: >
+          LABORATORIO es una instancia de ELEVACIÓN, no un perfil fijo.
+
+# Alias documentales conservados por compatibilidad.
+profile_aliases:
+  TI: operador_ti
+  ADMIN_RED: operador_admin
+  SUPER_ADMIN: operador_sa
+
+# ---------------------------------------------------------------------------
+# Recursos
+# ---------------------------------------------------------------------------
+
+resources:
+  catalog: docs/fases/A-Modelo_de_dominio/02_recursos_y_servicios.md
+  types:
+    - servicio_academico
+    - servicio_publico
+    - servicio_seguridad
+    - recurso_propio
+    - recurso_seguridad
+    - recurso_red
+    - alerta
+    - alerta_red
+    - incidente
+    - incidente_red
+    - log_seguridad
+    - log_operativo
+    - evento
+    - metrica
+    - trafico
+    - red_gestion
+    - switch
+    - controlador_sdn
+    - dispositivo_red
+    - segmento
+    - vlan
+    - regla_red
+    - flujo
+    - politica_acceso
+    - perfil
+    - politica_seguridad
+    - regla_deteccion
+    - regla_mitigacion
+    - mitigacion
+    - ids
+    - ips
+    - deteccion
+    - nodo
+    - umbral_deteccion
+    - rango_umbral
+    - cuenta_local
+    - cuenta_local_ti
+    - cuenta_administrativa
+    - cuenta_administrativa_ti
+    - rol
+    - permiso
+    - solicitud_elevacion
+    - solicitud_accion_critica
+    - solicitud_registro_dispositivo
+    - dispositivo_privilegiado
+    - dispositivo_privilegiado_ti
+    - sesion
+    - auditoria
+    - configuracion_global
+    - plataforma
+    - configuracion
+    - clave_certificado
+    - consola
+    - api_seguridad
+    - api_red
+    - operacion_red
+    - respuesta_autorizada
+
+# ---------------------------------------------------------------------------
+# Condiciones
+# ---------------------------------------------------------------------------
+
+conditions:
+  C1:
+    name: Ámbito
+    description: El recurso pertenece al ámbito asignado al rol.
+    predicate: resource.scope == subject.scope
+    on_failure: deny
+
+  C2:
+    name: Delegación vigente
+    description: Existe una delegación explícita, con alcance y vigencia.
+    predicate: delegation.exists(subject, permission, resource) and delegation.valid_now
+    on_failure: deny
+
+  C3:
+    name: Rango aprobado
+    description: El valor o la acción está dentro del rango aprobado.
+    predicate: action.value within policy.approved_range
+    on_failure: deny
+
+  C4:
+    name: Separación de funciones
+    description: El solicitante es distinto del aprobador.
+    predicate: request.requester_id != approval.approver_id
+    on_failure: deny
+
+  C5:
+    name: Sesión privilegiada
+    description: MFA verificado, dispositivo registrado y canal de gestión.
+    predicate: session.mfa_verified and device.registered and channel in [consola, api]
+    on_failure: step_up
+
+  C6:
+    name: Estado de seguridad
+    description: Sin compromiso, cuarentena o incidente que impida la acción.
+    type: hard_gate
+    evaluator: security_state_gate
+    on_failure: deny
+
+  C7:
+    name: Bajo impacto
+    description: La severidad no supera el umbral; si lo supera, se exige P32.
+    predicate: action.severity <= policy.impact_threshold
+    on_failure: step_up
+
+  C8:
+    name: Sesión propia
+    description: El sujeto solo opera sus propias sesiones.
+    predicate: resource.session.subject_id == subject.id
+    on_failure: deny
+
+  C9:
+    name: Recurso autorizado
+    description: El tipo y la instancia del recurso están en la lista del rol.
+    predicate: resource.type in assignment.resources and resource.id in subject.allowed_resources
+    on_failure: deny
+
+  C10:
+    name: Contexto permitido
+    description: >
+      Ventana, ubicación y canal permitidos. La configuración crítica exige
+      ventana de mantenimiento o emergencia declarada.
+    predicate: >
+      context.time_window in [mantenimiento, emergencia] and
+      context.location in [campus, vpn]
+    on_failure: deny
+
+  C11:
+    name: Solo lectura
+    description: El rol puede consultar y ejecutar operaciones autorizadas, no configurar.
+    predicate: action.verb in [read, list, get, status, dump_flows]
+    on_failure: deny
+
+# ---------------------------------------------------------------------------
+# Estados de seguridad
+# ---------------------------------------------------------------------------
+
+security_states:
+  subject:
+    normal:
+      blocks_all: false
+      blocks_privileged: false
+    sospechoso:
+      blocks_all: false
+      blocks_privileged: false
+      requires_step_up: true
+    comprometido:
+      blocks_all: false
+      blocks_privileged: true
+      allows_response: true
+    cuarentena:
+      blocks_all: true
+      allows_portal: true
+      allows_remediation: true
+    suspendido:
+      blocks_all: true
+
+  environment:
+    normal:
+      blocks: []
+    incidente_activo:
+      high_impact_requires: P32
+    segmento_aislado:
+      blocks_segment: true
+      allows_response: true
+    modo_emergencia:
+      allows_emergency: true
+      requires_audit: true
+    mantenimiento:
+      allows_planned_changes: true
+
+  hard_constraints:
+    - id: HC-01
+      description: Sujeto comprometido, en cuarentena o suspendido no recibe permisos privilegiados.
+      subject_states: [comprometido, cuarentena, suspendido]
+      effect: deny
+      except: [respuesta, remediacion, portal]
+    - id: HC-02
+      description: Segmento aislado no recibe tráfico de usuarios.
+      environment_states: [segmento_aislado]
+      effect: deny
+      except: [respuesta]
+    - id: HC-03
+      description: Incidente activo exige P32 para acciones de alto impacto.
+      environment_states: [incidente_activo]
+      effect: step_up
+      requires: P32
+    - id: HC-04
+      description: Sujeto sospechoso exige step-up en acciones privilegiadas.
+      subject_states: [sospechoso]
+      effect: step_up
+      requires: C5
+
+# ---------------------------------------------------------------------------
+# Permisos
+# ---------------------------------------------------------------------------
+
+permissions:
+  P01:
+    name: Autenticarse
+    plane: pre_sesion
+    verb: authenticate
+    resource_types: [sesion]
+    description: Iniciar sesión y acreditar identidad ante la plataforma.
+
+  P02:
+    name: Acceder a la red
+    plane: red
+    verb: network_access
+    resource_types: [perfil]
+    description: Solicitar el perfil de red que corresponde al sujeto, dispositivo y contexto.
+
+  P03:
+    name: Acceder a servicio
+    plane: servicios
+    verb: access
+    resource_types: [servicio_academico, servicio_publico, servicio_seguridad, consola, api_seguridad, api_red]
+    description: Entrar a un servicio o a su API.
+
+  P04:
+    name: Consultar recurso
+    plane: servicios
+    verb: read
+    resource_types: [recurso_propio, recurso_seguridad, alerta, incidente, log_seguridad, log_operativo, metrica, recurso_red, switch, controlador_sdn, politica_acceso]
+    description: Leer el estado o el contenido de un recurso autorizado.
+
+  P05:
+    name: Ejecutar operación
+    plane: servicios
+    verb: execute
+    resource_types: [servicio_academico, respuesta_autorizada, operacion_red]
+    description: Ejecutar una operación funcional del servicio.
+
+  P06:
+    name: Consultar estado de red
+    plane: servicios
+    verb: read_status
+    resource_types: [red_gestion, switch, controlador_sdn]
+    description: Consultar topología, estado de switches y estado del controlador.
+
+  P07:
+    name: Consultar tráfico
+    plane: servicios
+    verb: read_traffic
+    resource_types: [trafico, metrica]
+    description: Consultar métricas y tráfico observado.
+
+  P08:
+    name: Consultar eventos y logs
+    plane: servicios
+    verb: read_logs
+    resource_types: [log_seguridad, log_operativo, evento]
+    description: Consultar eventos y registros operativos o de seguridad.
+
+  P09:
+    name: Consultar alertas
+    plane: servicios
+    verb: read_alerts
+    resource_types: [alerta, alerta_red]
+    description: Consultar alertas de detección y de red.
+
+  P10:
+    name: Analizar incidente
+    plane: servicios
+    verb: analyze
+    resource_types: [incidente, incidente_red, alerta, log_seguridad]
+    description: Analizar un incidente y su evidencia.
+
+  P11:
+    name: Gestionar alerta
+    plane: servicios
+    verb: manage_alert
+    resource_types: [alerta, alerta_red, incidente, incidente_red]
+    description: Clasificar, reconocer o cerrar una alerta.
+
+  P12:
+    name: Ejecutar mitigación
+    plane: servicios
+    verb: mitigate
+    resource_types: [mitigacion, nodo]
+    description: Ejecutar una mitigación sobre un nodo o un flujo.
+
+  P13:
+    name: Aislar nodo
+    plane: servicios
+    verb: isolate
+    resource_types: [nodo, segmento]
+    description: Aislar un nodo o un segmento de la red.
+
+  P14:
+    name: Gestionar cuentas locales
+    plane: servicios
+    verb: manage_local_account
+    resource_types: [cuenta_local, cuenta_local_ti]
+    description: >
+      Crear, modificar o desactivar cuentas locales de la plataforma.
+      Excluye identidades institucionales, break-glass y cuentas de
+      Superadministrador.
+
+  P15:
+    name: Asignar rol
+    plane: servicios
+    verb: assign_role
+    resource_types: [rol, cuenta_administrativa]
+    description: Asignar o retirar roles a identidades.
+
+  P16:
+    name: Gestionar permisos
+    plane: servicios
+    verb: manage_permission
+    resource_types: [permiso, rol]
+    description: Modificar la matriz de permisos y las condiciones.
+
+  P17:
+    name: Gestionar políticas de acceso
+    plane: servicios
+    verb: manage_access_policy
+    resource_types: [politica_acceso, perfil]
+    description: Definir qué perfil de red corresponde a cada caso.
+
+  P18:
+    name: Gestionar políticas de seguridad
+    plane: servicios
+    verb: manage_security_policy
+    resource_types: [politica_seguridad, regla_deteccion, regla_mitigacion]
+    description: Definir reglas de detección y mitigación.
+
+  P19:
+    name: Gestionar reglas de red
+    plane: servicios
+    verb: manage_network_rule
+    resource_types: [regla_red, flujo]
+    description: Crear, modificar o retirar reglas de red.
+
+  P20:
+    name: Gestionar segmentación
+    plane: servicios
+    verb: manage_segmentation
+    resource_types: [segmento, vlan]
+    description: Definir segmentos y VLANs.
+
+  P21:
+    name: Gestionar dispositivos de red
+    plane: servicios
+    verb: manage_network_device
+    resource_types: [switch, dispositivo_red]
+    description: Administrar switches y dispositivos de red.
+
+  P22-OP:
+    name: Operar el controlador SDN
+    plane: servicios
+    verb: operate_controller
+    resource_types: [controlador_sdn]
+    description: Consultar topología, flujos y estado; ejecutar operaciones autorizadas.
+
+  P22-CFG:
+    name: Configurar el controlador SDN
+    plane: servicios
+    verb: configure_controller
+    resource_types: [controlador_sdn]
+    description: Configurar el clúster, sus aplicaciones y sus parámetros críticos.
+
+  P23:
+    name: Gestionar mecanismos de seguridad
+    plane: servicios
+    verb: manage_security_mechanism
+    resource_types: [mitigacion, ids, ips, deteccion]
+    description: Operar los mecanismos de detección y mitigación dentro del rango aprobado.
+
+  P24:
+    name: Gestionar administradores
+    plane: servicios
+    verb: manage_administrator
+    resource_types: [cuenta_administrativa, cuenta_administrativa_ti]
+    description: Crear o modificar cuentas administrativas.
+
+  P25:
+    name: Auditar operaciones
+    plane: servicios
+    verb: audit
+    resource_types: [auditoria]
+    description: Consultar y verificar la auditoría de operaciones.
+
+  P26:
+    name: Gestionar configuración global
+    plane: servicios
+    verb: manage_global_config
+    resource_types: [configuracion_global]
+    description: Modificar la configuración global de la plataforma.
+
+  P27:
+    name: Gestionar recuperación
+    plane: servicios
+    verb: manage_recovery
+    resource_types: [plataforma, configuracion]
+    description: Ejecutar procedimientos de recuperación y restauración.
+
+  P28:
+    name: Solicitar elevación
+    plane: servicios
+    verb: request_elevation
+    resource_types: [solicitud_elevacion]
+    description: Solicitar una sesión temporal con alcance elevado.
+
+  P29:
+    name: Aprobar elevación
+    plane: servicios
+    verb: approve_elevation
+    resource_types: [solicitud_elevacion]
+    description: Aprobar o rechazar una solicitud de elevación.
+
+  P30:
+    name: Registrar dispositivo privilegiado
+    plane: servicios
+    verb: register_privileged_device
+    resource_types: [dispositivo_privilegiado, dispositivo_privilegiado_ti]
+    description: Registrar un dispositivo para sesiones privilegiadas.
+
+  P31:
+    name: Gestionar sesiones
+    plane: servicios
+    verb: manage_session
+    resource_types: [sesion]
+    description: Consultar o revocar sesiones.
+
+  P32:
+    name: Aprobar acción de alto impacto
+    plane: servicios
+    verb: approve_high_impact
+    resource_types: [solicitud_accion_critica]
+    description: Aprobar cuarentena, aislamiento u otra acción crítica.
+
+  P33:
+    name: Ajustar umbrales de detección
+    plane: servicios
+    verb: adjust_threshold
+    resource_types: [umbral_deteccion, rango_umbral]
+    description: Ajustar umbrales dentro del rango aprobado.
+
+  P34:
+    name: Gestionar claves y certificados
+    plane: servicios
+    verb: manage_keys
+    resource_types: [clave_certificado]
+    description: Crear, rotar o revocar claves y certificados.
+
+  P35:
+    name: Solicitar registro de dispositivo
+    plane: servicios
+    verb: request_device_registration
+    resource_types: [solicitud_registro_dispositivo]
+    description: Solicitar el registro de un dispositivo; no concede confianza.
+
+  P36:
+    name: Gestionar retención y exportación de auditoría
+    plane: servicios
+    verb: manage_audit_retention
+    resource_types: [auditoria]
+    description: Definir retención y exportar registros de auditoría.
+
+# ---------------------------------------------------------------------------
+# Asignaciones (vista de la matriz)
+# Condiciones vacías = P (sujeto a C5 para operadores y C6 para todos).
+# ---------------------------------------------------------------------------
+
+assignments:
+  # Académico
+  - {id: A001, role: academico, permission: P03, effect: permit, resources: [servicio_academico, servicio_publico], conditions: [C9], obligations: [auditar]}
+  - {id: A002, role: academico, permission: P04, effect: permit, resources: [servicio_academico, recurso_propio], conditions: [C9], obligations: [auditar]}
+  - {id: A003, role: academico, permission: P05, effect: permit, resources: [servicio_academico], conditions: [C9], obligations: [auditar]}
+  - {id: A004, role: academico, permission: P28, effect: permit, resources: [solicitud_elevacion], conditions: [C9], obligations: [auditar, ttl]}
+
+  # Especialista de TI
+  - {id: T001, role: especialista_ti, permission: P03, effect: permit, resources: [servicio_seguridad, consola, api_seguridad], conditions: [C9], obligations: [auditar]}
+  - {id: T002, role: especialista_ti, permission: P04, effect: permit, resources: [alerta, incidente, log_seguridad, metrica, recurso_seguridad], conditions: [C9], obligations: [auditar]}
+  - {id: T003, role: especialista_ti, permission: P05, effect: permit, resources: [respuesta_autorizada, alerta, incidente], conditions: [C7, C9], obligations: [auditar, notificar]}
+  - {id: T004, role: especialista_ti, permission: P06, effect: permit, resources: [red_gestion, switch, controlador_sdn], conditions: [C1], obligations: [auditar]}
+  - {id: T005, role: especialista_ti, permission: P07, effect: permit, resources: [trafico, metrica], conditions: [C1], obligations: [auditar]}
+  - {id: T006, role: especialista_ti, permission: P08, effect: permit, resources: [log_seguridad, evento], conditions: [C1], obligations: [auditar]}
+  - {id: T007, role: especialista_ti, permission: P09, effect: permit, resources: [alerta], conditions: [C1], obligations: [auditar]}
+  - {id: T008, role: especialista_ti, permission: P10, effect: permit, resources: [incidente, alerta, log_seguridad], conditions: [C1], obligations: [auditar]}
+  - {id: T009, role: especialista_ti, permission: P11, effect: permit, resources: [alerta, incidente], conditions: [C1], obligations: [auditar]}
+  - {id: T010, role: especialista_ti, permission: P12, effect: permit, resources: [mitigacion, nodo], conditions: [C7], obligations: [auditar, notificar, ttl]}
+  - {id: T011, role: especialista_ti, permission: P13, effect: permit, resources: [nodo], conditions: [C7], obligations: [auditar, notificar, ttl]}
+  - {id: T012, role: especialista_ti, permission: P22-OP, effect: permit, resources: [controlador_sdn], conditions: [C1, C11], obligations: [auditar]}
+  - {id: T013, role: especialista_ti, permission: P31, effect: permit, resources: [sesion], conditions: [C8], obligations: [auditar]}
+  - {id: T014, role: especialista_ti, permission: P33, effect: permit, resources: [umbral_deteccion], conditions: [C3], obligations: [auditar, registrar_valores]}
+  - {id: T015, role: especialista_ti, permission: P35, effect: permit, resources: [solicitud_registro_dispositivo], conditions: [], obligations: [auditar]}
+
+  # Administrador de Red
+  - {id: R001, role: administrador_red, permission: P03, effect: permit, resources: [consola, api_red], conditions: [C9], obligations: [auditar]}
+  - {id: R002, role: administrador_red, permission: P04, effect: permit, resources: [recurso_red, switch, controlador_sdn, politica_acceso], conditions: [C9], obligations: [auditar]}
+  - {id: R003, role: administrador_red, permission: P05, effect: permit, resources: [operacion_red], conditions: [C9], obligations: [auditar]}
+  - {id: R004, role: administrador_red, permission: P06, effect: permit, resources: [red_gestion, switch, controlador_sdn], conditions: [C1], obligations: [auditar]}
+  - {id: R005, role: administrador_red, permission: P07, effect: permit, resources: [trafico, metrica], conditions: [C1], obligations: [auditar]}
+  - {id: R006, role: administrador_red, permission: P08, effect: permit, resources: [log_operativo, evento], conditions: [C1], obligations: [auditar]}
+  - {id: R007, role: administrador_red, permission: P09, effect: permit, resources: [alerta_red], conditions: [C1], obligations: [auditar]}
+  - {id: R008, role: administrador_red, permission: P10, effect: permit, resources: [incidente_red], conditions: [C1], obligations: [auditar]}
+  - {id: R009, role: administrador_red, permission: P11, effect: permit, resources: [alerta_red, incidente_red], conditions: [C1], obligations: [auditar]}
+  - {id: R010, role: administrador_red, permission: P12, effect: permit, resources: [mitigacion], conditions: [], obligations: [auditar, notificar, ttl]}
+  - {id: R011, role: administrador_red, permission: P13, effect: permit, resources: [nodo, segmento], conditions: [], obligations: [auditar, notificar, ttl]}
+  - {id: R012, role: administrador_red, permission: P14, effect: permit, resources: [cuenta_local], conditions: [C1], obligations: [auditar]}
+  - {id: R013, role: administrador_red, permission: P17, effect: permit, resources: [politica_acceso, perfil], conditions: [], obligations: [auditar]}
+  - {id: R014, role: administrador_red, permission: P19, effect: permit, resources: [regla_red, flujo], conditions: [], obligations: [auditar]}
+  - {id: R015, role: administrador_red, permission: P20, effect: permit, resources: [segmento, vlan], conditions: [], obligations: [auditar]}
+  - {id: R016, role: administrador_red, permission: P21, effect: permit, resources: [switch, dispositivo_red], conditions: [], obligations: [auditar]}
+  - {id: R017, role: administrador_red, permission: P22-OP, effect: permit, resources: [controlador_sdn], conditions: [], obligations: [auditar]}
+  - {id: R018, role: administrador_red, permission: P23, effect: permit, resources: [mitigacion, ids, ips], conditions: [C3], obligations: [auditar]}
+  - {id: R019, role: administrador_red, permission: P24, effect: permit, resources: [cuenta_administrativa_ti], conditions: [C2], obligations: [auditar, justificar]}
+  - {id: R020, role: administrador_red, permission: P29, effect: permit, resources: [solicitud_elevacion], conditions: [C4], obligations: [auditar]}
+  - {id: R021, role: administrador_red, permission: P30, effect: permit, resources: [dispositivo_privilegiado_ti], conditions: [C2], obligations: [auditar, justificar]}
+  - {id: R022, role: administrador_red, permission: P31, effect: permit, resources: [sesion], conditions: [C1], obligations: [auditar]}
+  - {id: R023, role: administrador_red, permission: P32, effect: permit, resources: [solicitud_accion_critica], conditions: [C1, C4], obligations: [auditar, vincular_aprobacion]}
+  - {id: R024, role: administrador_red, permission: P33, effect: permit, resources: [umbral_deteccion, rango_umbral], conditions: [C3], obligations: [auditar, registrar_valores]}
+  - {id: R025, role: administrador_red, permission: P35, effect: permit, resources: [solicitud_registro_dispositivo], conditions: [], obligations: [auditar]}
+
+  # Superadministrador
+  - {id: S001, role: superadministrador, permission: P03, effect: permit, resources: ["*"], conditions: [], obligations: [auditar]}
+  - {id: S002, role: superadministrador, permission: P04, effect: permit, resources: ["*"], conditions: [], obligations: [auditar]}
+  - {id: S003, role: superadministrador, permission: P05, effect: permit, resources: ["*"], conditions: [], obligations: [auditar]}
+  - {id: S004, role: superadministrador, permission: P06, effect: permit, resources: ["*"], conditions: [], obligations: [auditar]}
+  - {id: S005, role: superadministrador, permission: P07, effect: permit, resources: ["*"], conditions: [], obligations: [auditar]}
+  - {id: S006, role: superadministrador, permission: P08, effect: permit, resources: ["*"], conditions: [], obligations: [auditar]}
+  - {id: S007, role: superadministrador, permission: P09, effect: permit, resources: ["*"], conditions: [], obligations: [auditar]}
+  - {id: S008, role: superadministrador, permission: P10, effect: permit, resources: ["*"], conditions: [], obligations: [auditar]}
+  - {id: S009, role: superadministrador, permission: P11, effect: permit, resources: ["*"], conditions: [], obligations: [auditar]}
+  - {id: S010, role: superadministrador, permission: P12, effect: permit, resources: [mitigacion], conditions: [], obligations: [auditar, notificar, ttl]}
+  - {id: S011, role: superadministrador, permission: P13, effect: permit, resources: [nodo, segmento], conditions: [], obligations: [auditar, notificar, ttl]}
+  - {id: S012, role: superadministrador, permission: P14, effect: permit, resources: [cuenta_local], conditions: [], obligations: [auditar]}
+  - {id: S013, role: superadministrador, permission: P15, effect: permit, resources: [rol, cuenta_administrativa], conditions: [], obligations: [auditar]}
+  - {id: S014, role: superadministrador, permission: P16, effect: permit, resources: [permiso, rol], conditions: [], obligations: [auditar]}
+  - {id: S015, role: superadministrador, permission: P17, effect: permit, resources: [politica_acceso, perfil], conditions: [], obligations: [auditar]}
+  - {id: S016, role: superadministrador, permission: P18, effect: permit, resources: [politica_seguridad, regla_deteccion, regla_mitigacion], conditions: [], obligations: [auditar]}
+  - {id: S017, role: superadministrador, permission: P19, effect: permit, resources: [regla_red, flujo], conditions: [], obligations: [auditar]}
+  - {id: S018, role: superadministrador, permission: P20, effect: permit, resources: [segmento, vlan], conditions: [], obligations: [auditar]}
+  - {id: S019, role: superadministrador, permission: P21, effect: permit, resources: [switch, dispositivo_red], conditions: [], obligations: [auditar]}
+  - {id: S020, role: superadministrador, permission: P22-OP, effect: permit, resources: [controlador_sdn], conditions: [], obligations: [auditar]}
+  - {id: S021, role: superadministrador, permission: P22-CFG, effect: permit, resources: [controlador_sdn], conditions: [C10], obligations: [auditar, registrar_cambio]}
+  - {id: S022, role: superadministrador, permission: P23, effect: permit, resources: [mitigacion, ids, ips, deteccion], conditions: [], obligations: [auditar]}
+  - {id: S023, role: superadministrador, permission: P24, effect: permit, resources: [cuenta_administrativa], conditions: [], obligations: [auditar]}
+  - {id: S024, role: superadministrador, permission: P25, effect: permit, resources: [auditoria], conditions: [], obligations: [auditar]}
+  - {id: S025, role: superadministrador, permission: P26, effect: permit, resources: [configuracion_global], conditions: [C10], obligations: [auditar, registrar_cambio]}
+  - {id: S026, role: superadministrador, permission: P27, effect: permit, resources: [plataforma, configuracion], conditions: [C10], obligations: [auditar, registrar_cambio]}
+  - {id: S027, role: superadministrador, permission: P29, effect: permit, resources: [solicitud_elevacion], conditions: [C4], obligations: [auditar]}
+  - {id: S028, role: superadministrador, permission: P30, effect: permit, resources: [dispositivo_privilegiado], conditions: [], obligations: [auditar]}
+  - {id: S029, role: superadministrador, permission: P31, effect: permit, resources: [sesion], conditions: [], obligations: [auditar]}
+  - {id: S030, role: superadministrador, permission: P32, effect: permit, resources: [solicitud_accion_critica], conditions: [C4], obligations: [auditar, vincular_aprobacion]}
+  - {id: S031, role: superadministrador, permission: P33, effect: permit, resources: [umbral_deteccion, rango_umbral], conditions: [], obligations: [auditar, registrar_valores]}
+  - {id: S032, role: superadministrador, permission: P34, effect: permit, resources: [clave_certificado], conditions: [], obligations: [auditar, no_registrar_secreto]}
+  - {id: S033, role: superadministrador, permission: P35, effect: permit, resources: [solicitud_registro_dispositivo], conditions: [], obligations: [auditar]}
+  - {id: S034, role: superadministrador, permission: P36, effect: permit, resources: [auditoria], conditions: [], obligations: [auditar, registrar_cambio]}
+
+# ---------------------------------------------------------------------------
+# Reglas de separación, delegación y alcance
+# ---------------------------------------------------------------------------
+
+rules:
+  - id: R-SOD-01
+    name: Sin autoaprobación
+    permissions: [P29, P32]
+    condition: requester_id != approver_id
+    effect: deny
+    description: Ningún sujeto aprueba su propia solicitud.
+
+  - id: R-SOD-02
+    name: Sin autoelevación
+    permissions: [P15, P16, P24]
+    condition: subject_id != target_id
+    effect: deny
+    description: Nadie se asigna a sí mismo un rol, permiso o cuenta administrativa.
+
+  - id: R-SOD-03
+    name: Sin privilegio por unión
+    permissions: ["*"]
+    condition: effective_permissions(subject) <= max(role.level)
+    effect: deny
+    description: La combinación de roles no supera el mayor privilegio; la delegación es la única vía de ampliación.
+
+  - id: R-DEL-01
+    name: Delegación acotada
+    permissions: [P14, P24, P30]
+    condition: delegation.exists and delegation.from == superadministrador
+    effect: deny
+    description: Solo el Superadministrador delega; el Administrador de Red recibe delegación sobre cuentas y dispositivos de TI.
+
+  - id: R-CFG-01
+    name: Configuración crítica
+    permissions: [P22-CFG, P26, P27]
+    condition: role == superadministrador and context.time_window in [mantenimiento, emergencia]
+    effect: deny
+    description: Solo el Superadministrador configura; la emergencia se declara y se audita.
+
+  - id: R-DET-01
+    name: Detección separada de mitigación
+    permissions: [P23]
+    condition: role != especialista_ti
+    effect: deny
+    description: TI mitiga y ajusta umbrales; no desactiva la detección.
+
+  - id: R-AUD-01
+    name: Auditoría separada de operación
+    permissions: [P25, P36]
+    condition: role == superadministrador
+    effect: deny
+    description: El operador consulta logs, pero no administra la auditoría.
+
+  - id: R-BG-01
+    name: Break-glass fuera de P14
+    permissions: [P14]
+    condition: resource.type == break_glass
+    effect: deny
+    description: Las cuentas de emergencia se gestionan por procedimiento offline con doble control.
+
+  - id: R-REG-01
+    name: Registro no concede confianza
+    permissions: [P30, P35]
+    condition: action.grants_trust == true
+    effect: deny
+    description: El registro de un dispositivo no otorga privilegios por sí mismo.
+
+# ---------------------------------------------------------------------------
+# Delegaciones
+# ---------------------------------------------------------------------------
+
+delegations:
+  - id: D-TI-01
+    from: superadministrador
+    to: administrador_red
+    permissions: [P14, P24, P30]
+    resource_scope: [cuenta_local_ti, cuenta_administrativa_ti, dispositivo_privilegiado_ti]
+    valid_from: "2026-10-28"
+    valid_until: "2027-01-26"
+    obligations: [auditar, justificar]
+    description: Registro y gestión de Especialistas de TI y sus dispositivos.
+
+# ---------------------------------------------------------------------------
+# Obligaciones
+# ---------------------------------------------------------------------------
+
+obligations:
+  auditar:
+    description: Registrar la decisión y el resultado en la auditoría.
+  notificar:
+    description: Notificar al afectado o al canal de operación.
+  ttl:
+    description: Fijar y respetar un tiempo de vida explícito.
+  justificar:
+    description: Exigir motivo escrito y vinculado a la solicitud.
+  registrar_cambio:
+    description: Registrar valor anterior, valor nuevo, responsable y fecha.
+  vincular_aprobacion:
+    description: Vincular la ejecución a la aprobación P32 vigente.
+  registrar_valores:
+    description: Registrar umbral anterior y nuevo, y el resultado.
+  no_registrar_secreto:
+    description: No escribir claves ni material secreto en logs o eventos.
+
+# ---------------------------------------------------------------------------
+# Escalera de prioridades
+# ---------------------------------------------------------------------------
+
+priorities:
+  mitigacion: 1000
+  sesion_privilegiada: 200
+  portal: 150
+  mac_ip_correctos: 120
+  ip_con_mac_ajena: 110
+  gestion_drop: 100
+  caminos: 20
+  dhcp_dns: 10
+  sesion_academica: 190
+  notes: >
+    La sesión académica es provisional (190) y debe quedar entre portal y
+    sesión privilegiada; el valor de despliegue se fija con la medición.

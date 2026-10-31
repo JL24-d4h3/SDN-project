@@ -111,7 +111,7 @@
 \end{minipage}
 
 \vfill
-\fbox{\parbox{0.92\linewidth}{\small\textbf{Declaración de Propósito Técnico:} Este documento es la consolidación íntegra del planeamiento de las fases A--H: el modelo de dominio, la arquitectura de alto nivel, las decisiones tecnológicas, el diseño de bajo nivel y el despliegue, unificados en una sola especificación formal. Define la separación de planos, el modelo de autorización contextual adaptativo (ABAC), la descomposición de la plataforma en diez servicios con persistencia aislada, el modelo analítico de detección de anomalías (EWMA), el presupuesto de reglas TCAM y la topología física dual-homed de ocho switches Pica8. Las cifras que el corpus declara provisionales o pendientes de medición se mantienen explícitamente como tales; no se presentan resultados experimentales que el prototipo aún no ha producido.}}
+\fbox{\parbox{0.92\linewidth}{\small\textbf{Declaración de Propósito Técnico:} Este documento es la consolidación íntegra del planeamiento de las fases A--H: el modelo de dominio, la arquitectura de alto nivel, las decisiones tecnológicas, el diseño de bajo nivel y el despliegue, unificados en una sola especificación formal. Define la separación de planos, el modelo de autorización contextual adaptativo (ABAC), la descomposición de la plataforma en diez servicios con persistencia aislada, el modelo analítico de detección de anomalías (EWMA), el presupuesto de reglas TCAM en hardware, el clúster del controlador de tres nodos y la topología física dual-homed de diez switches Pica8 con su zona de control y servicios. Las cifras que el corpus declara provisionales o pendientes de medición se mantienen explícitamente como tales; no se presentan resultados experimentales que el prototipo aún no ha producido.}}
 \vspace*{0.5cm}
 \end{titlepage}
 
@@ -147,8 +147,8 @@ El proyecto tiene como propósito diseñar, formalizar y verificar una arquitect
 El sistema se define estrictamente como la \textbf{Plataforma SDN de Seguridad}: el plano inteligente de toma de decisiones, control programable y telemetría que gobierna dinámicamente el comportamiento del plano de datos.
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Lo que forma parte del sistema:} La plataforma de servicios de seguridad (Portal, IAM/AAA, Registro, Monitor, Detección, Incidentes, Políticas, Auditoría, Consola y Adaptador del sensor), el controlador SDN (ONOS 2.7 con su motor de traducción), el intermediario de eventos (RabbitMQ), los almacenes de datos dedicados y los switches físicos Pica8/PicOS gobernados por OpenFlow 1.3.
-    \item \textbf{Lo que constituye activo protegido:} Los servicios académicos, los recursos de investigación y las bases de datos institucionales (VLAN 30), así como la integridad del plano de control y de gestión (VLAN 20 y canal OOB).
+    \item \textbf{Lo que forma parte del sistema:} La plataforma de servicios de seguridad (Portal, IAM/AAA, Registro, Monitor, Detección, Incidentes, Políticas, Auditoría, Consola y Adaptador del sensor), el controlador SDN (clúster ONOS 2.7 de tres nodos con su motor de traducción), el intermediario de eventos (RabbitMQ), los almacenes de datos dedicados y los switches físicos Pica8/PicOS gobernados por OpenFlow 1.3.
+    \item \textbf{Lo que constituye activo protegido:} Los servicios académicos, los recursos de investigación y las bases de datos institucionales (VLAN 20), así como la integridad del plano de control y de gestión (VLAN 100 y canal OOB).
     \item \textbf{Lo que constituye sistema externo:} El Proveedor de Identidad Institucional (IdP simulado con FreeRADIUS/OpenLDAP), los servicios DNS/NTP del entorno y las redes externas de Internet.
 \end{itemize}
 
@@ -192,7 +192,7 @@ La Tabla~\ref{tab:drivers} establece la correspondencia directa entre los driver
 \textbf{Driver} & \textbf{Descripción} & \textbf{Requisitos Origen} & \textbf{Decisión Arquitectónica Clave} \\
 \midrule
 \textbf{D-01} & Control de Acceso Granular & R1.1--R1.10, RP-13 & Perfil BASE por defecto; autenticación en Portal Cautivo con evaluación ABAC. \\
-\textbf{D-02} & Protección de Recursos & R2.1--R2.10 & Segmentación por VLANs y reglas de acceso hacia la VLAN 30 de servidores. \\
+\textbf{D-02} & Protección de Recursos & R2.1--R2.10 & Segmentación por VLANs y reglas de acceso hacia la VLAN 20 de servidores. \\
 \textbf{D-03} & Detección de Ataques Internos & R3.1--R3.10 & Telemetría OpenFlow vía contadores I8 y detección determinista de incoherencias. \\
 \textbf{D-04} & Mitigación DDoS / Brute-force & R4.1--R4.10 & Algoritmo EWMA en Monitor + Escalera de mitigación (Meters y Drops) en switches. \\
 \textbf{D-05} & Seguridad Perimetral & R5.1--R5.8 & Sensor IDS fuera de camino sobre puerto espejo SPAN + bloqueo en borde SDN. \\
@@ -253,7 +253,7 @@ El sistema gobierna a cuatro actores humanos y contempla tres agentes sin rol au
 \caption{Roles autorizados del sistema.}
 \end{table}
 
-La asignación de permisos sigue el catálogo cerrado P01--P30 (Anexo B). La matriz Rol $\times$ Permiso conserva las asignaciones explícitas del dominio y declara pendientes las delegaciones; no se inventa una matriz total (Anexo B).
+La asignación de permisos sigue el catálogo cerrado P01--P36 (Anexo B). La matriz Rol $\times$ Permiso está cerrada y se genera desde \texttt{implementation/policy/permisos.yaml}; las delegaciones se declaran con alcance y vigencia (Anexo B).
 
 \section{La Plataforma: Diez Servicios Independientes}
 La plataforma de software está descompuesta en \textbf{diez servicios autónomos}: siete forman el núcleo de decisión y tres completan la plataforma en sus fronteras (interacción e integración). Cada servicio mantiene su propia lógica de dominio, expone contratos de interfaz bien definidos y es dueño exclusivo de su persistencia relacional (patrón \emph{Repository}). \textbf{Ninguno se fusiona}: la granularidad lógica es una decisión cerrada; lo que admite agrupación es únicamente su despliegue físico (Capítulo 5).
@@ -288,7 +288,7 @@ La plataforma de software está descompuesta en \textbf{diez servicios autónomo
 \end{figure}
 
 \section{Taxonomía Formal de Recursos Protegidos}
-La zona de servidores (VLAN 30) se clasifica en tres activos formales:
+La zona de servidores (VLAN 20) se clasifica en tres activos formales:
 \begin{itemize}[leftmargin=*]
     \item \textbf{Servicio General (10.2.0.10 / MAC 52:54:00:02:01):} Plataformas educativas e institucionales de uso común (entorno virtual de aprendizaje, portales institucionales). Accesible para cualquier usuario con perfil ACADÉMICO.
     \item \textbf{Servicio Privilegiado (10.2.0.11 / MAC 52:54:00:02:02):} Computación avanzada e investigación. Inaccesible desde perfil BASE o ACADÉMICO estándar; requiere elevación temporal formal (P28/P29) concedida por el Administrador de Red con TTL estricto. Los laboratorios de investigación son un \emph{ejemplo} de elevación, no un servicio independiente.
@@ -296,18 +296,19 @@ La zona de servidores (VLAN 30) se clasifica en tres activos formales:
 \end{itemize}
 
 \section{El Controlador SDN y las Interfaces}
-ONOS cumple el papel de controlador central de decisión de la red: aprende topología y asociaciones, traduce órdenes de alto nivel a primitivas OpenFlow, confirma y retira reglas. \textbf{No autentica usuarios ni decide la política de seguridad.} El sistema queda articulado por ocho interfaces:
+ONOS cumple el papel de controlador central de decisión de la red, desplegado como \textbf{clúster de tres nodos} (ONOS-1 `.20`, ONOS-2 `.30`, ONOS-3 `.40`; consenso Atomix/Raft, I9): aprende topología y asociaciones, traduce órdenes de alto nivel a primitivas OpenFlow, confirma y retira reglas. Un maestro por dispositivo (`OFPT_ROLE_REQUEST` con generation\_id); si un nodo cae, sus switches piden MASTER a otro y el nuevo maestro reconcilia — reinstala lo faltante, no barre lo vigente. \textbf{No autentica usuarios ni decide la política de seguridad.} El sistema queda articulado por nueve interfaces:
 
 \begin{longtable}{p{0.12\linewidth}p{0.23\linewidth}p{0.56\linewidth}}
 \toprule
-I1 & Southbound & ONOS $\leftrightarrow$ Pica8/PicOS, OpenFlow 1.3, TCP 6653, canal out-of-band exclusivo por \texttt{ma1} (whitelist del controlador; latido \texttt{ECHO} cada 5 s, tres perdidos declaran el canal caído). \\
-I2 & Northbound & Servicios $\leftrightarrow$ ONOS; órdenes de alto nivel y confirmación (Capítulo 4). \\
+I1 & Southbound & ONOS $\leftrightarrow$ Pica8/PicOS, OpenFlow 1.3, TCP 6653; prototipo fuera de banda por \texttt{ma1} (whitelist de los tres controladores; latido \texttt{ECHO} cada 5 s, tres perdidos declaran el canal caído); diseño in-band por la VLAN 100 priorizada (cola estricta, DSCP CS6, regla de canal p65000). \\
+I2 & Northbound & Servicios $\leftrightarrow$ ONOS; REST/HTTPS · JSON · TCP 8181; órdenes de alto nivel y confirmación — cualquier nodo del clúster atiende (Capítulo 4). \\
 I3 & Portal & Poblaciones $\leftrightarrow$ Portal/IAM. \\
-I4 & Identidad & IAM $\leftrightarrow$ IdP institucional: RADIUS 1812/1813 + directorio LDAP; TOTP para operadores. \\
-I5 & Eventos & Servicios $\leftrightarrow$ RabbitMQ (Capítulo 3). \\
-I6 & Persistencia & Servicio $\leftrightarrow$ repositorio/base propia. \\
-I7 & Administración & Consola $\leftrightarrow$ servicios. \\
-I8 & Observación & Monitor obtiene contadores a través de ONOS: conjunto caliente cada 5 s, barrido completo cada 60 s. \\
+I4 & Identidad & IAM $\leftrightarrow$ IdP institucional: RADIUS 1812/1813 + directorio LDAP 389; TOTP para operadores. \\
+I5 & Eventos & Servicios $\leftrightarrow$ RabbitMQ (AMQP 0-9-1, TCP 5672) (Capítulo 3). \\
+I6 & Persistencia & Servicio $\leftrightarrow$ repositorio/base propia (PostgreSQL, TCP 5432). \\
+I7 & Administración & Consola $\leftrightarrow$ servicios (REST/HTTPS, sesión del operador). \\
+I8 & Observación & Monitor obtiene contadores a través de ONOS (REST GET \texttt{/contadores} $\rightarrow$ MULTIPART): conjunto caliente cada 5 s, barrido completo cada 60 s. \\
+I9 & Clúster & ONOS $\leftrightarrow$ ONOS: Atomix/Raft, TCP 5679 (mensajería) y 9876 (clúster); replica cookies, asociaciones, inventario de servicios y órdenes en curso — la verdad de las reglas vive en el switch. \\
 \bottomrule
 \end{longtable}
 
@@ -491,10 +492,10 @@ $T_{\text{ASIC}}$ & Programación física de TCAM / Meters en Pica8 PicOS & 0.02
 \chapter{Vista de Control y Conmutación: OpenFlow 1.3 y TCAM}
 
 \section{El Controlador y su Motor de Traducción}
-ONOS 2.7 LTS (\texttt{10.0.0.20}) actúa estrictamente como la capa de abstracción de red y traductor de políticas. En su interior corre una aplicación personalizada (\emph{SDN Security Translation Engine}) que expone la API Northbound $I2$ y habla OpenFlow 1.3 mediante el canal Southbound $I1$.
+ONOS 2.7 LTS, en clúster de tres nodos (\texttt{10.0.0.20}/.30/.40) con consenso Atomix/Raft, actúa estrictamente como la capa de abstracción de red y traductor de políticas. En su interior corre una aplicación personalizada (\emph{SDN Security Translation Engine}) que expone la API Northbound $I2$ y habla OpenFlow 1.3 mediante el canal Southbound $I1$.
 
 \subsection{La Interfaz Northbound I2}
-La interfaz $I2$ es una API REST/JSON autenticada sobre TLS en la red de gestión. Expone los siguientes contratos formales:
+La interfaz $I2$ es una API REST/HTTPS · JSON · TCP 8181 autenticada sobre TLS en la red de gestión; con el clúster desplegado, \textbf{cualquier nodo} (`.20`/`.30`/`.40`) la atiende — si el nodo que recibe la orden no es maestro del switch destino, el estado se coordina por Atomix y el maestro emite el \texttt{FLOW\_MOD}. Expone los siguientes contratos formales:
 \begin{itemize}[leftmargin=*]
     \item \texttt{POST /api/v1/ordenes}: Invocado por Políticas. Acepta los comandos:
     \begin{enumerate}
@@ -505,7 +506,7 @@ La interfaz $I2$ es una API REST/JSON autenticada sobre TLS en la red de gestió
     \item \textbf{Consultas:} la familia \texttt{GET} (\texttt{/api/v1/ordenes}, \texttt{/api/v1/ordenes/\{id\}}, \texttt{/api/v1/dispositivos}, \texttt{/api/v1/sesiones}) materializa el comando \texttt{CONSULTAR}: inventario de servicios, dispositivos, sesiones y estado de órdenes, sin efectos sobre el plano de datos.
     \item \textbf{Cuarentena:} \texttt{QUARANTINE} exige el identificador de \textbf{aprobación} humana en la orden; sin aprobación la orden se rechaza.
     \item \textbf{Idempotencia y confirmación:} toda orden lleva identificador y \texttt{cookie} derivada; reenviar una orden no duplica reglas. La confirmación es de dos niveles: \texttt{APLICADA} (regla instalada) y verificación posterior del efecto en el tráfico (PENDIENTE hasta el \texttt{MitigationVerified} del Monitor).
-    \item \textbf{Errores:} 400 (orden malformada), 401/403 (sin autorización), 404 (recurso desconocido), 409 (conflicto de estado), 503 (controlador no disponible).
+    \item \textbf{Errores:} 400 (orden malformada), 401/403 (sin autorización), 404 (recurso desconocido), 409 (conflicto de estado), 503 (nodo no disponible — el cliente reintenta en el siguiente nodo del clúster).
 \end{itemize}
 
 \subsection{La Convención de Cookies OpenFlow de 64 bits}
@@ -532,6 +533,7 @@ mitigación (1000)  >  sesión y elevación (200)  >  esqueleto BASE (150-100)
 \toprule
 \textbf{Prioridad} & \textbf{Propósito / Regla} & \textbf{Match} & \textbf{Acción} \\
 \midrule
+65000 & Canal de control (solo diseño in-band) & TCP 6653 $\leftrightarrow$ ONOS · LLDP & reenviar hacia/desde la zona de control; cola estricta, DSCP CS6 \\
 1000 & Mitigación \texttt{RATE\_LIMIT} & origen $\rightarrow$ objetivo & \texttt{meter} (banda de descarte a la tasa) $\rightarrow$ caminos \\
 1000 & Mitigación \texttt{BLOCK\_SOURCE} & origen (cualquier destino) & \texttt{DROP} \\
 1000 & \texttt{ISOLATE\_DEVICE} / \texttt{QUARANTINE} & dispositivo & \texttt{DROP} total \\
@@ -599,19 +601,20 @@ N_{\text{máximo}}(A1) = 96 + 64 + 8 + 20 = \mathbf{188\text{ reglas}}
 \textbf{Rol del Switch en Topología} & \textbf{Flujos Nominales} & \textbf{Flujos Peor Caso} & \textbf{Capacidad supuesta} & \textbf{Utilización Máxima} \\
 \midrule
 Acceso Usuarios ($A1$, $A2$) & 120 & 188 & 2,000 & 9.40\% \\
-Acceso Servidores ($A3$) & 22 & 31 & 2,000 & 1.55\% \\
 Acceso Borde ($A4$) & 25 & 35 & 2,000 & 1.75\% \\
+Acceso Libre ($A3$) & 14 & 22 & 2,000 & 1.10\% \\
 Distribución ($D1$, $D2$) & 20 & 36 & 2,000 & 1.80\% \\
 Núcleo ($NC1$, $NC2$) & 18 & 36 & 2,000 & 1.80\% \\
+Zona de servicios ($C1$, $C2$) & 32 & 44 & 2,000 & 2.20\% \\
 \midrule
-\textbf{Total en Red Completa (8 switches)} & \textbf{363 reglas} & \textbf{586 reglas} & \textbf{16,000 globales} & \textbf{3.66\% global} \\
+\textbf{Total en Red Completa (10 switches)} & \textbf{440 reglas} & \textbf{665 reglas} & \textbf{20,000 globales} & \textbf{3.33\% global} \\
 \bottomrule
 \end{tabularx}
 \caption{Presupuesto de reglas por switch (capacidad de 2,000 entradas como supuesto de partida).}
 \label{tab:tcam}
 \end{table}
 
-\decision{Envolvente de diseño}{La envolvente nominal del corpus es \textbf{350--450 entradas repartidas en los ocho switches} (G-06, H-01). El desglose nominal de la tabla (363) cae dentro; el peor caso (586) excede la envolvente y debe medirse. Hasta disponer de la cuenta exacta por función y de la medición del switch real, se utiliza \textbf{450 entradas como techo de planificación conservador}.}
+\decision{Envolvente de diseño}{La envolvente nominal del corpus es \textbf{420--520 entradas repartidas en los diez switches} (G-06, H-01): nominal $\approx$ 440, peor caso concurrente $\approx$ 665. Hasta disponer de la cuenta exacta por función y de la medición del switch real, se utilizan \textbf{520 entradas como techo de planificación conservador}. El diseño in-band (referencia) suma +4 reglas por switch — canal de control y LLDP.}
 
 \pending{Capacidad TCAM real}{La capacidad de 2,000 flujos por Pica8/PicOS es un \textbf{supuesto de partida}, no una medición. El experimento definido es instalar entradas por lotes hasta recibir \texttt{OFPFMFC\_TABLE\_FULL} y reportar la cifra por tabla. Sin esa cifra no es válido presentar un porcentaje de utilización definitivo:
 \[
@@ -625,21 +628,22 @@ U_{TCAM}=\frac{N_{reglas}}{N_{capacidad}}\times100\%.
 \chapter{Vista Física: Data Plane, Despliegue y Materialización}
 
 \section{Topología Física del Prototipo}
-La infraestructura de conmutación se compone de \textbf{ocho switches físicos Pica8} enlazados en una jerarquía estricta de tres niveles con doble enlace ascendente (\emph{dual-homed}):
+La infraestructura de conmutación se compone de \textbf{diez switches físicos Pica8} enlazados en una jerarquía estricta con doble enlace ascendente (\emph{dual-homed}):
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Capa de Núcleo:} $NC1$ y $NC2$ interconectados por un enlace inter-núcleo directo en sus interfaces $p3 \leftrightarrow p3$, transportando tráfico 802.1Q de todas las VLANs de datos.
+    \item \textbf{Zona de control y servicios:} $C1$ y $C2$ cuelgan la plataforma, el clúster ONOS y los servidores protegidos directamente del núcleo (VLAN 100/20 por el trunk de NIC-A), cada uno con enlace directo y cruzado a $NC1$/$NC2$, y enlazados entre sí ($C1\ p3 \leftrightarrow C2\ p3$).
+    \item \textbf{Capa de Núcleo:} $NC1$ y $NC2$ interconectados por un enlace inter-núcleo directo en sus interfaces $p3 \leftrightarrow p3$, transportando tráfico 802.1Q de las VLANs de datos.
     \item \textbf{Capa de Distribución:} $D1$ y $D2$ conectados hacia ambos núcleos por sus puertos $p1/p2$ ($p1 \leftrightarrow NC1$, $p2 \leftrightarrow NC2$).
-    \item \textbf{Capa de Acceso:} $A1, A2, A3, A4$ con redundancia física: cada acceso conecta su puerto $p1$ a $D1$ y su puerto $p2$ a $D2$. Total: \textbf{13 enlaces inter-switch}.
+    \item \textbf{Capa de Acceso:} $A1, A2, A3, A4$ con redundancia física: cada acceso conecta su puerto $p1$ a $D1$ y su puerto $p2$ a $D2$. Total: \textbf{18 enlaces inter-switch}.
 \end{itemize}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{diagramas/d2_topologia_fisica.pdf}
-\caption{Ocho switches y 13 enlaces entre switches, con el plano de puertos, las NIC del servidor, el espejo del perímetro y el canal OOB.}
+\caption{Diez switches y 18 enlaces entre switches, con la zona de control y servicios C1/C2 colgada del núcleo, el plano de puertos, las NIC del servidor, el espejo del perímetro y el canal OOB.}
 \end{figure}
 
-\textbf{Papeles por switch:} A1/A2 --- ingreso de usuarios y operadores (política de ingreso); A3 --- servidores y gestión; A4 --- borde externo y espejo perimetral; D1/D2 --- agregación y caminos; NC1/NC2 --- núcleo. Con orígenes de ataque en A1, A2 y A4, un ataque distribuido se mitiga \textbf{simultáneamente en tres switches de ingreso} (P9) — la demostración de concurrencia.
+\textbf{Papeles por switch:} A1/A2 --- ingreso de usuarios y operadores (política de ingreso); A3 --- **libre**, solo esqueleto, reservado para crecimiento; A4 --- borde externo y espejo perimetral; D1/D2 --- agregación y caminos; NC1/NC2 --- núcleo; **C1/C2 --- zona de control y servicios**, segundo punto de control que repite el DROP a gestión (defensa en profundidad). Con orígenes de ataque en A1, A2 y A4, un ataque distribuido se mitiga \textbf{simultáneamente en tres switches de ingreso} (P9) — la demostración de concurrencia, con cada maestro ONOS instalando en sus switches.
 
 \section{Plano de Puertos, Espejo SPAN e Hipervisor}
 El servidor de laboratorio actúa como hipervisor KVM/libvirt alojando los terminales virtuales y la plataforma de contenedores. Se conecta físicamente mediante 5 interfaces dedicadas:
@@ -655,15 +659,17 @@ $A1$ / $p3$--$p19$ & Acceso de usuarios & 10 Untagged & Equipos físicos del lab
 $A1$ / $p20$ & Hipervisor \texttt{NIC-B} & 10 Untagged & Los 16 hosts académicos virtuales comparten este puerto. \\
 $A2$ / $p3$--$p5$ & Acceso de usuarios & 10 Untagged & Equipos físicos. \\
 $A2$ / $p6$ & Hipervisor \texttt{NIC-E} & 10 Untagged & Operadores, atacante interno y el puente de la demostración \texttt{MAC\_Moved}. \\
-$A3$ / $p3$--$p5$ & Servidores virtuales & 30 Untagged & Los activos protegidos, uno por puerto (\texttt{10.2.0.10}--\texttt{.12}). \\
-$A3$ / $p6$ & Hipervisor \texttt{NIC-A} & 20 Tagged & Trunk de gestión: por aquí conecta todo el plano de contenedores. \\
-$A4$ / $p3$ & Acceso externo & 40 Untagged & Equipo externo real, si el laboratorio lo ofrece. \\
-$A4$ / $p4$ & Hipervisor \texttt{NIC-C} & 40 Tagged & La VM atacante externa (\texttt{10.3.0.10}). \\
+$A3$ / $p3$--$p19$ & Reservados & --- & \textbf{Libre en v2} — solo esqueleto; reservado para crecimiento. \\
+$A4$ / $p3$ & Acceso externo & 30 Untagged & Equipo externo real, si el laboratorio lo ofrece. \\
+$A4$ / $p4$ & Hipervisor \texttt{NIC-C} & 30 Tagged & La VM atacante externa (\texttt{10.3.0.10}). \\
 $A4$ / $p47$ $\rightarrow$ \texttt{NIC-D} & Espejo del perímetro & --- & Replica el ingreso del segmento externo (p3+p4) hacia el sensor; el sensor solo recibe, nunca emite por esta interfaz. \\
-$D1$/$D2$ $p1$/$p2$ & Trunks de distribución & 10, 20, 30, 40 (tagged) & Cada distribución llega a ambos núcleos. \\
+$D1$/$D2$ $p1$/$p2$ & Trunks de distribución & 10, 100, 30 (tagged) & Cada distribución llega a ambos núcleos. \\
 $D1$/$D2$ $p3$--$p6$ & Trunks de acceso & según el acceso & La agregación de los cuatro accesos. \\
-$NC1$ $p3$ $\leftrightarrow$ $NC2$ $p3$ & Enlace de núcleo & 10, 20, 30, 40 (tagged) & El núcleo es un par enlazado, no un anillo. \\
-\texttt{ma1} $\times$8 & Canal de control & --- & OpenFlow fuera de banda; whitelist del controlador. \\
+$NC1$ $p3$ $\leftrightarrow$ $NC2$ $p3$ & Enlace de núcleo & 10, 100, 30 (tagged) & El núcleo es un par enlazado, no un anillo. \\
+$NC1$/$NC2$ $p4$/$p5$ $\leftrightarrow$ $C1$/$C2$ & Trunks de la zona de servicios & 100, 20 (tagged) & Directo y cruzado: cada C llega a ambos núcleos. \\
+$C1$ $p3$ $\leftrightarrow$ $C2$ $p3$ & Enlace de la zona & 100, 20 (tagged) & La zona es un par enlazado, igual que el núcleo. \\
+$C1$/$C2$ $p6$ $\leftrightarrow$ \texttt{NIC-A} & Trunk de la plataforma & 100, 20 (tagged) & Por aquí entran los diez servicios, el clúster ONOS, las bases, el IdP y los tres servidores protegidos. \\
+\texttt{ma1} $\times$10 & Canal de control & --- & OpenFlow fuera de banda; whitelist de los tres controladores. \\
 \bottomrule
 \end{tabularx}
 \caption{Plano detallado de asignación de puertos y cableado de datos.}
@@ -684,9 +690,9 @@ $NC1$ $p3$ $\leftrightarrow$ $NC2$ $p3$ & Enlace de núcleo & 10, 20, 30, 40 (ta
 \toprule
 \textbf{Segmento} & \textbf{Subred} & \textbf{Hosts} & \textbf{Nota} \\
 \midrule
-GESTIÓN & \texttt{10.0.0.0/24} & \textbf{la plataforma:} portal \texttt{10.0.0.5} · IAM \texttt{.10} · registro \texttt{.11} · monitor \texttt{.12} · detección \texttt{.13} · incidentes \texttt{.14} · políticas \texttt{.15} · auditoría \texttt{.16} · consola \texttt{.17} · adaptador del sensor \texttt{.18} --- \textbf{la infraestructura:} controlador (ONOS) \texttt{.20} · intermediario (RabbitMQ) \texttt{.21} · persistencia (PostgreSQL) \texttt{.22} · identidad institucional (FreeRADIUS \texttt{.23} + directorio \texttt{.24}) · tiempo (chrony) \texttt{.25} · visualización (Grafana) \texttt{.26} · DNS \texttt{.28} --- \textbf{el sensor perimetral (Suricata, VM):} \texttt{.27} (gestión; el espejo no lleva IP) & El portal conserva la dirección de los flujos (\texttt{10.0.0.5}); es la única superficie que BASE alcanza, y solo por la regla 150. \\
+GESTIÓN & \texttt{10.0.0.0/24} & \textbf{la plataforma:} portal \texttt{10.0.0.5} · IAM \texttt{.10} · registro \texttt{.11} · monitor \texttt{.12} · detección \texttt{.13} · incidentes \texttt{.14} · políticas \texttt{.15} · auditoría \texttt{.16} · consola \texttt{.17} · adaptador del sensor \texttt{.18} --- \textbf{la infraestructura:} controlador (clúster ONOS: \texttt{.20} · \texttt{.30} · \texttt{.40}) · intermediario (RabbitMQ) \texttt{.21} · persistencia (PostgreSQL) \texttt{.22} · identidad institucional (FreeRADIUS \texttt{.23} + directorio \texttt{.24}) · tiempo (chrony) \texttt{.25} · visualización (Grafana) \texttt{.26} · DNS \texttt{.28} --- \textbf{el sensor perimetral (Suricata, VM):} \texttt{.27} (gestión; el espejo no lleva IP) & El portal conserva la dirección de los flujos (\texttt{10.0.0.5}); es la única superficie que BASE alcanza, y solo por la regla 150. Los tres nodos ONOS comparten la VLAN 100; su canal hacia los switches va por la red OOB (\texttt{ma1}), nunca por esta subred. \\
 USUARIOS & \texttt{10.1.0.0/24} & académicos \texttt{.10}--\texttt{.25} · operadores \texttt{.30}--\texttt{.31} · atacante interno \texttt{.50} & Política de ingreso en A1 y A2. \\
-SERVIDORES & \texttt{10.2.0.0/24} & general \texttt{.10} · privilegiado \texttt{.11} · crítico \texttt{.12} & Los activos protegidos de R2; ingreso por A3. \\
+SERVIDORES & \texttt{10.2.0.0/24} & general \texttt{.10} · privilegiado \texttt{.11} · crítico \texttt{.12} & Los activos protegidos de R2; ingresan por la zona C1/C2 (VLAN 20, trunk de NIC-A). \\
 EXTERNA & \texttt{10.3.0.0/24} & atacante externo \texttt{.10} & Origen de los escenarios R5; ingreso por A4. \\
 \bottomrule
 \end{tabularx}
@@ -705,17 +711,17 @@ Los hosts usan IP estáticas por reproducibilidad; el DNS interno (\texttt{10.0.
 \textbf{VLAN} & \textbf{Subred} & \textbf{Segmento} & \textbf{Propósito} \\
 \midrule
 10 & 10.1.0.0/24 & USUARIOS & académicos, operadores, atacante interno. \\
-20 & 10.0.0.0/24 & GESTIÓN & plataforma, ONOS, broker, persistencia, identidad, DNS, visualización. \\
-30 & 10.2.0.0/24 & SERVIDORES & activos protegidos de R2. \\
-40 & 10.3.0.0/24 & EXTERNA & origen de escenarios R5. \\
+100 & 10.0.0.0/24 & GESTIÓN & plataforma, ONOS, broker, persistencia, identidad, DNS, visualización. \\
+20 & 10.2.0.0/24 & SERVIDORES & activos protegidos de R2. \\
+30 & 10.3.0.0/24 & EXTERNA & origen de escenarios R5. \\
 \bottomrule
 \end{tabularx}
 \caption{Los cuatro segmentos del prototipo.}
 \end{table}
 
-La VLAN agrupa y direcciona; \textbf{no concede permisos}. El aislamiento y la autorización viven en las reglas del pipeline (prioridades 100/200). El aislamiento se materializa además en el cableado: gestión separada por canal OOB, espejo dedicado, servidores en VLAN 30, servicios de plataforma en VLAN 20, usuarios y atacantes internos en VLAN 10, segmento externo en VLAN 40.
+La VLAN agrupa y direcciona; \textbf{no concede permisos}. El aislamiento y la autorización viven en las reglas del pipeline (prioridades 100/200). El aislamiento se materializa además en el cableado: gestión separada por canal OOB, espejo dedicado, servidores en VLAN 20, servicios de plataforma en VLAN 100, usuarios y atacantes internos en VLAN 10, segmento externo en VLAN 30. La VLAN 1 queda sin uso: es la VLAN por defecto, viaja sin etiquetar como nativa y es la superficie clásica del salto de VLAN.
 
-\criticalnote{La coexistencia entre la VLAN 20 de gestión y el canal OpenFlow out-of-band debe mantenerse explícita: la VLAN 20 es un segmento del plano de datos por el que los usuarios alcanzan el portal; \texttt{ma1} es el canal físico/lógico de control. No deben dibujarse como si fueran la misma red. Los flujos OpenFlow jamás circulan por la VLAN 20.}
+\criticalnote{La coexistencia entre la VLAN 100 de gestión y el canal OpenFlow out-of-band debe mantenerse explícita: la VLAN 100 es un segmento del plano de datos por el que los usuarios alcanzan el portal; \texttt{ma1} es el canal físico/lógico de control. No deben dibujarse como si fueran la misma red. Los flujos OpenFlow jamás circulan por la VLAN 100.}
 
 \section{VMs y Contenedores: las Dos Familias}
 La regla de ejecución: \textbf{todo elemento que deba poseer una identidad de red individual y puerto de conmutación es una Máquina Virtual; todo proceso de servicio sin identidad de red propia es un Contenedor}.
@@ -731,7 +737,7 @@ Los diez servicios de §2.3 corren sobre imagen propia — Python 3.12, un solo 
 \toprule
 \textbf{Papel} & \textbf{Se materializa con} & \textbf{Nota} \\
 \midrule
-Controlador SDN & ONOS 2.7 LTS & instancia única en el prototipo; clúster en la referencia. \\
+Controlador SDN & ONOS 2.7 LTS & clúster de 3 nodos desplegado (Atomix/Raft); en la referencia, repartido en hosts físicos distintos. \\
 Intermediario de eventos & RabbitMQ 3.13 & colas, desacoplamiento, recuperación. \\
 Persistencia & PostgreSQL 16 & una base por servicio (\texttt{bd\_iam}, \texttt{bd\_registro}, \texttt{bd\_monitor}, \texttt{bd\_incidentes}, \texttt{bd\_politicas}, \texttt{bd\_auditoria}). \\
 Identidad institucional (IdP simulado) & FreeRADIUS 3.2 + OpenLDAP & integración de la comunidad académica y directorio. \\
@@ -752,7 +758,7 @@ DNS del entorno & dnsmasq & resuelve los nombres del laboratorio. \\
 \toprule
 \textbf{Grupo} & \textbf{Cant.} & \textbf{Identidad / IP} & \textbf{Recursos} \\
 \midrule
-Hosts académicos & 16 & \texttt{52:54:00:01:01}--\texttt{:01:10} · \texttt{10.1.0.10}--\texttt{.25} & 1 vCPU, 1 GB \\
+Hosts académicos & 16 & \texttt{52:54:00:01:01}--\texttt{:01:10} · \texttt{10.1.0.10}--\texttt{.25} & 1 vCPU, 512 MB \\
 Hosts de operadores & 2 & \texttt{52:54:00:04:01}--\texttt{.02} · \texttt{10.1.0.30}--\texttt{.31} & 1 vCPU, 1 GB \\
 Atacante interno & 1 & \texttt{52:54:00:03:02} · \texttt{10.1.0.50} & 1 vCPU, 1 GB \\
 Atacante externo & 1 & \texttt{52:54:00:03:01} · \texttt{10.3.0.10} & 1 vCPU, 1 GB \\
@@ -764,7 +770,7 @@ Sensor perimetral (Suricata) & 1 & 2 NIC (espejo RX + gestión) · \texttt{10.0.
 \label{tab:vms}
 \end{table}
 
-\textbf{Total del servidor: 24 VMs} (23 de host a 1 GB + el sensor a 2 GB, $\approx$ 25 GB) y contenedores $\approx$ 8 GB $\rightarrow$ dimensionamiento de 32 GB declarado, con la variante recortada de 16 GB (10 hosts de usuario y 2 servidores). La convención de MAC (\texttt{52:54:00:xx:yy}, tercer octeto = clase) es legible en cualquier captura; la clase se usa para el reporte, \textbf{jamás} como criterio de seguridad.
+\textbf{Total del servidor: 24 VMs} (16 académicos a 512 MB = 8 GB · 7 de host a 1 GB = 7 GB · el sensor a 2 GB $\rightarrow$ $\approx$ 17 GB) y contenedores $\approx$ 12 GB (incluidos los \textbf{tres nodos ONOS a 2 GB cada uno}) $\rightarrow$ $\approx$ 29 GB de los 32 GB declarados — margen estrecho; los académicos bajaron a 512 MB (imagen mínima) para que el clúster quepa. La variante recortada de 16 GB recorta el escenario a 10 hosts y 2 servidores. La convención de MAC (\texttt{52:54:00:xx:yy}, tercer octeto = clase) es legible en cualquier captura; la clase se usa para el reporte, \textbf{jamás} como criterio de seguridad.
 
 \section{Despliegue Agrupado por Afinidad (sin Fusionar)}
 La arquitectura lógica no se fusiona. La vista de despliegue agrupa servicios por afinidad para reducir coste y facilitar operación — \textbf{los servicios siguen siendo procesos distintos con fronteras intactas}:
@@ -772,7 +778,7 @@ La arquitectura lógica no se fusiona. La vista de despliegue agrupa servicios p
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{diagramas/d4_despliegue_afinidad.pdf}
-\caption{Agrupación de despliegue por afinidad. No modifica las fronteras de los diez servicios: IAM y Registro pueden residir en el mismo host mientras siguen siendo procesos distintos. La distribución exacta queda sujeta a CPU/RAM y pruebas de carga.}
+\caption{Agrupación de despliegue por afinidad. No modifica las fronteras de los diez servicios: IAM y Registro pueden residir en el mismo host mientras siguen siendo procesos distintos. En la infraestructura viven también los tres nodos ONOS (`.20`/`.30`/`.40`, 2 GB cada uno). La distribución exacta queda sujeta a CPU/RAM y pruebas de carga.}
 \end{figure}
 
 El despliegue de partida documentado en la Fase H es un contenedor por servicio; esta agrupación es la vista física alternativa que puede implementarse sin fusionar. La independencia de despliegue es una capacidad, no la obligación de ejecutar cada servicio en un host separado — y es la misma descomposición que un despliegue en nube heredaría sin cambios.
@@ -781,10 +787,10 @@ El despliegue de partida documentado en la Fase H es un contenedor por servicio;
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{diagramas/d5_dependencias_arranque.pdf}
-\caption{Grafo de dependencias de arranque: tiempo $\rightarrow$ persistencia $\rightarrow$ intermediario $\rightarrow$ controlador y switches $\rightarrow$ identidad $\rightarrow$ servicios $\rightarrow$ sensor y visualización.}
+\caption{Grafo de dependencias de arranque: tiempo $\rightarrow$ persistencia $\rightarrow$ intermediario $\rightarrow$ controlador y switches $\rightarrow$ identidad $\rightarrow$ servicios $\rightarrow$ sensor y visualización. En el paso del controlador, primero se forma el clúster ONOS (tres nodos, Atomix con quórum) y recién entonces se conectan los switches.}
 \end{figure}
 
-La propiedad operacional importante es el \textbf{arranque degradado}: si un servicio de plataforma falla, las reglas ya instaladas en los switches no desaparecen; los privilegios y mitigaciones temporales expiran según su timeout, y el resto de la red sigue operando (P2, P10).
+La propiedad operacional importante es el \textbf{arranque degradado}: si un servicio de plataforma falla, las reglas ya instaladas en los switches no desaparecen; los privilegios y mitigaciones temporales expiran según su timeout, y el resto de la red sigue operando (P2, P10). En el diseño in-band (referencia), el arranque es escalonado desde C1 — cada tramo instala el canal del siguiente (p65000) antes de cualquier regla de usuario.
 
 % ==============================================================================
 % CAPÍTULO 6
@@ -799,7 +805,7 @@ La solución cubre de extremo a extremo los casos de uso contractuales del proye
     \item \textbf{CU-05 (Port / Network Scanning --- R3):} Atacante sondea múltiples destinos $\rightarrow$ Monitor detecta dispersión de destinos en 60 s ($>20$) $\rightarrow$ Detección emite \texttt{AnomalyDetected} $\rightarrow$ Políticas escala a \texttt{RATE\_LIMIT} o \texttt{BLOCK\_SOURCE}.
     \item \textbf{CU-06 (IP / MAC Spoofing --- R3):} Host altera su dirección IP declarada $\rightarrow$ coincide con prioridad 110 (\texttt{Anti-spoofing}) al no coincidir con el par aprendido en prioridad 120 $\rightarrow$ descarte inmediato en ASIC. Si mueve su MAC a otro switch ($A1 \rightarrow A2$), el controlador detecta incoherencia determinista, se emite \texttt{MAC\_Moved}, IAM invalida la sesión y el puerto retorna a BASE.
     \item \textbf{CU-07 (DDoS Brute-Force Interno --- R4):} Inundación hacia \texttt{10.2.0.10} $\rightarrow$ Monitor detecta superación del umbral EWMA durante 15 s $\rightarrow$ Políticas ordena \texttt{APLICAR\_MITIGACION} $\rightarrow$ ONOS programa \texttt{METER\_MOD} de descarte (35 Mbps inicial) en los switches de ingreso $\rightarrow$ Monitor mide tráfico residual y emite \texttt{MitigationVerified}.
-    \item \textbf{CU-08 (Ataque Externo Perimetral --- R5):} Atacante en VLAN 40 emite exploits hacia el borde $\rightarrow$ tráfico replicado por SPAN $A4/p47$ a Suricata $\rightarrow$ Suricata detecta firma y escribe alerta en \texttt{eve.json} $\rightarrow$ el Adaptador la publica como \texttt{AnomalyDetected} $\rightarrow$ Políticas ordena bloqueo de IP en $A4$.
+    \item \textbf{CU-08 (Ataque Externo Perimetral --- R5):} Atacante en VLAN 30 emite exploits hacia el borde $\rightarrow$ tráfico replicado por SPAN $A4/p47$ a Suricata $\rightarrow$ Suricata detecta firma y escribe alerta en \texttt{eve.json} $\rightarrow$ el Adaptador la publica como \texttt{AnomalyDetected} $\rightarrow$ Políticas ordena bloqueo de IP en $A4$.
     \item \textbf{CU-09 y CU-10 (Gestión de Políticas y Recuperación):} Administrador ajusta umbral desde la Consola $I7$ $\rightarrow$ expiración del ataque por timeout $\rightarrow$ switch emite \texttt{FLOW\_REMOVED} $\rightarrow$ retiro de reglas por cookie $\rightarrow$ restablecimiento automático del estado nominal (P10).
 \end{itemize}
 
@@ -814,8 +820,10 @@ El diseño de resiliencia garantiza degradación elegante sin interrupción del 
 \textbf{Elemento Afectado} & \textbf{Detección} & \textbf{Comportamiento y Recuperación} & \textbf{Métrica a Medir} \\
 \midrule
 Corte de enlace de acceso ($A1 \leftrightarrow D1$) & Mensaje OpenFlow \texttt{PORT\_STATUS} en ONOS & Grupo \emph{Fast-Failover} conmuta localmente al enlace $A1 \leftrightarrow D2$ sin intervención del controlador, si la verificación V3 lo confirma; si no, el controlador recalcula caminos por D2. & Tiempo de conmutación (objetivo $\le 50$ ms). \\
-Caída de switch de núcleo ($NC1$) & Pérdida de adyacencia LLDP & ONOS recalcula caminos redirigiendo la distribución a través de $NC2$; la red queda completa. & Tiempo de convergencia global. \\
-Caída temporal del Controlador & Switches detectan pérdida de latido \texttt{ECHO} (3 latidos perdidos, 15 s) & Los switches conservan los flujos instalados hasta su timeout: no hay nuevas admisiones, el tráfico vigente continúa. & Consistencia de sesiones vigentes. \\
+Caída de switch de núcleo ($NC1$) & Pérdida de adyacencia LLDP & ONOS recalcula caminos redirigiendo la distribución a través de $NC2$; la red queda completa y C1 sigue por su enlace cruzado. & Tiempo de convergencia global. \\
+Caída de la zona ($C1$) & \texttt{PORT\_STATUS} & Servidores, plataforma y ONOS siguen por C2 (zona dual-homed); ninguna sesión se pierde. & Pérdida de paquetes. \\
+Caída de un nodo ONOS & Latido \texttt{ECHO} (3 perdidos, 15 s) & Sus switches piden MASTER a los otros dos (re-elección Raft + \texttt{ROLE\_REQUEST}); las reglas instaladas quedan intactas y las decisiones nuevas continúan. & Tiempo de re-maestría (M3). \\
+Caída de dos nodos ONOS (sin quórum) & Pérdida de mayoría en Atomix & Las reglas instaladas siguen hasta su timeout; las decisiones nuevas esperan — degradación declarada, nunca silenciosa. & Duración de degradación. \\
 Caída del Intermediario (RabbitMQ) & Excepción de conexión en clientes & Los servicios bufferizan localmente en RAM (hasta 10,000 mensajes) con retroceso exponencial; colas durables + DLQ. & Cero eventos perdidos tras reconexión. \\
 Caída de un servicio de plataforma & Health check & Sus consumos se acumulan en su cola; las mitigaciones vigentes siguen por timeout. & Duración de degradación. \\
 Caída del sensor (Suricata) & Health check de la VM & Se pierde detección perimetral R5 temporalmente; el tráfico de datos no se interrumpe (sensor fuera de camino). & Tiempo de reinicio. \\
@@ -826,20 +834,21 @@ Servidor protegido & Monitor & Aislamiento/reacción según política. & Disponi
 \label{tab:fallos}
 \end{table}
 
-\section{Arquitectura de Referencia HA vs Prototipo de Laboratorio}
+\section{Redundancia del Plano de Control: Clúster Desplegado vs Referencia}
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{diagramas/d6_ha_controlador.pdf}
-\caption{Alta disponibilidad del controlador como arquitectura de referencia.}
+\caption{El clúster ONOS de tres nodos, desplegado en el prototipo.}
 \end{figure}
 
-Se formaliza la frontera entre el entorno de pruebas desplegado y la arquitectura de campus de producción:
+La redundancia del plano de control se despliega en el prototipo y se distingue con honestidad de la forma de campus:
+
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Prototipo Desplegado en Laboratorio:} una sola instancia de ONOS y RabbitMQ sobre la red de gestión. Permite validar experimentalmente la programación de flujos, la conmutación por fallos de enlace y los tiempos de mitigación con un coste mínimo de recursos.
-    \item \textbf{Arquitectura de Referencia en Producción:} clúster de 3 nodos ONOS ejecutando consenso Raft (Atomix). Cada switch Pica8 lleva configurados tres endpoints de controlador en su bloque OpenFlow (direccionamiento de referencia, p. ej. \texttt{tcp:10.0.0.30:6653}, \texttt{tcp:10.0.0.31:6653}, \texttt{tcp:10.0.0.32:6653}). La asignación por dispositivo es de un maestro (MASTER) y respaldos (SLAVE) con \texttt{OFPT\_ROLE\_REQUEST}; ante la caída del maestro, la re-elección reconecta el dispositivo y el nuevo maestro \textbf{reconcilia} — reinstala las reglas faltantes sin barrer las vigentes.
+    \item \textbf{Prototipo Desplegado en Laboratorio:} clúster ONOS de 3 nodos (\texttt{10.0.0.20}/.30/.40) con consenso Atomix/Raft sobre la red de gestión; cada switch lleva los tres endpoints (TCP 6653) y una re-elección de maestro (\texttt{OFPT\_ROLE\_REQUEST} con generation\_id) cubre la caída de un nodo — las reglas instaladas quedan intactas y las decisiones nuevas continúan. \textbf{Límite honesto:} los tres nodos comparten el host físico; toleran la caída de un proceso o contenedor, no la del servidor.
+    \item \textbf{Arquitectura de Referencia en Producción:} los mismos tres nodos repartidos en hosts físicos distintos, con el canal in-band por la VLAN 100 priorizada y un único extremo lógico (VIP) para I2. La reconciliación tras caída es la misma: reinstalar lo faltante, no barrer lo vigente.
 \end{itemize}
 
-La redundancia del \textbf{plano de datos} sí se despliega y se mide (topología dual-homed de ocho switches); la del \textbf{plano de control} se analiza por diseño y queda documentada como referencia, no desplegada.
+Ambas redundancias se despliegan y se miden: la del \textbf{plano de datos} con la topología dual-homed de diez switches (RD1, RD3) y la del \textbf{plano de control} con la re-maestría del clúster (RD2, RD4).
 
 \section{Matriz Maestra: Requisito $\rightarrow$ Módulo $\rightarrow$ Mecanismo $\rightarrow$ Métrica $\rightarrow$ Prueba}
 Esta matriz es la estructura de trazabilidad central: conecta la arquitectura con la evidencia que debe producir el prototipo.
@@ -852,10 +861,11 @@ Esta matriz es la estructura de trazabilidad central: conecta la arquitectura co
 \textbf{Req.} & \textbf{Componente} & \textbf{Mecanismo SDN} & \textbf{Métrica de Evaluación (objetivo a verificar)} & \textbf{Protocolo Experimental} \\
 \midrule
 R1 & IAM, Registro, Políticas, ONOS & Portal cautivo, verificación IdP, \texttt{FLOW\_MOD} prioridad 200 & Latencia de login; tiempo de instalación ($\le 150$ ms) & CU-01 con login simultáneo de 16 hosts. \\
-R2 & Políticas, Switches Pica8 & Aislamiento VLAN 30, reglas DROP gestión (prioridad 100) & Bloqueo de accesos no autorizados & Peticiones HTTP/SSH no autorizadas desde VLAN 10. \\
+R2 & Políticas, Switches Pica8 & Aislamiento VLAN 20, reglas DROP gestión (prioridad 100) & Bloqueo de accesos no autorizados & Peticiones HTTP/SSH no autorizadas desde VLAN 10. \\
 R3 & Monitor, Detección, ONOS & Incoherencia de par (MAC, IP), evento \texttt{MAC\_Moved} & Tiempo de detección de spoofing & Tráfico con IP suplantada y migración de VM de $A1$ a $A2$. \\
 R4 & Monitor, Detección, Políticas, ONOS & Línea base EWMA, umbral $k=4\sigma$, \texttt{METER\_MOD} & $T_{\text{detect}} \le 15$ s; $T_{\text{mitigate}} \approx 15.2$ s; tráfico residual & Ataque flood hacia \texttt{10.2.0.10} con tráfico legítimo concurrente. \\
 R5 & Suricata, Adaptador, $A4$ & Espejo SPAN en $A4/p47$, reglas DROP en borde & Tiempo de alerta a bloqueo & Tráfico de exploit generado desde la VM atacante externa. \\
+HA & Clúster ONOS, C1/C2, D1/D2 & Raft, \texttt{ROLE\_REQUEST}, dual-homing & Tiempo de re-maestría (M3), latencia de I2 por nodo (M4), pérdida en conmutación & RD1--RD4: corte de enlace, caída de NC1, caída de C1, caída de un nodo ONOS. \\
 \bottomrule
 \end{tabularx}
 \caption{Matriz maestra de validación experimental. Las cifras son objetivos provisionales: se cierran con la medición del prototipo.}
@@ -890,7 +900,7 @@ La ventaja de mantener los servicios separados es que estas dimensiones pueden e
 \toprule
 Papel & Decisión & Motivo \\
 \midrule
-Controlador & ONOS 2.7 LTS & controlador SDN, API northbound, OpenFlow 1.3. \\
+Controlador & ONOS 2.7 LTS (clúster de 3 nodos) & controlador SDN, API northbound, OpenFlow 1.3, consenso Atomix/Raft. \\
 Plano de datos & Pica8/PicOS + OpenFlow 1.3 & primitivas requeridas: flows, meters, groups, counters. \\
 Intermediario & RabbitMQ 3.13 & colas, desacoplamiento, recuperación. \\
 Persistencia & PostgreSQL 16 & datos por servicio/repository. \\
@@ -914,7 +924,7 @@ Servicios propios & Python 3.12 & implementación del prototipo, un solo ecosist
 \item Carga de ONOS para sondeo 5/30/60 s.
 \item Primitivas reales de \texttt{METER\_MOD}/\texttt{GROUP\_MOD}/\texttt{PACKET\_OUT}/\texttt{FLOW\_REMOVED} en el hardware.
 \item Granularidad física de despliegue de los servicios. La granularidad lógica no se modifica.
-\item Número final de instancias ONOS de referencia y mecanismo de failover.
+\item Reparto del clúster ONOS en hosts físicos distintos y balanceador/VIP para I2 en la referencia.
 \item Si la consola queda exclusivamente en gestión o se habilita desde otra zona con autenticación.
 \item Si la cuarentena se materializa como VLAN dedicada o permanece como DROP en el prototipo.
 \item Integración definitiva de DHCP en el despliegue de referencia.
@@ -928,7 +938,7 @@ Servicios propios & Python 3.12 & implementación del prototipo, un solo ecosist
 El riesgo no se resuelve eliminando servicios: la descomposición en diez unidades con responsabilidad única es la forma más limpia de ver qué se encarga cada pieza, de separar funcionalidades y de evolucionarlas de forma independiente — y es la misma descomposición que un despliegue en nube heredaría sin cambios. Se controla manteniendo la separación lógica y permitiendo la consolidación física por afinidad (Capítulo 5). La independencia de despliegue es una capacidad, no la obligación de ejecutar cada servicio en un servidor separado.
 
 \subsection{Dependencia del Controlador}
-La decisión centralizada es deliberada, pero introduce dependencia del plano de control para decisiones nuevas. P2 la mitiga: el plano de datos ejecuta lo instalado y los timeouts hacen temporales las reglas dinámicas. La HA del controlador queda como evolución de referencia.
+La decisión centralizada es deliberada, pero introduce dependencia del plano de control para decisiones nuevas. Se mitiga por partida doble: P2 — el plano de datos ejecuta lo instalado y los timeouts hacen temporales las reglas dinámicas — y el clúster desplegado, que cubre la caída de un nodo y reconcilia al recuperarse. El límite restante (el host físico compartido) es honesto y declarado.
 
 \subsection{El Intermediario como Cuello de Botella}
 El bus desacopla, pero no elimina carga. Ráfagas de eventos pueden saturar colas. Por eso deben medirse profundidad de cola, tiempo de consumo y pérdida/reintento.
@@ -957,9 +967,9 @@ Observar \(\rightarrow\) detectar \(\rightarrow\) decidir \(\rightarrow\) traduc
 
 La plataforma de seguridad está descompuesta en diez servicios independientes y visibles: Portal, IAM/AAA, Registro, Monitor, Detección, Incidentes, Políticas, Auditoría, Consola y Adaptador del sensor. Los eventos desacoplan su funcionamiento reactivo mediante un intermediario; Pipe-and-Filter estructura internamente la detección; Repository desacopla la persistencia.
 
-ONOS mantiene la separación entre la lógica de seguridad y el plano de datos. La plataforma no instala reglas directamente en los switches: Políticas emite una orden; ONOS la traduce; Pica8/PicOS ejecuta; Monitor verifica el resultado.
+ONOS mantiene la separación entre la lógica de seguridad y el plano de datos, desplegado en clúster de tres nodos que tolera la caída de uno. La plataforma no instala reglas directamente en los switches: Políticas emite una orden; ONOS la traduce; Pica8/PicOS ejecuta; Monitor verifica el resultado.
 
-La infraestructura materializa esta separación mediante una topología de ocho switches — doble núcleo, doble distribución, cuatro accesos, 13 enlaces — VLANs diferenciadas y un canal de control out-of-band. La arquitectura de referencia añade el clúster de controladores y los mecanismos de despliegue de producción.
+La infraestructura materializa esta separación mediante una topología de diez switches — doble núcleo, doble distribución, cuatro accesos y la zona de control y servicios C1/C2 colgada del núcleo, 18 enlaces — VLANs diferenciadas y un canal de control out-of-band. La arquitectura de referencia añade el clúster repartido en hosts físicos distintos, el canal in-band y los mecanismos de despliegue de producción.
 
 La principal deuda actual no es conceptual sino cuantitativa: TCAM, conteo definitivo de reglas, latencias, falsos positivos, tráfico residual, impacto legítimo y carga del plano de control. Esos valores deben cerrarse experimentalmente antes de considerar la arquitectura completamente validada.
 
@@ -1015,67 +1025,124 @@ RNF-01 seguridad; RNF-02 disponibilidad; RNF-03 rendimiento; RNF-04 latencia; RN
 
 \chapter{Catálogo de Permisos y Matriz Rol $\times$ Permiso}
 
-\section{Catálogo P01--P30}
-\begin{longtable}{p{0.08\linewidth}p{0.29\linewidth}p{0.51\linewidth}}
+\section{Catálogo P01--P36}
+\begin{longtable}{p{0.09\linewidth}p{0.25\linewidth}p{0.11\linewidth}p{0.47\linewidth}}
 \toprule
-ID & Permiso & Descripción\\
+ID & Permiso & Plano & Descripción\\
 \midrule
-P01 & Autenticarse & Iniciar sesión y acreditar identidad.\\
-P02 & Acceder a la red & Obtener acceso a segmentos permitidos.\\
-P03 & Acceder a servicio & Utilizar un servicio autorizado.\\
-P04 & Consultar recurso & Leer información de un recurso autorizado.\\
-P05 & Ejecutar operación & Ejecutar una operación funcional autorizada.\\
-P06 & Consultar estado de red & Consultar estado, disponibilidad y métricas.\\
-P07 & Consultar tráfico & Consultar información y métricas de tráfico.\\
-P08 & Consultar eventos y logs & Consultar eventos, registros y trazas.\\
-P09 & Consultar alertas & Visualizar alertas de seguridad.\\
-P10 & Analizar incidente & Investigar un evento o incidente.\\
-P11 & Gestionar alerta & Clasificar, confirmar, descartar o escalar.\\
-P12 & Ejecutar mitigación & Aplicar una medida de contención autorizada.\\
-P13 & Aislar nodo & Restringir o aislar un dispositivo comprometido.\\
-P14 & Gestionar usuario & Crear, modificar, bloquear o deshabilitar cuentas.\\
-P15 & Asignar rol & Asignar o modificar roles.\\
-P16 & Gestionar permisos & Crear, modificar o revocar permisos.\\
-P17 & Gestionar políticas de acceso & Crear, modificar, activar o eliminar políticas de autorización.\\
-P18 & Gestionar políticas de seguridad & Configurar detección, prevención y mitigación.\\
-P19 & Gestionar reglas de red & Crear, modificar o eliminar forwarding, filtrado o control de tráfico.\\
-P20 & Gestionar segmentación & Administrar VLAN y aislamiento lógico.\\
-P21 & Gestionar dispositivos de red & Registrar, configurar, actualizar, habilitar o deshabilitar dispositivos.\\
-P22 & Gestionar controlador SDN & Administrar configuración y operación del controlador.\\
-P23 & Gestionar mecanismos de seguridad & Administrar IDS, IPS y controles integrados.\\
-P24 & Gestionar administradores & Crear, modificar, bloquear, revocar o eliminar cuentas administrativas.\\
-P25 & Auditar operaciones & Revisar acciones de usuarios y administradores.\\
-P26 & Gestionar configuración global & Modificar parámetros globales y componentes críticos.\\
-P27 & Gestionar recuperación & Ejecutar procedimientos de restauración/recuperación.\\
-P28 & Solicitar elevación & Solicitar perfil temporal con justificación, alcance y duración.\\
-P29 & Aprobar elevación & Aprobar/rechazar elevaciones y definir TTL.\\
-P30 & Registrar dispositivo privilegiado & Alta, modificación y baja del catálogo de dispositivos privilegiados.\\
+P01 & Autenticarse & Pre-sesión & Iniciar sesión y acreditar identidad.\\
+P02 & Acceder a la red & Red & Obtener el perfil de red del sujeto, dispositivo y contexto.\\
+P03 & Acceder a servicio & Servicios & Utilizar un servicio autorizado.\\
+P04 & Consultar recurso & Servicios & Leer información de un recurso autorizado.\\
+P05 & Ejecutar operación & Servicios & Ejecutar una operación funcional autorizada.\\
+P06 & Consultar estado de red & Servicios & Consultar estado, disponibilidad y métricas.\\
+P07 & Consultar tráfico & Servicios & Consultar información y métricas de tráfico.\\
+P08 & Consultar eventos y logs & Servicios & Consultar eventos, registros y trazas.\\
+P09 & Consultar alertas & Servicios & Visualizar alertas de seguridad.\\
+P10 & Analizar incidente & Servicios & Investigar un evento o incidente.\\
+P11 & Gestionar alerta & Servicios & Clasificar, confirmar, descartar o escalar.\\
+P12 & Ejecutar mitigación & Servicios & Aplicar una medida de contención autorizada.\\
+P13 & Aislar nodo & Servicios & Restringir o aislar un dispositivo o segmento.\\
+P14 & Gestionar cuentas locales & Servicios & Cuentas locales; excluye identidades institucionales, break-glass y SA.\\
+P15 & Asignar rol & Servicios & Asignar o modificar roles.\\
+P16 & Gestionar permisos & Servicios & Crear, modificar o revocar permisos.\\
+P17 & Gestionar políticas de acceso & Servicios & Crear, modificar, activar o eliminar políticas y perfiles.\\
+P18 & Gestionar políticas de seguridad & Servicios & Configurar detección, prevención y mitigación.\\
+P19 & Gestionar reglas de red & Servicios & Crear, modificar o eliminar reglas de forwarding y filtrado.\\
+P20 & Gestionar segmentación & Servicios & Administrar VLAN y aislamiento lógico.\\
+P21 & Gestionar dispositivos de red & Servicios & Registrar, configurar o habilitar dispositivos.\\
+P22-OP & Operar el controlador SDN & Servicios & Consultar topología, flujos y estado; operar.\\
+P22-CFG & Configurar el controlador SDN & Servicios & Configurar clúster, aplicaciones y parámetros críticos.\\
+P23 & Gestionar mecanismos de seguridad & Servicios & Administrar IDS, IPS y controles, dentro del rango.\\
+P24 & Gestionar administradores & Servicios & Crear, modificar, bloquear o revocar cuentas administrativas.\\
+P25 & Auditar operaciones & Servicios & Consultar y verificar la auditoría.\\
+P26 & Gestionar configuración global & Servicios & Modificar parámetros globales y componentes críticos.\\
+P27 & Gestionar recuperación & Servicios & Ejecutar restauración y recuperación.\\
+P28 & Solicitar elevación & Servicios & Solicitar perfil temporal con justificación, alcance y TTL.\\
+P29 & Aprobar elevación & Servicios & Aprobar o rechazar elevaciones y definir TTL.\\
+P30 & Registrar dispositivo privilegiado & Servicios & Alta, modificación y baja del catálogo de dispositivos privilegiados.\\
+P31 & Gestionar sesiones & Servicios & Consultar o revocar sesiones.\\
+P32 & Aprobar acción de alto impacto & Servicios & Aprobar cuarentena, aislamiento u otra acción crítica.\\
+P33 & Ajustar umbrales de detección & Servicios & Ajustar umbrales dentro del rango aprobado.\\
+P34 & Gestionar claves y certificados & Servicios & Crear, rotar o revocar claves y certificados.\\
+P35 & Solicitar registro de dispositivo & Servicios & Solicitar registro; no concede confianza.\\
+P36 & Gestionar retención y exportación de auditoría & Servicios & Definir retención y exportar auditoría.\\
 \bottomrule
 \end{longtable}
 
-\section{Matriz Rol $\times$ Permiso: Estado Actual}
-La fuente de dominio define el catálogo de permisos y ejemplos de asignación, pero declara pendiente la matriz completa Rol $\times$ Permiso. Por ello no se inventa una matriz total; este esquema conserva las asignaciones explícitas y marca como pendientes las delegaciones.
+P22 designa la familia del controlador; P22-OP y P22-CFG son sus dos permisos. P01 es una acción de pre-sesión y P02 una decisión de red: ninguno se asigna como permiso RBAC en la matriz.
 
-\begin{longtable}{p{0.27\linewidth}p{0.13\linewidth}p{0.17\linewidth}p{0.17\linewidth}p{0.17\linewidth}}
+\section{Matriz Rol $\times$ Permiso}
+La matriz está cerrada y se genera desde \texttt{implementation/policy/permisos.yaml}. Cada celda condicional remite a una condición de la tabla siguiente; las condiciones C5 y C6 son obligatorias para todos los operadores y para todo permiso, respectivamente.
+
+\begingroup
+\footnotesize
+\begin{longtable}{p{0.30\linewidth}p{0.155\linewidth}p{0.155\linewidth}p{0.155\linewidth}p{0.155\linewidth}}
 \toprule
-Permiso & Académico & Especialista TI & Admin. Red & Superadmin\\
+Permiso & Académico & Esp. TI & Admin. Red & Superadmin\\
 \midrule
-P01 Autenticarse & Sí & Sí & Sí & Sí\\
-P02 Acceder a red & Sí & Sí & Sí & Sí\\
-P09 Consultar alertas & -- & Sí & según delegación & Sí\\
-P10 Analizar incidente & -- & Sí & según delegación & Sí\\
-P12 Ejecutar mitigación & -- & autorizada & Sí & Sí\\
-P13 Aislar nodo & -- & autorizada & Sí & Sí\\
-P17 Gestionar políticas de acceso & -- & No & Sí & Sí\\
-P19 Gestionar reglas de red & -- & No & Sí & Sí\\
-P22 Gestionar controlador SDN & -- & No & según delegación & Sí\\
-P24 Gestionar administradores & -- & No & No & Sí\\
-P26 Gestionar configuración global & -- & No & No & Sí\\
-P28 Solicitar elevación & Sí & -- & -- & --\\
-P29 Aprobar elevación & -- & -- & Sí & Sí\\
-P30 Registrar dispositivo privilegiado & -- & según delegación & Sí & Sí\\
+P01 Autenticarse & \texttt{PRE} & \texttt{PRE} & \texttt{PRE} & \texttt{PRE}\\
+P02 Acceder a la red & \texttt{RED} & \texttt{RED} & \texttt{RED} & \texttt{RED}\\
+P03 Acceder a servicio & \texttt{C9} & \texttt{C9} & \texttt{C9} & \texttt{P}\\
+P04 Consultar recurso & \texttt{C9} & \texttt{C9} & \texttt{C9} & \texttt{P}\\
+P05 Ejecutar operación & \texttt{C9} & \texttt{C7+C9} & \texttt{C9} & \texttt{P}\\
+P06 Consultar estado de red & --- & \texttt{C1} & \texttt{C1} & \texttt{P}\\
+P07 Consultar tráfico & --- & \texttt{C1} & \texttt{C1} & \texttt{P}\\
+P08 Consultar eventos y logs & --- & \texttt{C1} & \texttt{C1} & \texttt{P}\\
+P09 Consultar alertas & --- & \texttt{C1} & \texttt{C1} & \texttt{P}\\
+P10 Analizar incidente & --- & \texttt{C1} & \texttt{C1} & \texttt{P}\\
+P11 Gestionar alerta & --- & \texttt{C1} & \texttt{C1} & \texttt{P}\\
+P12 Ejecutar mitigación & --- & \texttt{C7} & \texttt{P} & \texttt{P}\\
+P13 Aislar nodo & --- & \texttt{C7} & \texttt{P} & \texttt{P}\\
+P14 Gestionar cuentas locales & --- & --- & \texttt{C1} & \texttt{P}\\
+P15 Asignar rol & --- & --- & --- & \texttt{P}\\
+P16 Gestionar permisos & --- & --- & --- & \texttt{P}\\
+P17 Gestionar políticas de acceso & --- & --- & \texttt{P} & \texttt{P}\\
+P18 Gestionar políticas de seguridad & --- & --- & --- & \texttt{P}\\
+P19 Gestionar reglas de red & --- & --- & \texttt{P} & \texttt{P}\\
+P20 Gestionar segmentación & --- & --- & \texttt{P} & \texttt{P}\\
+P21 Gestionar dispositivos de red & --- & --- & \texttt{P} & \texttt{P}\\
+P22-OP Operar el controlador SDN & --- & \texttt{C1+C11} & \texttt{P} & \texttt{P}\\
+P22-CFG Configurar el controlador SDN & --- & --- & --- & \texttt{C10}\\
+P23 Gestionar mecanismos de seguridad & --- & --- & \texttt{C3} & \texttt{P}\\
+P24 Gestionar administradores & --- & --- & \texttt{C2} & \texttt{P}\\
+P25 Auditar operaciones & --- & --- & --- & \texttt{P}\\
+P26 Gestionar configuración global & --- & --- & --- & \texttt{C10}\\
+P27 Gestionar recuperación & --- & --- & --- & \texttt{C10}\\
+P28 Solicitar elevación & \texttt{C9} & --- & --- & ---\\
+P29 Aprobar elevación & --- & --- & \texttt{C4} & \texttt{C4}\\
+P30 Registrar dispositivo privilegiado & --- & --- & \texttt{C2} & \texttt{P}\\
+P31 Gestionar sesiones & --- & \texttt{C8} & \texttt{C1} & \texttt{P}\\
+P32 Aprobar acción de alto impacto & --- & --- & \texttt{C1+C4} & \texttt{C4}\\
+P33 Ajustar umbrales de detección & --- & \texttt{C3} & \texttt{C3} & \texttt{P}\\
+P34 Gestionar claves y certificados & --- & --- & --- & \texttt{P}\\
+P35 Solicitar registro de dispositivo & --- & \texttt{P} & \texttt{P} & \texttt{P}\\
+P36 Gestionar retención y exportación de auditoría & --- & --- & --- & \texttt{P}\\
 \bottomrule
 \end{longtable}
+\endgroup
+
+\section{Condiciones de la matriz}
+\begin{longtable}{p{0.08\linewidth}p{0.28\linewidth}p{0.56\linewidth}}
+\toprule
+Código & Condición & Regla\\
+\midrule
+C1 & Ámbito & El recurso pertenece al ámbito asignado al rol.\\
+C2 & Delegación vigente & Existe una delegación explícita, con alcance y vigencia.\\
+C3 & Rango aprobado & El valor o la acción está dentro del rango aprobado.\\
+C4 & Separación de funciones & El solicitante es distinto del aprobador.\\
+C5 & Sesión privilegiada & MFA verificado, dispositivo registrado y canal de gestión; obligatoria para operadores.\\
+C6 & Estado de seguridad & Sin compromiso, cuarentena o incidente que impida la acción; obligatoria para todos.\\
+C7 & Bajo impacto & La severidad no supera el umbral; si lo supera, se exige P32.\\
+C8 & Sesión propia & El sujeto solo opera sus propias sesiones.\\
+C9 & Recurso autorizado & El tipo y la instancia del recurso están en la lista del rol.\\
+C10 & Contexto permitido & Ventana, ubicación y canal permitidos; la configuración crítica exige mantenimiento o emergencia.\\
+C11 & Solo lectura & El rol consulta y ejecuta operaciones autorizadas, no configura.\\
+\bottomrule
+\end{longtable}
+
+Convención: \texttt{P} permite; \texttt{C1}--\texttt{C11} permiten solo si se cumple la condición; \texttt{---} deniega; \texttt{PRE} es una acción de pre-sesión; \texttt{RED} es una decisión de red. Las reglas de separación de funciones, delegación y configuración crítica se detallan en \texttt{implementation/02\_matriz\_rol\_permiso.md}.
+
 
 \chapter{Correspondencia con el Marco 4+1 y Fuentes}
 

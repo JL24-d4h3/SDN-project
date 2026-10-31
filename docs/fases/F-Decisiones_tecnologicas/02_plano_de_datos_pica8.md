@@ -61,7 +61,7 @@ Procedimiento previo a comprometer la implementación, ejecutado contra el switc
 |---|---|---|---|
 | V1 | Modo OpenFlow 1.3 y capacidades declaradas | `FEATURES_REQUEST/REPLY`: capacidades de tablas, contadores por flujo y por puerto, grupos | Sin contadores por flujo no hay línea base (P11): se reevalúa el modo del pipeline |
 | V2 | Meters disponibles | `OFPMP_METER_FEATURES` (máximo de meters, bandas soportadas) y prueba real: instalar un `METER_MOD` de limitación y leerlo con `OFPMP_METER_CONFIG` | Entra la **degradación documentada**: contención por reglas temporales del controlador —se bloquean flujos nuevos del origen mientras persiste la tasa, y se retira al ceder— con su impacto medido (R4.6, R4.8) |
-| V3 | Grupos disponibles | `GROUP_MOD` tipo `ALL` + `OFPMP_GROUP_DESC` | La redirección usa `PACKET_OUT`/reglas individuales; se mide la diferencia de latencia y carga de control |
+| V3 | Grupos disponibles | `GROUP_MOD` tipo `ALL` y `FAST_FAILOVER` + `OFPMP_GROUP_DESC` | La redirección usa `PACKET_OUT`/reglas individuales y la conmutación de caminos queda en recálculo del controlador; se mide la diferencia de latencia y carga de control |
 | V4 | Redirección al portal: grupo frente a `PACKET_OUT` | Experimento comparativo con tráfico pre-login: latencia de primera resolución y carga sobre el controlador | P12 decide con los números: quédate con la alternativa medida |
 | V5 | Expiración y retiro | Instalar regla con `idle_timeout` corto y observar `FLOW_REMOVED`; retirar por cookie | Sin `FLOW_REMOVED` el cierre por inactividad no se propaga: se compensa con consulta periódica del inventario de reglas |
 | V6 | Rol de puerto y control | `PORT_STATUS` al caer un enlace; conexión de control rechazada desde otra interfaz | Se documenta la limitación y se ajusta la observación (I8) |
@@ -77,7 +77,9 @@ reglas de sesión por dispositivo activo    ~4 reglas
 caminos por destino                        una entrada por switch del camino
 mitigaciones simultáneas (peor caso R4)    decenas
 ─────────────────────────────────────────────────────────
-prototipo completo (ocho switches, ~23 dispositivos)     ≈ 350–450 entradas
+prototipo completo (diez switches, ~23 dispositivos)     ≈ 420–520 entradas
+                                                         (nominal ≈ 440; peor caso concurrente ≈ 665)
+diseño in-band (referencia)                              +4 por switch (canal de control y LLDP)
 ```
 
 La cifra medida se reporta como parte del cierre de RNF-05/RA-08 y del análisis de «exceso de reglas SDN» (B-03 §5). Si resultara menor que el escenario, las palancas ya están previstas: timeouts más agresivos, retiro por cookie (nada queda pegado), y agregación de mitigaciones por switch de ingreso —todo ello sin cambiar la arquitectura.

@@ -163,8 +163,8 @@ Cada acción queda registrada, conectando R4 con el registro de la parte 3:
 
 ```text
 2026-09-24 10:32  INC-0042  detección automática  RATE_LIMIT  actor: SYSTEM
-2026-09-24 10:35  INC-0042  jperez (ADMIN_RED)    BLOCK_SOURCE  target: H1  motivo: continued_attack
-2026-09-24 10:48  INC-0042  jperez (ADMIN_RED)    REMOVE_MITIGATION  motivo: incident_recovered
+2026-09-24 10:35  INC-0042  jperez (OPERADOR_ADMIN)    BLOCK_SOURCE  target: H1  motivo: continued_attack
+2026-09-24 10:48  INC-0042  jperez (OPERADOR_ADMIN)    REMOVE_MITIGATION  motivo: incident_recovered
 ```
 
 Esto responde las preguntas de auditoría: ¿quién modificó qué regla, en qué switch, cuándo, por qué, y qué incidente lo originó? La cadena de responsabilidades queda explícita:

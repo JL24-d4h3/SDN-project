@@ -20,7 +20,7 @@ Dos decisiones en un documento: el **producto del controlador** (RA-02) y la **f
 
 ## 2. Decisión
 
-**ONOS** como controlador SDN del prototipo, desplegado en una instancia única sobre la red de gestión. La lógica propia de la plataforma —la API de órdenes de I2 y su traducción a OpenFlow— vive como una **aplicación del controlador**, no como un servicio aparte: el controlador no es un microservicio de la plataforma (P1, D-04 §6), pero su interior sí tiene una pieza propia que es la única autorizada a tocar el pipeline de los switches.
+**ONOS** como controlador SDN del prototipo, desplegado como **clúster de tres nodos** sobre la red de gestión (ONOS-1 `.20`, ONOS-2 `.30`, ONOS-3 `.40`; consenso Atomix/Raft — §6). La lógica propia de la plataforma —la API de órdenes de I2 y su traducción a OpenFlow— vive como una **aplicación del controlador**, no como un servicio aparte: el controlador no es un microservicio de la plataforma (P1, D-04 §6), pero su interior sí tiene una pieza propia que es la única autorizada a tocar el pipeline de los switches.
 
 ```text
 ┌─ Controlador (ONOS, red de gestión) ──────────────────────────────┐
@@ -37,7 +37,7 @@ Dos decisiones en un documento: el **producto del controlador** (RA-02) y la **f
 
 **Verificabilidad.** Su API REST nativa permite consultar el estado real del plano de control —dispositivos, enlaces, entradas instaladas— que es la fuente para las métricas de RA-07 y R4.10 (tiempo de reinstalación de reglas tras una caída) y para las consultas de asociaciones de la plataforma (§5). ONOS expone además estadísticas internas del propio controlador (carga, memoria, tiempos de respuesta), lo que sirve al análisis de riesgo del controlador que pide D-11.
 
-**Simplicidad justificada (P4).** Una instancia ONOS corre en una VM Linux modesta dentro del laboratorio, sin dependencias externas, y su conjunto de aplicaciones se limita a lo que la solución usa: el controlador no se convierte en una plataforma de aplicaciones. El clúster (§6) es una capacidad nativa que no se despliega en el prototipo.
+**Simplicidad justificada (P4).** Cada nodo ONOS corre en un contenedor modesto dentro del laboratorio, sin dependencias externas, y su conjunto de aplicaciones se limita a lo que la solución usa: el controlador no se convierte en una plataforma de aplicaciones. El clúster (§6) es una capacidad nativa que **sí se despliega** en el prototipo, con el límite honesto del host físico compartido.
 
 **Encaje.** OpenFlow 1.3 y out-of-band son configuración directa; la administración (web y CLI) queda restringida a la red de gestión (RA-09); el proyecto es de código abierto con base académica amplia, lo que encaja con el contexto del curso y con la mantenibilidad (RNF-10).
 
@@ -95,21 +95,23 @@ La orden **no se considera ejecutada hasta la confirmación** (D-07, I2). La res
 
 Las consultas son síncronas y de solo lectura: la frontera de [`D-08`](../D-ARQUITECTURA_DE_ALTO_NIVEL-HLD/08_comunicacion.md) §2 no cambia — por el bus viajan eventos y órdenes; las preguntas van directas al interesado.
 
-## 6. Redundancia del plano de control (decisión de E-04)
+## 6. Redundancia del plano de control (decisión de E-04, desplegada)
 
-**Mecanismo elegido:** clúster nativo de ONOS —varias instancias con consenso sobre el estado— **y** switches configurados con más de un endpoint de controlador, con failover.
+**Mecanismo elegido:** clúster nativo de ONOS —tres nodos con consenso Atomix/Raft— **y** switches configurados con los tres endpoints de controlador, con failover por re-elección de maestro.
 
 ```text
-Estado normal      ONOS-A ◄──── control ──── switches
-                   ONOS-B · ONOS-C  (clúster en espera, estado replicado)
-Caída de ONOS-A    los switches re-eligen endpoint → ONOS-B continúa
-Reconexión         el switch se re-registra; el estado seguro (P10) ya
-                   sostenía la red; las reglas se reinstalan y se reconcilian
+Estado normal      ONOS-1 (.20) · ONOS-2 (.30) · ONOS-3 (.40)   ← clúster Raft (I9: TCP 5679 / 9876)
+                   un MASTER por switch (reparto ≈ 3–4 switches por nodo), los demás SLAVE
+Caída de ONOS-1    Raft pierde el latido → nueva elección → ROLE_REQUEST (MASTER, gen+1)
+                   → el nuevo maestro reconcilia (reinstala lo faltante, no barre lo vigente)
+Sin quórum         las reglas instaladas siguen hasta su timeout; las decisiones nuevas esperan
 ```
 
-- **Prototipo:** una sola instancia. El clúster y el multi-controlador son la vía documentada que despliega la Fase H; C-04 §4 ya declara que la alta disponibilidad real se analiza por diseño y no se despliega.
-- **Por qué esta forma:** el diseño no exige redundancia para operar —el plano de datos conserva lo instalado y todo expira por timeout (P2, P10)—; la exige para **no degradar durante la caída**. El clúster replica el estado (asociaciones, reglas) sin que los servicios cambien nada: I2 sigue siendo un único extremo lógico.
-- **Cuantificación:** el tiempo de re-registro y reinstalación tras una caída se mide en el prototipo (RA-07, R4.10) y alimenta el análisis de riesgo D-09.
+- **Prototipo:** clúster de tres nodos desplegado (Fase H). Cada switch lleva los tres endpoints `tcp:10.0.0.20/.30/.40:6653`; cada nodo tiene su NIC en la VLAN 100 (I2, I8, I9) y una **segunda NIC** en la red de gestión del laboratorio para el canal OOB (`ma1`).
+- **I2 con clúster:** cualquier nodo atiende la API (REST/HTTPS, TCP 8181); si no es maestro del switch destino, el estado se coordina por Atomix y el maestro emite el `FLOW_MOD`. El cliente usa la lista de los tres nodos con reintento ante 503 o timeout; para los servicios, I2 sigue siendo **un único extremo lógico** (VIP en el despliegue de referencia).
+- **Qué se replica y qué no:** se replica el estado de decisión — cookies (string↔64 bits), asociaciones MAC↔puerto↔IP, inventario de servicios y órdenes en curso. La verdad de las reglas **no** se replica: vive en el switch y se reconcilia leyéndola (P11).
+- **Límite honesto:** los tres nodos comparten el host físico del laboratorio — toleran la caída de un proceso o contenedor, no la del servidor. El campus real los reparte en tres hosts distintos.
+- **Cuantificación:** el tiempo de re-maestría (M3) y la latencia de I2 por nodo (M4) se miden con las pruebas RD1–RD4 de la Fase H; alimentan RA-07 y el análisis de riesgo D-09.
 
 ## 7. Protección (RA-09)
 
@@ -123,6 +125,6 @@ Reconexión         el switch se re-registra; el estado seguro (P10) ya
 |---|---|---|
 | Orden de perfil extremo a extremo con confirmación | Latencia orden → regla instalada (presupuesto de [`06`](06_deteccion_y_mitigacion.md) §6) | RT-04, RNF-04 |
 | Retiro por cookie con `FLOW_REMOVED` observado | La confirmación de retiro existe y llega | RT-10, P10 |
-| Caída y retorno del controlador | Tiempo de re-registro y reinstalación de reglas | RA-07, R4.10, E-04 |
+| Caída de un nodo del clúster (RD2/RD4) | Tiempo de re-maestría (M3) y consistencia de las reglas instaladas | RA-07, R4.10, E-04 |
 | Consulta de asociaciones durante un `MAC_Moved` | La asociación consultada refleja el movimiento | R3.3 |
 | Orden inválida / no autenticada | Rechazo, error con causa y registro | RA-09, RNF-01 |

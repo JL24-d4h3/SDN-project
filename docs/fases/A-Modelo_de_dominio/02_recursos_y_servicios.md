@@ -79,7 +79,7 @@ El catálogo se organiza en **tres clases de destino** —según quién los cons
 
 | Recurso o servicio | Tipo | Descripción | Nivel |
 |---|---|---|---|
-| Perfiles de acceso | Recurso | Definición de los perfiles (BASE, ACADÉMICO, LABORATORIO, INVESTIGACIÓN, TI, ADMIN_RED, SUPER_ADMIN) y sus reglas de red asociadas. | Crítico |
+| Perfiles de acceso | Recurso | Definición de los perfiles (BASE, ACADÉMICO, OPERADOR_TI, OPERADOR_ADMIN, OPERADOR_SA, ELEVACIÓN) y sus reglas de red asociadas. LABORATORIO es una instancia de ELEVACIÓN. | Crítico |
 | Registro de dispositivos privilegiados | Recurso | Base de datos de los dispositivos de operadores (MAC, tipo, titular, rol, vigencia, responsable). Solo los dispositivos privilegiados se registran; lo que no hace match recibe perfil BASE. Sirve además de auditoría del alta de dispositivos. | Crítico |
 | AAA / RADIUS | Recurso | Autenticación, autorización y accounting de las poblaciones: la comunidad (contra el IdP) y los operadores (contra el repositorio propio). No cataloga dispositivos: autentica personas. | Crítico |
 | Portal cautivo | Servicio | Punto de autenticación de la red: la comunidad obtiene el perfil ACADÉMICO; los operadores, su sesión de rol. | Alto |

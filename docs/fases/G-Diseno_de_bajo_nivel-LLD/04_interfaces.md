@@ -16,13 +16,13 @@ Las **interfaces son los contratos entre componentes** ([`D-07`](../D-ARQUITECTU
 
 | Aspecto | Valor inicial |
 |---|---|
-| Transporte | TCP 6653, por las interfaces de gestión (`ma1`) de cada switch — nunca por el plano de datos |
+| Transporte | TCP 6653, por las interfaces de gestión (`ma1`) de cada switch — nunca por el plano de datos. En el **diseño in-band** (referencia), OpenFlow viaja por los enlaces de datos en la VLAN 100 priorizada (cola estricta, DSCP CS6, regla de canal p65000) — mismo I1, otro medio ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md), [`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §3) |
 | Autorización | El switch acepta control solo de los endpoints de controlador configurados (whitelist); una conexión desde otra interfaz se rechaza (verificación V6, [`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §4) |
 | Latido | `ECHO` cada 5 s; sin respuesta en 3 latidos, el canal se declara caído |
 | Confirmación de aplicación | `OFPT_BARRIER_REQUEST/REPLY` tras cada lote de instalación — es lo que sostiene el nivel `APLICADA` de I2 ([`01`](01_apis.md) §2) |
 | Cookies | El controlador mantiene el **registro string ↔ 64 bits**: la cookie que los servicios nombran (`SES-…`, `INC-…`) se traduce al valor OpenFlow; el retiro por cookie usa la traducción inversa ([`06`](06_reglas.md) §3) |
 | Multipart | `OFPMP_PORT_STATS`, `OFPMP_FLOW`, `OFPMP_METER_CONFIG`, `OFPMP_GROUP_DESC` — la única fuente de observación del plano de datos (P11) |
-| Failover (clúster) | Cada switch lleva configurados los tres endpoints del clúster ONOS ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6); en el prototipo uno solo está desplegado — el mecanismo se documenta, no se ejerce |
+| Failover (clúster) | Cada switch lleva configurados los tres endpoints del clúster ONOS —`tcp:10.0.0.20/.30/.40:6653`— con re-elección de maestro (`ROLE_REQUEST`, generation_id) y reconciliación ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6); el clúster está **desplegado** en el prototipo — las pruebas RD1–RD4 lo ejercen y miden M3/M4 |
 
 La negociación inicial (`HELLO`, `FEATURES_REPLY`) fija lo que el switch **declara** soportar; el controlador no puede ordenar más de lo declarado (P1, RP-11). Las verificaciones V1–V7 de [`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §4 son el acta de esa negociación contra el dispositivo real.
 

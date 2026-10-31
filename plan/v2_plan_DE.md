@@ -931,12 +931,12 @@ Qué puede hacer cada rol sobre cada componente, según los permisos de la fase 
 
 | Componente | Usuario académico | Especialista de TI | Administrador de Red | Superadministrador |
 |---|---|---|---|---|
-| Monitor / Detección | — | Consultar métricas y eventos (P06–P09) | Consultar y ajustar umbrales | Todo + política global |
-| Incident Manager | — | Analizar, clasificar, escalar (P10, P11) | Gestionar incidentes | Todo |
+| Monitor / Detección | — | Consultar métricas y eventos (P06–P09) | Consultar y ajustar umbrales dentro del rango (P33) | Todo + límites globales (P33) |
+| Incident Manager | — | Analizar, clasificar, escalar (P10, P11) | Gestionar incidentes y aprobar acciones de alto impacto (P32) | Todo |
 | Policy Engine | Solicitar elevación (P28) | Ejecutar mitigaciones autorizadas (P12) | Crear/modificar políticas; aprobar elevaciones (P17, P29) | Todo (P26) |
-| Controlador SDN | — | — (no opera) | Administrar reglas y topología (P19, P22) | Todo |
+| Controlador SDN | — | Consultar estado (P22-OP, solo lectura) | Operar y administrar reglas y topología (P19, P22-OP) | Todo, incluida la configuración (P22-CFG) |
 | IAM/AAA | Autenticarse en el portal (perfil ACADÉMICO) | Autenticarse como operador | Autenticarse como operador | Autenticarse como operador |
-| Registro de dispositivos | — | — | Registrar dispositivos (P30) | Registrar + auditar (P30, P25) |
+| Registro de dispositivos | — | — | Registrar dispositivos con delegación (P30) | Registrar + auditar (P30, P25) |
 | Auditoría | — | Consultar eventos y logs (P08) | Consultar | Consultar y auditar todo (P25) |
 | Consola | — (no la usa) | Uso con su rol | Uso con su rol | Uso con su rol |
 
@@ -964,15 +964,15 @@ La automatización (RT-08) tiene un tope deliberado (P8, P9):
 |---|---|---|
 | RATE_LIMIT ante anomalía leve | Sistema (Policy → Controlador) | Automático, notificado |
 | BLOCK ante DDoS severo | Sistema + supervisión del Especialista de TI | Automático con notificación |
-| Aislar un segmento completo | Administrador de Red | **Requiere aprobación** |
+| Aislar un segmento completo | Administrador de Red | **Requiere aprobación P32** |
 | Elevación temporal de un académico | Administrador de Red | **Requiere aprobación** (P29) |
 | Alta en el registro de dispositivos | Administrador de Red / Superadministrador | Requiere registro formal (P30) |
 | Política global de la plataforma | Superadministrador | Solo el SA |
 
 ## 6. Cuestiones abiertas
 
-- **Delegación del registro de Especialistas de TI.** Si el Administrador de Red puede darlos de alta en IAM/AAA o solo el Superadministrador (fase A).
-- **Umbrales como política o como configuración técnica.** Quién ajusta los umbrales de detección: el Especialista de TI (operación) o el Administrador de Red (política). La tabla 3 los deja en el Administrador; ajustable.
+- **Delegación del registro de Especialistas de TI.** El Superadministrador puede delegar en el Administrador de Red el registro de Especialistas de TI y sus dispositivos (P30) y la gestión de sus cuentas (P24), con alcance limitado a TI, vigencia explícita y auditoría. La delegación no permite crear otros Administradores de Red ni elevar privilegios propios.
+- **Umbrales como política o como configuración técnica.** El Especialista de TI ajusta los umbrales dentro del rango aprobado (P33); el Administrador de Red fija el rango (P33); el Superadministrador fija los límites globales. Cada cambio registra valor anterior, valor nuevo, responsable, fecha y resultado.
 
 # Interfaces principales
 
@@ -1328,7 +1328,7 @@ La topología de referencia se organiza en **tres niveles**:
 - **Distribución** — agregación: une los accesos entre sí y con el núcleo; es el ámbito natural de los caminos.
 - **Núcleo** — la troncal: conecta los servicios de infraestructura y los caminos principales.
 
-Cuántos switches tiene cada nivel, cómo se conectan y qué redundancia existe quedó fijado en la Fase H: **ocho switches — dos núcleo, dos distribución, cuatro acceso — dual-homed, con 13 enlaces** ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3). El diagrama de arriba es la vista de niveles; las cantidades y los enlaces concretos viven en la Fase H. El cálculo de caminos por destino que opera sobre estos niveles está en la serie de flujo, parte 5.
+Cuántos switches tiene cada nivel, cómo se conectan y qué redundancia existe quedó fijado en la Fase H: **diez switches — dos núcleo, dos distribución, cuatro acceso y la zona de control y servicios (C1/C2) colgada del núcleo — todo dual-homed, con 18 enlaces** ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3). El diagrama de arriba es la vista de niveles; las cantidades y los enlaces concretos viven en la Fase H. El cálculo de caminos por destino que opera sobre estos niveles está en la serie de flujo, parte 5.
 
 ## 3. Direccionamiento propuesto
 
@@ -1364,7 +1364,7 @@ La topología rígida admite la aparición de dispositivos nuevos: todo lo que c
 
 ## 6. Cuestiones abiertas
 
-- **Número de switches por nivel, conexiones y resiliencia** — cerrado en la Fase H: ocho switches dual-homed ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md)); el efecto de un fallo sobre los caminos instalados se resuelve con recálculo o grupos fast-failover ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §4).
+- **Número de switches por nivel, conexiones y resiliencia** — cerrado en la Fase H: diez switches dual-homed con la zona C1/C2 colgada del núcleo ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md)); el efecto de un fallo sobre los caminos instalados se resuelve con recálculo o grupos fast-failover ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §4).
 - **Hardware físico vs virtual.** La topología lógica es la misma; cambia el despliegue (Fase H).
 - **Perímetro.** Si el segmento perimetral se representa con un firewall, con reglas de borde o no se representa (fase C).
 - **In-band.** Si el canal de control adopta la VLAN de gestión sobre los enlaces de datos.
@@ -1555,7 +1555,7 @@ Académico → portal → credenciales → IAM/AAA → IdP (identidad válida)
           → perfil ACADÉMICO: servicios académicos e Internet (idle_timeout)
 Operador  → portal → paso 1: repositorio propio · paso 2: TOTP
           → identidad + dispositivo (match con registro) + contexto
-          → decisión: sesión de rol (p. ej. ADMIN_RED)
+          → decisión: sesión de rol (p. ej. OPERADOR_ADMIN)
 IAM → evento SessionOpened
 Policy Engine → comando northbound al Controlador
 Controlador → FLOW_MOD: acceso de persona y destinos del rol
@@ -1651,8 +1651,6 @@ Todos los flujos anteriores se apoyan en un flujo permanente: el Monitor sondea 
 - **Intervención humana en F6.** La aprobación del Administrador de Red para aislamientos de alto impacto está definida; queda fijar qué otras acciones la exigen con las mediciones del prototipo.
 - **F7 sin F6.** Si la mitigación fue manual (operador), la restauración sigue el mismo camino: la regla se retira igual (cookie + FLOW_MOD DELETE), y la auditoría registra al operador como actor.
 
---------------------------------------------------------------------
-
 # Método de validación
 
 **Proyecto:** Solución de seguridad para una red de campus académico
@@ -1744,7 +1742,7 @@ Cada requisito de [B-01.1](../B-Drivers_de_arquitectura/01.1_RF_funcionales.md) 
 | R1.5 Mínimo privilegio | Switches (DROP por defecto; BASE como lista cerrada) · Controlador | Parte 3 §2; D-11 §2 | Cubierto |
 | R1.6 Denegación | Switches (DROP) · Controlador (regla de denegación) | Parte 3 §6; D-11 §2 | Cubierto |
 | R1.7 Administración | Consola · IAM/AAA · Registro de dispositivos privilegiados | D-06 §4; D-05 §10, §6–7 | Cubierto |
-| R1.8 Superusuarios | IAM/AAA (perfiles ADMIN_RED y SUPER_ADMIN, uso restringido) | D-05 §6; A-01 | Cubierto |
+| R1.8 Superusuarios | IAM/AAA (perfiles OPERADOR_ADMIN y OPERADOR_SA, uso restringido) | D-05 §6; A-01 | Cubierto |
 | R1.9 Trazabilidad | Auditoría | Parte 3 §6; D-05 §8 | Cubierto |
 | R1.10 Escalabilidad | Arquitectura (registro acotado a dispositivos privilegiados; crecimiento previsto en el diseño) | D-08; parte 0 | Cubierto (magnitud en prototipo) |
 

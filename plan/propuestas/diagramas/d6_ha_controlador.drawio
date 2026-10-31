@@ -5,8 +5,8 @@
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
 
-        <mxCell id="t" value="Alta disponibilidad del controlador — ARQUITECTURA DE REFERENCIA (analizada, no desplegada)" style="text;html=1;align=left;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="900" height="30" as="geometry"/></mxCell>
-        <mxCell id="sub" value="El prototipo usa una sola instancia de ONOS; el clúster es la evolución de producción documentada (F-01 §6, C-04 §4)" style="text;html=1;align=left;fontColor=#64748B;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="48" width="900" height="20" as="geometry"/></mxCell>
+        <mxCell id="t" value="Alta disponibilidad del controlador — CLÚSTER ONOS DE 3 NODOS, DESPLEGADO EN EL PROTOTIPO" style="text;html=1;align=left;verticalAlign=middle;fontSize=17;fontStyle=1;fontColor=#0F172A;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="900" height="30" as="geometry"/></mxCell>
+        <mxCell id="sub" value="consenso Atomix/Raft (I9: TCP 5679 · 9876) · un maestro por switch · tolera la caída de un nodo, no la del host físico (F-01 §6)" style="text;html=1;align=left;fontColor=#64748B;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="48" width="900" height="20" as="geometry"/></mxCell>
 
         <mxCell id="oa" value="ONOS-A&#xa;tcp:10.0.0.30:6653" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE4E2;strokeColor=#E15A50;strokeWidth=1.8;fontSize=12.5;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="140" y="90" width="180" height="70" as="geometry"/></mxCell>
         <mxCell id="ob" value="ONOS-B&#xa;tcp:10.0.0.31:6653" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBE4E2;strokeColor=#E15A50;strokeWidth=1.8;fontSize=12.5;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="430" y="90" width="180" height="70" as="geometry"/></mxCell>
@@ -21,7 +21,7 @@
         <mxCell id="eb" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=7 4;strokeColor=#B91C1C;strokeWidth=1.6;" edge="1" parent="1" source="ob" target="sw"><mxGeometry relative="1" as="geometry"/></mxCell>
         <mxCell id="ec" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;dashPattern=7 4;strokeColor=#B91C1C;strokeWidth=1.6;" edge="1" parent="1" source="oc" target="sw"><mxGeometry relative="1" as="geometry"/></mxCell>
 
-        <mxCell id="nota" value="La red instalada continúa durante la caída: los switches conservan las reglas y sus timeouts (P2, P10).&#xa;La redundancia del plano de datos sí se despliega (8 switches dual-homed); la del plano de control se documenta." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF9C3;strokeColor=#CA8A04;fontColor=#713F12;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="360" width="960" height="56" as="geometry"/></mxCell>
+        <mxCell id="nota" value="La red instalada continúa durante la caída: los switches conservan las reglas y sus timeouts (P2, P10).&#xa;Límite honesto: los tres nodos comparten el host físico del laboratorio — el campus real los reparte en tres hosts." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF9C3;strokeColor=#CA8A04;fontColor=#713F12;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="360" width="960" height="56" as="geometry"/></mxCell>
       </root>
     </mxGraphModel>
   </diagram>

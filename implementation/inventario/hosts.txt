@@ -1,0 +1,129 @@
+Será similar para los otros host (h2, h3 y h4 de mi slice actual):
+
+SALIDA:
+
+ubuntu@h1:/tmp$ bash inventario_slice.sh 
+
+== IDENTIDAD ==
+hostname=h1
+fecha_utc=2026-10-30T22:53:18Z
+os=Ubuntu 24.04 LTS
+os_id=ubuntu 24.04
+kernel=6.8.0-142-generic
+arquitectura=x86_64
+virtualizacion=kvm
+uptime=up 4 weeks, 1 day, 13 hours, 43 minutes
+
+== CPU ==
+Architecture:                            x86_64
+CPU(s):                                  1
+Model name:                              Intel Core Processor (Haswell, no TSX, IBRS)
+Thread(s) per core:                      1
+Core(s) per socket:                      1
+Socket(s):                               1
+Virtualization:                          VT-x
+Virtualization type:                     full
+flags_virtualizacion=vmx
+
+== MEMORIA ==
+MemTotal:         984560 kB
+MemAvailable:     662880 kB
+SwapTotal:             0 kB
+               total        used        free      shared  buff/cache   available
+Mem:           961Mi       314Mi       269Mi       4.9Mi       532Mi       647Mi
+Swap:             0B          0B          0B
+
+== DISCO ==
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/vda2      ext4  5.9G  3.2G  2.4G  58% /
+
+== RED — INTERFACES ==
+lo               UNKNOWN        00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> 
+ens3             UP             fa:16:3e:5d:ee:25 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+ens4             UP             fa:16:3e:88:05:79 <BROADCAST,MULTICAST,UP,LOWER_UP> 
+
+Direcciones:
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+ens3             UP             192.168.0.21/24 fe80::f816:3eff:fe5d:ee25/64 
+ens4             UP             10.0.0.1/24 fe80::f816:3eff:fe88:579/64 
+
+== RED — DRIVER Y VELOCIDAD ==
+-- ens3 --
+driver: virtio_net
+version: 1.0.0
+bus-info: 0000:00:03.0
+	Speed: Unknown!
+	Duplex: Unknown! (255)
+	Link detected: yes
+-- ens4 --
+driver: virtio_net
+version: 1.0.0
+bus-info: 0000:00:04.0
+	Speed: Unknown!
+	Duplex: Unknown! (255)
+	Link detected: yes
+
+== RED — MÓDULOS Y REENVÍO ==
+openvswitch=no cargado
+8021q=no cargado
+br_netfilter=no cargado
+vhost_net=no cargado
+net.ipv4.ip_forward = 0
+net.ipv6.conf.all.forwarding = 0
+
+== RED — PUENTES ==
+
+== OPEN VSWITCH ==
+ovs-vsctl no instalado
+
+== SWITCH FÍSICO / PICOS ==
+no se detecta PicOS en este nodo
+
+== CONTENEDORES ==
+docker no instalado
+
+== JAVA (controlador ONOS) ==
+java no instalado
+
+== VIRTUALIZACIÓN / KVM ==
+/dev/kvm=presente
+
+== TIEMPO ==
+Timezone=Etc/UTC
+CanNTP=yes
+NTP=yes
+NTPSynchronized=yes
+
+== ENCAMINADO Y FIREWALL ==
+net.ipv4.ip_forward = 0
+default via 192.168.0.1 dev ens3 proto static 
+10.0.0.0/24 dev ens4 proto kernel scope link src 10.0.0.1 
+192.168.0.0/24 dev ens3 proto kernel scope link src 192.168.0.21 
+
+== RESUMEN ==
+rol=host
+hostname=h1
+vcpus=1
+mem_total_mb=961
+disco_libre_gb=2
+interfaces_fisicas=2
+openvswitch=no
+openflow=no-verificado
+tablas=no-verificado
+meters=no-verificado
+groups=no-verificado
+mirror=no-verificado
+queues=no-verificado
+vlan_trunk=no-verificado
+cookie_timeout=no-verificado
+sflow=no-verificado
+netflow=no-verificado
+docker=no
+compose=no
+java=no
+kvm=si
+chrony=no
+ip_forward=0
+ruta_por_defecto=192.168.0.1
+
+Fin del inventario.

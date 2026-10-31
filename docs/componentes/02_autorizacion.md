@@ -17,7 +17,7 @@ Qué vive dentro de cada pieza que responde a la pregunta **"¿qué puedes hacer
               ▼                                         ▼
  ┌─ PLANO DE SERVICIOS ──────────────┐   ┌─ PLANO DE RED ─────────────────────┐
  │  RBAC                             │   │  motor ABAC-like (Policy Engine)   │
- │  rol → permisos P01–P30           │   │  condiciones + vigencia (TTL)      │
+ │  rol → permisos P01–P36           │   │  condiciones + vigencia (TTL)      │
  │  se aplica en cada servicio       │   │  decide el perfil de cada sesión   │
  │  (valida la API, no la consola)   │   │  y las elevaciones                 │
  └───────────────────────────────────┘   └───────────────┬────────────────────┘
@@ -40,11 +40,11 @@ Ni RBAC ni ABAC son componentes: son **modelos de decisión** que viven dentro d
 │  roles (4):  académico · Especialista de TI · Administrador de Red ·     │
 │              Superadministrador                                          │
 │                                                                          │
-│  catálogo de permisos P01–P30 (fase A), por niveles:                     │
-│    acceso           P01–P05, P28   autenticarse, red, servicio, elevar  │
-│    supervisión      P06–P13, P25   observar, mitigar, auditar            │
-│    administración   P14–P23, P27, P29, P30                               │
-│    control maestro  P24, P26                                             │
+│  catálogo de permisos P01–P36 (fase A), por niveles:                     │
+│    acceso           P01–P05, P28, P35   autenticarse, red, servicio      │
+│    supervisión      P06–P13              observar y responder            │
+│    administración   P14–P21, P22-OP, P23, P27, P29–P31, P33             │
+│    gobierno         P22-CFG, P24–P26, P32, P34, P36                     │
 │                                                                          │
 │  dónde se aplica:   en cada SERVICIO, al validar cada petición de la API │
 │  dónde NO:          la consola solo renderiza según el rol;              │
@@ -55,11 +55,11 @@ Ni RBAC ni ABAC son componentes: son **modelos de decisión** que viven dentro d
 Reglas de asignación que el RBAC respeta (fase A §3):
 
 - Un permiso se concede explícitamente; **poseer un rol no implica acceso irrestricto**.
-- El acceso efectivo = rol + permiso + recurso/servicio + política + contexto + vigencia.
+- El acceso efectivo se evalúa con `SUJETO × ACCIÓN × RECURSO × CONTEXTO × ESTADO DE SEGURIDAD × VIGENCIA`; el estado de seguridad puede anular un permiso.
 - Los permisos administrativos se mantienen separados de los de usuario final.
 - Operaciones críticas → auditadas; mitigaciones → sujetas a política.
 
-La asignación definitiva rol × permiso es la **matriz Rol × Permiso** de la fase A (pendiente de completar).
+La asignación definitiva rol × permiso es la **matriz Rol × Permiso** de [`implementation/02_matriz_rol_permiso.md`](../../implementation/02_matriz_rol_permiso.md); su fuente de verdad es [`implementation/policy/permisos.yaml`](../../implementation/policy/permisos.yaml).
 
 ## 3. Plano de red: el motor ABAC-like — qué vive dentro del Policy Engine
 
@@ -95,14 +95,16 @@ Lo que el Policy Engine **no** hace (doc 06): observar tráfico, ejecutar la dec
 
 Un **perfil** es el conjunto de reglas que un dispositivo tiene instaladas en su switch de ingreso. No se "asigna" en abstracto: se materializa como FLOW_MOD con prioridad, cookie y timeout.
 
-| Perfil | Quién lo recibe | Vigencia | Qué obtiene en la red |
-|---|---|---|---|
-| **BASE** | todo dispositivo conectado, antes de cualquier login | mientras está conectado | mínimo: DHCP, DNS y portal. Deny by default hacia la red de gestión |
-| **ACADÉMICO** | usuario académico, tras autenticarse | sesión (idle_timeout) | servicios académicos e Internet, con la sesión atribuida a una identidad |
-| **LABORATORIO** | académico con elevación aprobada (P28/P29) | TTL de la elevación | segmento o servicios del laboratorio, solo lo aprobado |
-| **TI** | Especialista de TI autenticado | sesión | consola y APIs puntuales (entradas prioridad 200 acotadas) |
-| **ADMIN_RED** | Administrador autenticado | sesión | toda la red de gestión (10.0.0.0/24) |
-| **SUPER_ADMIN** | Superadministrador autenticado | sesión | igual que admin + acceso remoto (regla instalada en el switch del borde) |
+| Perfil | Tipo | Quién lo recibe | Vigencia | Qué obtiene en la red |
+|---|---|---|---|---|
+| **BASE** | Fijo | todo dispositivo conectado, antes de cualquier login | mientras está conectado | mínimo: DHCP, DNS y portal. Deny by default hacia la red de gestión |
+| **ACADÉMICO** | Fijo | usuario académico, tras autenticarse | sesión (idle_timeout) | servicios académicos e Internet, con la sesión atribuida a una identidad |
+| **OPERADOR_TI** | Derivado | Especialista de TI autenticado | sesión | consola y APIs puntuales (entradas prioridad 200 acotadas) |
+| **OPERADOR_ADMIN** | Derivado | Administrador autenticado | sesión | toda la red de gestión (10.0.0.0/24) |
+| **OPERADOR_SA** | Derivado | Superadministrador autenticado | sesión | igual que admin + acceso remoto (regla instalada en el switch del borde) |
+| **ELEVACIÓN(scope, TTL)** | Parametrizado | académico con elevación aprobada (P28/P29); LABORATORIO es una instancia | TTL de la elevación | segmento o servicios del alcance aprobado, solo lo aprobado |
+
+`TI`, `ADMIN_RED` y `SUPER_ADMIN` son alias documentales de `OPERADOR_TI`, `OPERADOR_ADMIN` y `OPERADOR_SA`. `LABORATORIO` no es un perfil fijo: es una instancia de ELEVACIÓN con alcance de laboratorio y TTL corto.
 
 Todos los perfiles se materializan igual: el Policy Engine decide, el controlador traduce a FLOW_MOD, el switch ejecuta y expira por timeout (P10).
 
@@ -125,7 +127,7 @@ La autorización **se cumple en el switch**, no en la consola ni en el portal: a
 
 | Pieza | Dónde vive | Quién la evalúa | Qué produce |
 |---|---|---|---|
-| Roles y permisos P01–P30 (RBAC) | en los servicios (validación por API) | cada servicio, en cada petición | permitir/denegar una operación de plataforma |
+| Roles y permisos P01–P36 (RBAC) | en los servicios (validación por API) | cada servicio, en cada petición | permitir/denegar una operación de plataforma |
 | Políticas de acceso (ABAC-like) | Policy Engine — PolicyRepository | Policy Engine | perfil y vigencia de cada sesión |
 | Elevaciones y sus TTL | Policy Engine — PermissionRepository | Policy Engine | ElevationGranted / ElevationExpired |
 | Perfil efectivo de una sesión | reglas en los switches (decididas por Policy, traducidas por el controlador) | el switch, por prioridad | conectividad concreta (ALLOW/DROP/meter) |
@@ -136,9 +138,9 @@ La **escalera de prioridades** (mitigación 1000 → sesión privilegiada 200 �
 
 ## 7. Cuestiones abiertas
 
-- **Matriz Rol × Permiso definitiva** (fase A): la asignación completa de P01–P30 a los 4 roles.
+- **Matriz Rol × Permiso:** cerrada en [`implementation/02_matriz_rol_permiso.md`](../../implementation/02_matriz_rol_permiso.md); su fuente de verdad es [`implementation/policy/permisos.yaml`](../../implementation/policy/permisos.yaml).
 - **Peldaño de la sesión académica** en la escalera de prioridades: valor exacto al implementar.
 - **Alcance del motor ABAC-like:** el motor evalúa una tupla fija de atributos; un motor XACML completo sería complejidad injustificada (P4). Confirmar que basta.
 - **Vigencia por defecto** de cada perfil (idle_timeout concreto): Fase F, con mediciones.
 
-Documentos relacionados: [`06_responsabilidades.md`](../fases/D-ARQUITECTURA_DE_ALTO_NIVEL-HLD/06_responsabilidades.md) (quién puede qué, por componente), [`03_permisos.md`](../fases/A-Modelo_de_dominio/03_permisos.md) (catálogo P01–P30) y [`03_flujo_autenticacion_autorizacion.md`](../../flows/03_flujo_autenticacion_autorizacion.md) (mecánica a nivel de red).
+Documentos relacionados: [`06_responsabilidades.md`](../fases/D-ARQUITECTURA_DE_ALTO_NIVEL-HLD/06_responsabilidades.md) (quién puede qué, por componente), [`03_permisos.md`](../fases/A-Modelo_de_dominio/03_permisos.md) (catálogo P01–P36) y [`03_flujo_autenticacion_autorizacion.md`](../../flows/03_flujo_autenticacion_autorizacion.md) (mecánica a nivel de red).

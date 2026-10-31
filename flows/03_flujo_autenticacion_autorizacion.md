@@ -91,7 +91,7 @@ Policy Engine
   identidad autenticada + dispositivo (match con el registro, P7)
   + ubicación + contexto + vigencia
   ▼
-Decisión: perfil ADMIN_RED para esta sesión, desde esta MAC, en este puerto
+Decisión: perfil OPERADOR_ADMIN para esta sesión, desde esta MAC, en este puerto
 ```
 
 El Policy Engine combina **identidad + atributos + contexto + recurso + acción + vigencia** — más ABAC que RBAC puro: el rol es solo uno de los atributos de la decisión.
@@ -123,12 +123,12 @@ El usuario académico puede pedir acceso temporal a recursos que su perfil no cu
 
 ```text
 ACADÉMICO
-  │ solicitud: acceso LABORATORIO, 2 h, recursos X/Y/Z
+  │ solicitud: acceso ELEVACIÓN(LABORATORIO), 2 h, recursos X/Y/Z
   ▼
 PENDING  (el Administrador de Red revisa la solicitud)
   │ aprobación
   ▼
-ELEVATED (TTL = 2 h)   ← perfil ACADÉMICO + LABORATORIO temporal
+ELEVATED (TTL = 2 h)   ← perfil ACADÉMICO + ELEVACIÓN(LABORATORIO) temporal
   │ expiración
   ▼
 ACADÉMICO
@@ -153,8 +153,10 @@ El TTL es esencial: un permiso excepcional concedido para una práctica no puede
 |---|---|---|---|
 | BASE | Cualquier dispositivo conectado | Automático (presencia física) | Indefinida mientras esté conectado |
 | ACADÉMICO | Comunidad universitaria (alumno o profesor) | Login en el portal (IdP institucional, sin MFA) | Sesión (idle_timeout) |
-| LABORATORIO / INVESTIGACIÓN / PRACTICANTE_DTI | Usuarios académicos con necesidad justificada | Solicitud + aprobación | Temporal (TTL) |
-| TI / ADMIN_RED / SUPER_ADMIN | Operadores privilegiados | Dispositivo registrado + login con MFA (portal/AAA) | Sesión (idle_timeout) |
+| ELEVACIÓN(scope, TTL) — LABORATORIO es una instancia | Usuarios académicos con necesidad justificada | Solicitud + aprobación | Temporal (TTL) |
+| OPERADOR_TI / OPERADOR_ADMIN / OPERADOR_SA | Operadores privilegiados | Dispositivo registrado + login con MFA (portal/AAA) | Sesión (idle_timeout) |
+
+`TI`, `ADMIN_RED` y `SUPER_ADMIN` son alias documentales de `OPERADOR_TI`, `OPERADOR_ADMIN` y `OPERADOR_SA`.
 
 ## 8. El registro de los operadores privilegiados
 

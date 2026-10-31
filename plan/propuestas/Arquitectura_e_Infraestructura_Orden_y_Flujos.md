@@ -33,7 +33,7 @@ La solución separa tres planos con responsabilidades que jamás se cruzan:
 |---|---|---|---|
 | **Gestión** | Los diez servicios, la consola, la persistencia | Observa y decide | La decisión de seguridad es lógica y auditable; no puede mezclarse con el aparato que la ejecuta |
 | **Control** | ONOS y el canal OpenFlow | Traduce y coordina | Convertir órdenes en reglas es un problema de red; mezclarlo con la política haría inauditable la decisión |
-| **Datos** | Los ocho switches y el tráfico | Ejecuta y reporta | La ejecución debe ser a velocidad de línea en hardware; si la decisión tardara lo que tarda el software, el ataque ya pasó |
+| **Datos** | Los diez switches y el tráfico | Ejecuta y reporta | La ejecución debe ser a velocidad de línea en hardware; si la decisión tardara lo que tarda el software, el ataque ya pasó |
 
 **Por qué esto es lo primero que se justifica:** es la razón de existir de una solución SDN. En una red tradicional, la decisión y la ejecución están pegadas en cada equipo; aquí están separadas para que la decisión sea una sola, central, auditable — y la ejecución sea distribuida, en el punto de ingreso de cada atacante (P2: decisión centralizada, ejecución distribuida).
 
@@ -101,9 +101,9 @@ Esta tabla es la defensa más corta de la arquitectura: si un elemento no respon
                               │  I1: OpenFlow 1.3     │
                               │  OOB por ma1 · tcp 6653
                               ▼
-        PLANO DE DATOS: NC1═NC2 → D1·D2 → A1·A2·A3·A4 (13 enlaces, dual-homed)
+        PLANO DE DATOS: C1═C2 (zona de servicios) → NC1═NC2 → D1·D2 → A1·A2·A3·A4 (18 enlaces, dual-homed)
                               │
-                 VLAN 10 usuarios · VLAN 20 gestión · VLAN 30 servidores · VLAN 40 externa
+                 VLAN 10 usuarios · VLAN 100 gestión · VLAN 20 servidores · VLAN 30 externa
                  A4 p47 → espejo → Suricata (.27, fuera de camino) → Adaptador → bus
 ```
 
@@ -153,7 +153,7 @@ La regla del corpus: primero el papel, luego el producto que lo materializa. Nin
 
 **Qué NO hace ONOS:** no autentica usuarios (eso es IAM), no decide política de seguridad (eso es Políticas), no verifica mitigaciones (eso es Monitor). Es el traductor, no el juez.
 
-**Instancia única vs. clúster (decirlo sin que suene a hueco):** el prototipo despliega una instancia; la referencia documenta un clúster de 3 nodos con consenso Raft, un maestro por dispositivo (`OFPT_ROLE_REQUEST`) y reconciliación tras caída (reinstala lo faltante, no barre lo vigente). La redundancia del **plano de datos** sí se despliega y se mide — ocho switches dual-homed; la del plano de control se analiza por diseño.
+**El clúster desplegado (decirlo sin que suene a hueco):** el prototipo despliega **tres nodos ONOS** (`.20`/`.30`/`.40`) con consenso Atomix/Raft: un maestro por dispositivo (`OFPT_ROLE_REQUEST` con generation_id), y si un nodo cae sus switches piden MASTER a otro y la decisión continúa — las reglas instaladas nunca se tocan, solo se reconcilia lo faltante. El límite honesto: los tres nodos comparten el host físico (toleran la caída de un proceso, no del servidor); el campus real los reparte en tres hosts. La redundancia del **plano de datos** también se despliega y se mide — diez switches dual-homed.
 
 ### 2.5 El servidor del laboratorio
 
@@ -162,37 +162,40 @@ Un único servidor físico (KVM/libvirt, ≥ 32 GB RAM) sostiene todo el plano d
 - **La regla VM vs. contenedor:** lo que la red debe ver como un equipo real (MAC propia, IP propia, puerto propio) es una **VM**; lo que es un proceso de servicio sin identidad de red es un **contenedor**.
 - **24 VMs:** 16 hosts académicos (`10.1.0.10–.25`) · 2 operadores (`.30–.31`) · atacante interno (`.50`) · atacante externo (`10.3.0.10`) · 3 servidores protegidos (`10.2.0.10–.12`) · el sensor Suricata (`.27`, con su NIC de espejo sin IP).
 - **5 NIC físicas, y por qué cinco:** cada población entra por una NIC distinta para que la topología física coincida con la política —
-  `NIC-A ↔ A3 p6` (trunk de gestión, VLAN 20) · `NIC-B ↔ A1 p20` (hosts académicos) · `NIC-C ↔ A4 p4` (atacante externo) · `NIC-D ← A4 p47` (espejo, solo recepción) · `NIC-E ↔ A2 p6` (operadores, atacante interno y el puente de la demo `MAC_Moved`).
+  `NIC-A ↔ C1/C2 p6` (trunk de gestión y servidores, VLAN 100 + 20) · `NIC-B ↔ A1 p20` (hosts académicos) · `NIC-C ↔ A4 p4` (atacante externo) · `NIC-D ← A4 p47` (espejo, solo recepción) · `NIC-E ↔ A2 p6` (operadores, atacante interno y el puente de la demo `MAC_Moved`).
+- **El reparto de memoria:** los académicos bajan a 512 MB (imagen mínima) para que quepan los tres nodos ONOS (2 GB cada uno): ≈ 29 GB de los 32 GB del servidor — margen estrecho, declarado.
 - Los hosts virtuales comparten puerto por población; la red los distingue por MAC — y las reglas de política son por MAC, no por puerto.
 
 ### 2.6 Los switches y la topología (lo justo: la TCAM la detallan otros)
 
-**8 switches Pica8/PicOS, jerarquía de tres niveles, 13 enlaces:**
+**10 switches Pica8/PicOS, jerarquía de tres niveles más la zona de servicios, 18 enlaces:**
 
 ```text
-   NC1 ────────── NC2        núcleo: enlazados entre sí (p3↔p3)
-   ╱ ╲             ╱ ╲
-  D1  ╲           ╱  D2      distribución: cada uno llega a AMBOS núcleos
-  ╱│╲  ╲         ╱  ╱│╲
- A1 A2 A3        A4          acceso: cada uno dual-homed (p1→D1, p2→D2)
+   C1 ────── C2          zona de control y servicios: plataforma, clúster ONOS y servidores,
+   ╱ ╲       ╱ ╲         cada uno al núcleo por directo y cruzado
+ NC1 ────────── NC2      núcleo: enlazados entre sí (p3↔p3)
+ ╱ ╲             ╱ ╲
+D1  ╲           ╱  D2    distribución: cada uno llega a AMBOS núcleos
+╱│╲  ╲         ╱  ╱│╲
+A1 A2 A3       A4        acceso: cada uno dual-homed (p1→D1, p2→D2); A3 libre
 ```
 
-**Por qué 8 y por qué así:** con 3 switches en cadena, un corte aísla media red y la «redundancia» es decorativa. Con esta jerarquía, **todo acceso, toda distribución y todo destino quedan a un fallo de enlace o de switch del resto de la red**: cae un enlace A1–D1 → el tráfico conmuta por D2 (grupo fast-failover si la verificación lo confirma, o recálculo del controlador); cae NC1 → la red queda completa por NC2; cae un acceso → solo ese acceso se aísla. La redundancia del plano de datos **se demuestra en vivo**, que es exactamente lo que la exposición necesita. Además, un ataque distribuido desde A1, A2 y A4 se mitiga simultáneamente en tres switches de ingreso — la demostración de concurrencia (P9).
+**Por qué 10 y por qué así:** con 3 switches en cadena, un corte aísla media red y la «redundancia» es decorativa. Con esta jerarquía, **todo acceso, toda distribución, todo destino y la zona de servicios quedan a un fallo de enlace o de switch del resto de la red**: cae un enlace A1–D1 → el tráfico conmuta por D2 (grupo fast-failover si la verificación lo confirma, o recálculo del controlador); cae NC1 → la red queda completa por NC2 y C1 sigue por su enlace cruzado; cae C1 → los servidores y la plataforma siguen por C2; cae un acceso → solo ese acceso se aísla. La redundancia del plano de datos **se demuestra en vivo**, que es exactamente lo que la exposición necesita. La zona C1/C2 además repite el DROP a gestión — defensa en profundidad — y libera A3 para crecimiento. Un ataque distribuido desde A1, A2 y A4 se mitiga simultáneamente en tres switches de ingreso — la demostración de concurrencia (P9), con cada maestro ONOS instalando en sus switches.
 
-**La TCAM en una frase** (el detalle es de los compañeros): cada regla de política ocupa una entrada de tabla del switch; el peor switch (A1) acumula 188 entradas en el escenario extremo, contra ~2.000 que admite el hardware (≈ 9.4 % de utilización). La envolvente global del diseño es 350–450 reglas en los ocho switches. El límite físico existe, y el diseño lo respeta con margen — el número exacto se mide en el laboratorio.
+**La TCAM en una frase** (el detalle es de los compañeros): cada regla de política ocupa una entrada de tabla del switch; el peor switch (A1) acumula 188 entradas en el escenario extremo, contra ~2.000 que admite el hardware (≈ 9.4 % de utilización). La envolvente global del diseño es 420–520 reglas en los diez switches (nominal ≈ 440; peor caso ≈ 665). El límite físico existe, y el diseño lo respeta con margen — el número exacto se mide en el laboratorio.
 
-**El espejo y el canal de control:** A4 p47 replica el ingreso externo hacia el sensor (solo recepción, fuera del camino); las interfaces `ma1` de los ocho switches forman el canal OpenFlow, físicamente separado del tráfico de datos.
+**El espejo y el canal de control:** A4 p47 replica el ingreso externo hacia el sensor (solo recepción, fuera del camino); las interfaces `ma1` de los diez switches forman el canal OpenFlow, físicamente separado del tráfico de datos. En el diseño in-band (referencia), OpenFlow viajaría por la VLAN 100 priorizada — misma interfaz I1, otro medio.
 
 ### 2.7 Los segmentos: la VLAN no concede nada
 
 | VLAN | Subred | Segmento | Quién vive ahí |
 |---|---|---|---|
 | 10 | 10.1.0.0/24 | USUARIOS | académicos, operadores, atacante interno |
-| 20 | 10.0.0.0/24 | GESTIÓN | los diez servicios, ONOS, broker, bases, identidad, tiempo, visualización, DNS |
-| 30 | 10.2.0.0/24 | SERVIDORES | los activos protegidos: general `.10`, privilegiado `.11`, crítico `.12` |
-| 40 | 10.3.0.0/24 | EXTERNA | borde y atacante externo |
+| 100 | 10.0.0.0/24 | GESTIÓN | los diez servicios, ONOS, broker, bases, identidad, tiempo, visualización, DNS |
+| 20 | 10.2.0.0/24 | SERVIDORES | los activos protegidos: general `.10`, privilegiado `.11`, crítico `.12` |
+| 30 | 10.3.0.0/24 | EXTERNA | borde y atacante externo |
 
-**Por qué importa decirlo:** la VLAN agrupa y direcciona, **no concede permisos**. El permiso vive en las reglas del pipeline (la denegación a gestión es la prioridad 100; la sesión es la 200). Un host en la VLAN correcta sin la regla correcta no llega a nada.
+**Por qué importa decirlo:** la VLAN agrupa y direcciona, **no concede permisos**. El permiso vive en las reglas del pipeline (la denegación a gestión es la prioridad 100; la sesión es la 200). Un host en la VLAN correcta sin la regla correcta no llega a nada. La VLAN 1 queda sin uso: es la VLAN por defecto, viaja sin etiquetar como nativa y es la superficie clásica del salto de VLAN.
 
 ---
 
@@ -341,7 +344,7 @@ Internet ─► A4 (borde) ─► plano de datos ─► servicios        (el tr�
 - **¿Por qué un broker y no llamadas directas?** Porque el ataque es un suceso que muchos deben conocer sin que el emisor se acople a nadie; pero las órdenes que exigen confirmación van síncronas por I2.
 - **¿Por qué tantos servicios?** Porque cada pregunta del sistema —quién es, qué puede, qué pasa, si es anómalo, qué incidente, cómo se aplica— tiene un dueño con contrato y persistencia propios; el despliegue los co-localiza, la lógica no los fusiona.
 - **¿Por qué ONOS?** Porque la plataforma decide en términos de seguridad y ONOS traduce a red: API northbound, OpenFlow 1.3 y clúster de referencia.
-- **¿Por qué ocho switches?** Para que la redundancia del plano de datos se demuestre en vivo: todo acceso dual-homed, doble núcleo, y un ataque distribuido mitigado en tres ingresos a la vez.
+- **¿Por qué diez switches?** Para que la redundancia del plano de datos se demuestre en vivo: todo acceso dual-homed, doble núcleo, la zona de servicios colgada del núcleo con su propio par, y un ataque distribuido mitigado en tres ingresos a la vez.
 - **¿Por qué el IDS fuera de camino?** Para que su caída degrade la detección perimetral sin cortar la red.
 - **¿Por qué OOB?** Para que un ataque que sature los datos no compita con la respuesta que viaja por el canal de control.
 - **¿Por qué la TCAM importa?** Porque cada decisión de política es una entrada física en el switch: el peor caso (188 entradas ≈ 9.4 %) demuestra que el diseño cabe con margen en el hardware real.
@@ -354,7 +357,7 @@ Internet ─► A4 (borde) ─► plano de datos ─► servicios        (el tr�
 |---|---|---|
 | 0:00–0:45 | La frase | «La plataforma decide; el controlador traduce; los switches ejecutan.» Tres planos, y por qué separarlos. |
 | 0:45–1:45 | Infraestructura | El servidor (24 VMs, 5 NIC, por qué cada una), los diez servicios en una frase cada uno, los papeles materializados (ONOS, RabbitMQ, PostgreSQL, IdP, Suricata). |
-| 1:45–2:45 | El controlador | Qué hace ONOS y qué no hace; I2 como única ruta de órdenes; cookies; instancia única vs. clúster de referencia. |
+| 1:45–2:45 | El controlador | Qué hace ONOS y qué no hace; I2 como única ruta de órdenes; cookies; el clúster de 3 nodos desplegado y su límite honesto (host compartido). |
 | 2:45–4:30 | **El flujo** | Login en 12 pasos (Portal→IAM→IdP→Políticas→ONOS) y luego el bucle R4 completo con sus tiempos — la estrella. |
 | 4:30–5:00 | Cierre | La tabla de síntesis (§3.6): cada servicio tiene su momento exacto, y Auditoría los mira a todos. |
 

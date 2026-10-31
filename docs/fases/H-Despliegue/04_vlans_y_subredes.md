@@ -13,12 +13,13 @@ El **segmento lógico se materializa en una VLAN con su subred**: la VLAN agrupa
 | VLAN | Segmento | Subred | Vive en | Nota |
 |---|---|---|---|---|
 | 10 | USUARIOS | `10.1.0.0/24` | Puertos de acceso de A1 y A2; trunks hacia la distribución | Hosts académicos, operadores, atacante interno |
-| 20 | GESTIÓN | `10.0.0.0/24` | Trunk del servidor en A3; transita hacia la distribución y el núcleo | Los servicios de la plataforma; alcanzable por el plano de datos **solo** por la frontera de reglas ([`03`](03_red.md) §2) |
-| 30 | SERVIDORES | `10.2.0.0/24` | Puertos de acceso de A3; transita hacia la distribución y el núcleo | Los activos protegidos de R2 |
-| 40 | EXTERNA | `10.3.0.0/24` | Puerto de A4 (y trunk del servidor para la VM atacante) | Origen de los escenarios R5 |
+| 100 | GESTIÓN | `10.0.0.0/24` | Trunk del servidor en C1/C2; transita hacia la distribución y el núcleo | Los servicios de la plataforma; alcanzable por el plano de datos **solo** por la frontera de reglas ([`03`](03_red.md) §2) |
+| 20 | SERVIDORES | `10.2.0.0/24` | Trunk del servidor en C1/C2; transita hacia la distribución y el núcleo | Los activos protegidos de R2 |
+| 30 | EXTERNA | `10.3.0.0/24` | Puerto de A4 (y trunk del servidor para la VM atacante) | Origen de los escenarios R5 |
 
-- **Tagging:** untagged en los puertos de acceso (los hosts no etiquetan); tagged (802.1Q) en los trunks, que transportan varias VLAN — los enlaces acceso–distribución llevan 10, 20 y 30 (40 en el borde); los enlaces distribución–núcleo y el enlace de núcleo llevan todas las VLAN de datos. La asignación puerto a puerto está en [`05`](05_puertos.md).
-- **El tránsito de la VLAN 20 es deliberado:** el segmento de gestión cruza los trunks para que la frontera de reglas exista — BASE intenta alcanzarlo, la prioridad 100 lo niega, la elevación (200) lo abre para quien corresponde (R1.6, RA-09). El **canal de control**, en cambio, no es esta VLAN: son las interfaces `ma1`, fuera de banda (RP-02).
+- **Tagging:** untagged en los puertos de acceso (los hosts no etiquetan); tagged (802.1Q) en los trunks, que transportan varias VLAN — los enlaces acceso–distribución llevan 10, 20 y 100 (30 en el borde); los enlaces distribución–núcleo y el enlace de núcleo llevan todas las VLAN de datos. La asignación puerto a puerto está en [`05`](05_puertos.md).
+- **El tránsito de la VLAN 100 es deliberado:** el segmento de gestión cruza los trunks para que la frontera de reglas exista — BASE intenta alcanzarlo, la prioridad 100 lo niega, la elevación (200) lo abre para quien corresponde (R1.6, RA-09). El **canal de control**, en cambio, no es esta VLAN: son las interfaces `ma1`, fuera de banda (RP-02).
+- **La VLAN 1 no se usa:** es la VLAN por defecto del switch, viaja sin etiquetar como nativa en los trunks, transporta los protocolos de control y es el punto de partida clásico del salto de VLAN. La gestión ocupa la VLAN 100 —fuera del rango de datos 10/20/30— y la VLAN 1 queda sin asignación.
 - **DHCP:** los hosts del prototipo usan IP estática (reproducibilidad, RNF-11); DHCP queda reservado para la referencia. La regla de DHCP del esqueleto existe para que el diseño no dependa de esa reserva.
 
 ## 3. La cuarentena y el canal in-band: dos reservas
@@ -35,6 +36,6 @@ En el campus real cada segmento existe como VLAN institucional con su subred adm
 | Prueba | Mide | Cierra |
 |---|---|---|
 | Dispositivo en VLAN 10 sin alcanzar 10.0.0.0/24 salvo el portal | La frontera de reglas sobre la VLAN | R1.6, RA-09 |
-| Elevación abre VLAN 20 para el operador y expira al TTL | La escalera sobre el tránsito | R1.8, P10 |
+| Elevación abre VLAN 100 para el operador y expira al TTL | La escalera sobre el tránsito | R1.8, P10 |
 | Tráfico entre VLANs enruta por caminos del controlador | Sin router: el plano de datos resuelve | flows/05 |
-| Etiquetado de trunks correcto (10/20/30 según enlace) | Correspondencia con [`05`](05_puertos.md) | R2.6 |
+| Etiquetado de trunks correcto (10/20/100 según enlace) | Correspondencia con [`05`](05_puertos.md) | R2.6 |

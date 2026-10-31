@@ -21,7 +21,7 @@ Cada requisito de [B-01.1](../B-Drivers_de_arquitectura/01.1_RF_funcionales.md) 
 | R1.5 Mínimo privilegio | Switches (DROP por defecto; BASE como lista cerrada) · Controlador | Parte 3 §2; D-11 §2 | Cubierto |
 | R1.6 Denegación | Switches (DROP) · Controlador (regla de denegación) | Parte 3 §6; D-11 §2 | Cubierto |
 | R1.7 Administración | Consola · IAM/AAA · Registro de dispositivos privilegiados | D-06 §4; D-05 §10, §6–7 | Cubierto |
-| R1.8 Superusuarios | IAM/AAA (perfiles ADMIN_RED y SUPER_ADMIN, uso restringido) | D-05 §6; A-01 | Cubierto |
+| R1.8 Superusuarios | IAM/AAA (perfiles OPERADOR_ADMIN y OPERADOR_SA, uso restringido) | D-05 §6; A-01 | Cubierto |
 | R1.9 Trazabilidad | Auditoría | Parte 3 §6; D-05 §8 | Cubierto |
 | R1.10 Escalabilidad | Arquitectura (registro acotado a dispositivos privilegiados; crecimiento previsto en el diseño) | D-08; parte 0 | Cubierto (magnitud en prototipo) |
 

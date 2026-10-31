@@ -70,7 +70,7 @@ La topología de referencia se organiza en **tres niveles**:
 - **Distribución** — agregación: une los accesos entre sí y con el núcleo; es el ámbito natural de los caminos.
 - **Núcleo** — la troncal: conecta los servicios de infraestructura y los caminos principales.
 
-Cuántos switches tiene cada nivel, cómo se conectan y qué redundancia existe quedó fijado en la Fase H: **ocho switches — dos núcleo, dos distribución, cuatro acceso — dual-homed, con 13 enlaces** ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3). El diagrama de arriba es la vista de niveles; las cantidades y los enlaces concretos viven en la Fase H. El cálculo de caminos por destino que opera sobre estos niveles está en la serie de flujo, parte 5.
+Cuántos switches tiene cada nivel, cómo se conectan y qué redundancia existe quedó fijado en la Fase H: **diez switches — dos núcleo, dos distribución, cuatro acceso y la zona de control y servicios (C1/C2) colgada del núcleo — todo dual-homed, con 18 enlaces** ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3). El diagrama de arriba es la vista de niveles; las cantidades y los enlaces concretos viven en la Fase H. El cálculo de caminos por destino que opera sobre estos niveles está en la serie de flujo, parte 5.
 
 ## 3. Direccionamiento propuesto
 
@@ -106,7 +106,7 @@ La topología rígida admite la aparición de dispositivos nuevos: todo lo que c
 
 ## 6. Cuestiones abiertas
 
-- **Número de switches por nivel, conexiones y resiliencia** — cerrado en la Fase H: ocho switches dual-homed ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md)); el efecto de un fallo sobre los caminos instalados se resuelve con recálculo o grupos fast-failover ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §4).
+- **Número de switches por nivel, conexiones y resiliencia** — cerrado en la Fase H: diez switches dual-homed con la zona C1/C2 colgada del núcleo ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md)); el efecto de un fallo sobre los caminos instalados se resuelve con recálculo o grupos fast-failover ([`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §4).
 - **Hardware físico vs virtual.** La topología lógica es la misma; cambia el despliegue (Fase H).
 - **Perímetro.** Si el segmento perimetral se representa con un firewall, con reglas de borde o no se representa (fase C).
 - **In-band.** Si el canal de control adopta la VLAN de gestión sobre los enlaces de datos.

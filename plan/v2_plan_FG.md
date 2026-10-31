@@ -92,7 +92,7 @@ Dos decisiones en un documento: el **producto del controlador** (RA-02) y la **f
 
 ## 2. Decisión
 
-**ONOS** como controlador SDN del prototipo, desplegado en una instancia única sobre la red de gestión. La lógica propia de la plataforma —la API de órdenes de I2 y su traducción a OpenFlow— vive como una **aplicación del controlador**, no como un servicio aparte: el controlador no es un microservicio de la plataforma (P1, D-04 §6), pero su interior sí tiene una pieza propia que es la única autorizada a tocar el pipeline de los switches.
+**ONOS** como controlador SDN del prototipo, desplegado como **clúster de tres nodos** sobre la red de gestión (ONOS-1 `.20`, ONOS-2 `.30`, ONOS-3 `.40`; consenso Atomix/Raft — §6). La lógica propia de la plataforma —la API de órdenes de I2 y su traducción a OpenFlow— vive como una **aplicación del controlador**, no como un servicio aparte: el controlador no es un microservicio de la plataforma (P1, D-04 §6), pero su interior sí tiene una pieza propia que es la única autorizada a tocar el pipeline de los switches.
 
 ```text
 ┌─ Controlador (ONOS, red de gestión) ──────────────────────────────┐
@@ -109,7 +109,7 @@ Dos decisiones en un documento: el **producto del controlador** (RA-02) y la **f
 
 **Verificabilidad.** Su API REST nativa permite consultar el estado real del plano de control —dispositivos, enlaces, entradas instaladas— que es la fuente para las métricas de RA-07 y R4.10 (tiempo de reinstalación de reglas tras una caída) y para las consultas de asociaciones de la plataforma (§5). ONOS expone además estadísticas internas del propio controlador (carga, memoria, tiempos de respuesta), lo que sirve al análisis de riesgo del controlador que pide D-11.
 
-**Simplicidad justificada (P4).** Una instancia ONOS corre en una VM Linux modesta dentro del laboratorio, sin dependencias externas, y su conjunto de aplicaciones se limita a lo que la solución usa: el controlador no se convierte en una plataforma de aplicaciones. El clúster (§6) es una capacidad nativa que no se despliega en el prototipo.
+**Simplicidad justificada (P4).** Cada nodo ONOS corre en un contenedor modesto dentro del laboratorio, sin dependencias externas, y su conjunto de aplicaciones se limita a lo que la solución usa: el controlador no se convierte en una plataforma de aplicaciones. El clúster (§6) es una capacidad nativa que **sí se despliega** en el prototipo, con el límite honesto del host físico compartido.
 
 **Encaje.** OpenFlow 1.3 y out-of-band son configuración directa; la administración (web y CLI) queda restringida a la red de gestión (RA-09); el proyecto es de código abierto con base académica amplia, lo que encaja con el contexto del curso y con la mantenibilidad (RNF-10).
 
@@ -167,21 +167,23 @@ La orden **no se considera ejecutada hasta la confirmación** (D-07, I2). La res
 
 Las consultas son síncronas y de solo lectura: la frontera de [`D-08`](../D-ARQUITECTURA_DE_ALTO_NIVEL-HLD/08_comunicacion.md) §2 no cambia — por el bus viajan eventos y órdenes; las preguntas van directas al interesado.
 
-## 6. Redundancia del plano de control (decisión de E-04)
+## 6. Redundancia del plano de control (decisión de E-04, desplegada)
 
-**Mecanismo elegido:** clúster nativo de ONOS —varias instancias con consenso sobre el estado— **y** switches configurados con más de un endpoint de controlador, con failover.
+**Mecanismo elegido:** clúster nativo de ONOS —tres nodos con consenso Atomix/Raft— **y** switches configurados con los tres endpoints de controlador, con failover por re-elección de maestro.
 
 ```text
-Estado normal      ONOS-A ◄──── control ──── switches
-                   ONOS-B · ONOS-C  (clúster en espera, estado replicado)
-Caída de ONOS-A    los switches re-eligen endpoint → ONOS-B continúa
-Reconexión         el switch se re-registra; el estado seguro (P10) ya
-                   sostenía la red; las reglas se reinstalan y se reconcilian
+Estado normal      ONOS-1 (.20) · ONOS-2 (.30) · ONOS-3 (.40)   ← clúster Raft (I9: TCP 5679 / 9876)
+                   un MASTER por switch (reparto ≈ 3–4 switches por nodo), los demás SLAVE
+Caída de ONOS-1    Raft pierde el latido → nueva elección → ROLE_REQUEST (MASTER, gen+1)
+                   → el nuevo maestro reconcilia (reinstala lo faltante, no barre lo vigente)
+Sin quórum         las reglas instaladas siguen hasta su timeout; las decisiones nuevas esperan
 ```
 
-- **Prototipo:** una sola instancia. El clúster y el multi-controlador son la vía documentada que despliega la Fase H; C-04 §4 ya declara que la alta disponibilidad real se analiza por diseño y no se despliega.
-- **Por qué esta forma:** el diseño no exige redundancia para operar —el plano de datos conserva lo instalado y todo expira por timeout (P2, P10)—; la exige para **no degradar durante la caída**. El clúster replica el estado (asociaciones, reglas) sin que los servicios cambien nada: I2 sigue siendo un único extremo lógico.
-- **Cuantificación:** el tiempo de re-registro y reinstalación tras una caída se mide en el prototipo (RA-07, R4.10) y alimenta el análisis de riesgo D-09.
+- **Prototipo:** clúster de tres nodos desplegado (Fase H). Cada switch lleva los tres endpoints `tcp:10.0.0.20/.30/.40:6653`; cada nodo tiene su NIC en la VLAN 100 (I2, I8, I9) y una **segunda NIC** en la red de gestión del laboratorio para el canal OOB (`ma1`).
+- **I2 con clúster:** cualquier nodo atiende la API (REST/HTTPS, TCP 8181); si no es maestro del switch destino, el estado se coordina por Atomix y el maestro emite el `FLOW_MOD`. El cliente usa la lista de los tres nodos con reintento ante 503 o timeout; para los servicios, I2 sigue siendo **un único extremo lógico** (VIP en el despliegue de referencia).
+- **Qué se replica y qué no:** se replica el estado de decisión — cookies (string↔64 bits), asociaciones MAC↔puerto↔IP, inventario de servicios y órdenes en curso. La verdad de las reglas **no** se replica: vive en el switch y se reconcilia leyéndola (P11).
+- **Límite honesto:** los tres nodos comparten el host físico del laboratorio — toleran la caída de un proceso o contenedor, no la del servidor. El campus real los reparte en tres hosts distintos.
+- **Cuantificación:** el tiempo de re-maestría (M3) y la latencia de I2 por nodo (M4) se miden con las pruebas RD1–RD4 de la Fase H; alimentan RA-07 y el análisis de riesgo D-09.
 
 ## 7. Protección (RA-09)
 
@@ -195,7 +197,7 @@ Reconexión         el switch se re-registra; el estado seguro (P10) ya
 |---|---|---|
 | Orden de perfil extremo a extremo con confirmación | Latencia orden → regla instalada (presupuesto de [`06`](06_deteccion_y_mitigacion.md) §6) | RT-04, RNF-04 |
 | Retiro por cookie con `FLOW_REMOVED` observado | La confirmación de retiro existe y llega | RT-10, P10 |
-| Caída y retorno del controlador | Tiempo de re-registro y reinstalación de reglas | RA-07, R4.10, E-04 |
+| Caída de un nodo del clúster (RD2/RD4) | Tiempo de re-maestría (M3) y consistencia de las reglas instaladas | RA-07, R4.10, E-04 |
 | Consulta de asociaciones durante un `MAC_Moved` | La asociación consultada refleja el movimiento | R3.3 |
 | Orden inválida / no autenticada | Rechazo, error con causa y registro | RA-09, RNF-01 |
 
@@ -262,7 +264,7 @@ Procedimiento previo a comprometer la implementación, ejecutado contra el switc
 |---|---|---|---|
 | V1 | Modo OpenFlow 1.3 y capacidades declaradas | `FEATURES_REQUEST/REPLY`: capacidades de tablas, contadores por flujo y por puerto, grupos | Sin contadores por flujo no hay línea base (P11): se reevalúa el modo del pipeline |
 | V2 | Meters disponibles | `OFPMP_METER_FEATURES` (máximo de meters, bandas soportadas) y prueba real: instalar un `METER_MOD` de limitación y leerlo con `OFPMP_METER_CONFIG` | Entra la **degradación documentada**: contención por reglas temporales del controlador —se bloquean flujos nuevos del origen mientras persiste la tasa, y se retira al ceder— con su impacto medido (R4.6, R4.8) |
-| V3 | Grupos disponibles | `GROUP_MOD` tipo `ALL` + `OFPMP_GROUP_DESC` | La redirección usa `PACKET_OUT`/reglas individuales; se mide la diferencia de latencia y carga de control |
+| V3 | Grupos disponibles | `GROUP_MOD` tipo `ALL` y `FAST_FAILOVER` + `OFPMP_GROUP_DESC` | La redirección usa `PACKET_OUT`/reglas individuales y la conmutación de caminos queda en recálculo del controlador; se mide la diferencia de latencia y carga de control |
 | V4 | Redirección al portal: grupo frente a `PACKET_OUT` | Experimento comparativo con tráfico pre-login: latencia de primera resolución y carga sobre el controlador | P12 decide con los números: quédate con la alternativa medida |
 | V5 | Expiración y retiro | Instalar regla con `idle_timeout` corto y observar `FLOW_REMOVED`; retirar por cookie | Sin `FLOW_REMOVED` el cierre por inactividad no se propaga: se compensa con consulta periódica del inventario de reglas |
 | V6 | Rol de puerto y control | `PORT_STATUS` al caer un enlace; conexión de control rechazada desde otra interfaz | Se documenta la limitación y se ajusta la observación (I8) |
@@ -278,7 +280,9 @@ reglas de sesión por dispositivo activo    ~4 reglas
 caminos por destino                        una entrada por switch del camino
 mitigaciones simultáneas (peor caso R4)    decenas
 ─────────────────────────────────────────────────────────
-prototipo completo (ocho switches, ~23 dispositivos)     ≈ 350–450 entradas
+prototipo completo (diez switches, ~23 dispositivos)     ≈ 420–520 entradas
+                                                         (nominal ≈ 440; peor caso concurrente ≈ 665)
+diseño in-band (referencia)                              +4 por switch (canal de control y LLDP)
 ```
 
 La cifra medida se reporta como parte del cierre de RNF-05/RA-08 y del análisis de «exceso de reglas SDN» (B-03 §5). Si resultara menor que el escenario, las palancas ya están previstas: timeouts más agresivos, retiro por cookie (nada queda pegado), y agregación de mitigaciones por switch de ingreso —todo ello sin cambiar la arquitectura.
@@ -892,7 +896,7 @@ Todo se ejecuta **dentro del entorno del proyecto** (RP-06, RP-08): sin tráfico
 ## 6. Límites
 
 - **Escala (RP-04):** el prototipo no reproduce el campus; representa los escenarios. Las cifras de capacidad y rendimiento valen para el prototipo, y así se reportan.
-- **Alta disponibilidad:** la redundancia del plano de datos **se despliega y se mide** — topología de ocho switches dual-homed fijada en la Fase H ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3); la del plano de control (clúster del controlador) se documenta, no se despliega (C-04 §4). Los mecanismos quedaron decididos en [`01`](01_controlador_y_api_northbound.md) §6 y [`04`](04_mensajeria_y_eventos.md) §6.
+- **Alta disponibilidad:** ambas redundancias se despliegan en el prototipo — la del plano de datos con la topología de diez switches dual-homed ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3, zona C1/C2 incluida) y la del plano de control con el **clúster ONOS de tres nodos** ([`01`](01_controlador_y_api_northbound.md) §6). El límite honesto: los tres nodos comparten el host físico del laboratorio — toleran la caída de un nodo, no la del servidor (C-04 §4). Los mecanismos quedaron decididos en [`01`](01_controlador_y_api_northbound.md) §6 y [`04`](04_mensajeria_y_eventos.md) §6.
 - **Canal in-band:** el prototipo usa out-of-band (RP-02); la variante in-band queda como objetivo aspiracional del despliegue, ya registrado en C-04 §6.
 - **Hardware:** las ventanas de uso del laboratorio condicionan cuándo corre la verificación física; el resto del tiempo rige el apoyo virtual con sus límites declarados (§1).
 
@@ -910,7 +914,7 @@ La vista completa de la fase: qué se decidió, contra qué requisito responde c
 
 | Papel | Decisión | Documento |
 |---|---|---|
-| Controlador SDN | ONOS, instancia única; API de órdenes sobre su REST | [`01`](01_controlador_y_api_northbound.md) |
+| Controlador SDN | ONOS, clúster de tres nodos (Atomix/Raft); API de órdenes sobre su REST | [`01`](01_controlador_y_api_northbound.md) |
 | Plano de datos | PicOS OpenFlow 1.3; primitivas verificadas contra el dispositivo | [`02`](02_plano_de_datos_pica8.md) |
 | Identidad | FreeRADIUS + OpenLDAP (I4); repositorio propio con TOTP para operadores | [`03`](03_identidad_sesiones_y_portal.md) |
 | Sesión | Cookie opaca ligada al dispositivo; I7 = REST por servicio con rol validado en servidor | [`03`](03_identidad_sesiones_y_portal.md) |
@@ -930,7 +934,7 @@ La vista completa de la fase: qué se decidió, contra qué requisito responde c
 |---|---|---|
 | Controlador ONOS | RA-02, RT-03, RT-05, D-06 | Orden de perfil extremo a extremo; caída y reinstalación ([`01`](01_controlador_y_api_northbound.md) §8) |
 | API de órdenes (I2) | RT-04, R2.10, RNF-04 | Latencia orden → confirmación; rechazo de órdenes inválidas |
-| Redundancia y failover | RA-07, D-09, E-04 | Convergencia ante corte de enlace y caída de switch (desplegado: ocho switches dual-homed); clúster del controlador documentado, no desplegado |
+| Redundancia y failover | RA-07, D-09, E-04 | Convergencia ante corte de enlace y caída de switch (desplegado: diez switches dual-homed, zona C1/C2 incluida); clúster ONOS de tres nodos desplegado — caída de un nodo, re-maestría y reconciliación |
 | Primitivas PicOS | RT-05, R4.6, R4.7, C-04 §5 | Checklist V1–V7 ([`02`](02_plano_de_datos_pica8.md) §4) |
 | Capacidad de reglas | RNF-05, RA-08, D-11 | Experimento de llenado de tabla ([`02`](02_plano_de_datos_pica8.md) §5) |
 | I4 RADIUS + LDAP | R1.2, R1.9 | Login de comunidad con accounting ([`03`](03_identidad_sesiones_y_portal.md) §7) |
@@ -993,16 +997,14 @@ Los pendientes que [`E-02`](../E-Validacion_del_HLD/02_requisitos_a_componentes.
 | R4.10 (tiempos e impacto) | Cronometría por escenario | R4.10, RNF-04 |
 | RNF-03 (sobrecarga) | Barrido de frecuencias de sondeo + carga del espejo | RNF-03 |
 | RNF-11/12 (reproducibilidad y verificabilidad) | Repetición de escenarios con parámetros registrados ([`08`](08_entorno_del_prototipo.md) §4) | RNF-11, RNF-12 |
-| Capacidad y escala (R1.10, RA-08) | Llenado de tablas + carga creciente sobre los ocho switches | RA-08, R1.10 |
+| Capacidad y escala (R1.10, RA-08) | Llenado de tablas + carga creciente sobre los diez switches | RA-08, R1.10 |
 | Tiempos de recuperación (RA-07) | Corte de enlace y caída de switch con caminos alternativos; caída del controlador; drill de restauración; reconciliación | RA-07 |
 
 ## 5. Fronteras: qué queda para las fases siguientes
 
 - **Fase G (LLD):** esquemas de datos definitivos, estructura interna de cada servicio, contratos de eventos al detalle de campo, configuración del pipeline del switch.
-- **Fase H (despliegue):** escrita — la topología física quedó fijada en ocho switches dual-homed ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3); lo que queda como análisis de referencia: clúster del controlador y multi-controlador en operación, feeds externos de inteligencia, cifrado en reposo y política de respaldo de un despliegue real, canal in-band.
+- **Fase H (despliegue):** escrita — la topología física quedó fijada en diez switches dual-homed con la zona de control y servicios C1/C2 ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3); lo que queda como análisis de referencia: el clúster repartido en hosts físicos distintos, feeds externos de inteligencia, cifrado en reposo y política de respaldo de un despliegue real, canal in-band.
 - **Prototipo (medición):** todo lo de §4 — la fase F decidió el mecanismo y el experimento; el número final es un resultado, no un supuesto.
-
---------------------------------------------------------------------
 
 # Método y mapa del LLD
 
@@ -1071,7 +1073,7 @@ Y una tercera superficie, **I3**: los formularios del portal — la única API q
 
 ## 2. I2 — órdenes al controlador
 
-Un solo recurso de órdenes y una confirmación en dos niveles ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §4.4). Las cuatro órdenes fijadas en F —`APLICAR_PERFIL`, `APLICAR_MITIGACION`, `RETIRAR`, `CONSULTAR`— se materializan así: las tres primeras por `POST /api/v1/ordenes`; `CONSULTAR` se realiza como la familia `GET` de la tabla siguiente (estado de órdenes, asociaciones, reglas, topología, contadores, servicios). Autenticación: clave de servicio por cliente sobre TLS.
+Un solo recurso de órdenes y una confirmación en dos niveles ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §4.4). Las cuatro órdenes fijadas en F —`APLICAR_PERFIL`, `APLICAR_MITIGACION`, `RETIRAR`, `CONSULTAR`— se materializan así: las tres primeras por `POST /api/v1/ordenes`; `CONSULTAR` se realiza como la familia `GET` de la tabla siguiente (estado de órdenes, asociaciones, reglas, topología, contadores, servicios). Autenticación: clave de servicio por cliente sobre TLS. **Transporte:** REST/HTTPS · JSON · TCP 8181, en la red de gestión; con el clúster desplegado, cualquier nodo (`.20`/`.30`/`.40`) atiende y el cliente reintenta en el siguiente ante 503 o timeout — para los servicios, I2 sigue siendo un único extremo lógico ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6).
 
 | Recurso | Uso |
 |---|---|
@@ -1088,7 +1090,7 @@ Un solo recurso de órdenes y una confirmación en dos niveles ([`F-01`](../F-De
 POST /api/v1/ordenes            (HTTPS, red de gestión)
 {
   "orden": "APLICAR_PERFIL",
-  "dispositivo": { "mac": "52:54:00:01:01", "switch": "SA1", "puerto": "p3" },
+  "dispositivo": { "mac": "52:54:00:01:01", "switch": "A1", "puerto": "p20" },
   "vigencia":    { "idle_timeout_s": 1800, "hard_timeout_s": 43200 },
   "contexto":    { "cookie": "SES-000123", "solicitante": "iam",
                    "motivo": "login-academico" }
@@ -1113,7 +1115,7 @@ POST /api/v1/ordenes            (HTTPS, red de gestión)
   "orden": "APLICAR_MITIGACION",
   "accion": "RATE_LIMIT",
   "objetivo": { "tipo": "servicio", "ip": "10.2.0.10" },
-  "origenes": [ { "mac": "52:54:00:03:02", "switch": "SA1", "puerto": "p9" } ],
+  "origenes": [ { "mac": "52:54:00:03:02", "switch": "A2", "puerto": "p6" } ],
   "parametros": { "tasa_pps": 1000, "ttl_s": 300 },
   "contexto": { "cookie": "INC-0042", "incidente": "INC-0042",
                 "solicitante": "policy-engine", "motivo": "flood",
@@ -1412,13 +1414,13 @@ Las **interfaces son los contratos entre componentes** ([`D-07`](../D-ARQUITECTU
 
 | Aspecto | Valor inicial |
 |---|---|
-| Transporte | TCP 6653, por las interfaces de gestión (`ma1`) de cada switch — nunca por el plano de datos |
+| Transporte | TCP 6653, por las interfaces de gestión (`ma1`) de cada switch — nunca por el plano de datos. En el **diseño in-band** (referencia), OpenFlow viaja por los enlaces de datos en la VLAN 100 priorizada (cola estricta, DSCP CS6, regla de canal p65000) — mismo I1, otro medio ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md), [`G-06`](../G-Diseno_de_bajo_nivel-LLD/06_reglas.md) §3) |
 | Autorización | El switch acepta control solo de los endpoints de controlador configurados (whitelist); una conexión desde otra interfaz se rechaza (verificación V6, [`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §4) |
 | Latido | `ECHO` cada 5 s; sin respuesta en 3 latidos, el canal se declara caído |
 | Confirmación de aplicación | `OFPT_BARRIER_REQUEST/REPLY` tras cada lote de instalación — es lo que sostiene el nivel `APLICADA` de I2 ([`01`](01_apis.md) §2) |
 | Cookies | El controlador mantiene el **registro string ↔ 64 bits**: la cookie que los servicios nombran (`SES-…`, `INC-…`) se traduce al valor OpenFlow; el retiro por cookie usa la traducción inversa ([`06`](06_reglas.md) §3) |
 | Multipart | `OFPMP_PORT_STATS`, `OFPMP_FLOW`, `OFPMP_METER_CONFIG`, `OFPMP_GROUP_DESC` — la única fuente de observación del plano de datos (P11) |
-| Failover (clúster) | Cada switch lleva configurados los tres endpoints del clúster ONOS ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6); en el prototipo uno solo está desplegado — el mecanismo se documenta, no se ejerce |
+| Failover (clúster) | Cada switch lleva configurados los tres endpoints del clúster ONOS —`tcp:10.0.0.20/.30/.40:6653`— con re-elección de maestro (`ROLE_REQUEST`, generation_id) y reconciliación ([`F-01`](../F-Decisiones_tecnologicas/01_controlador_y_api_northbound.md) §6); el clúster está **desplegado** en el prototipo — las pruebas RD1–RD4 lo ejercen y miden M3/M4 |
 
 La negociación inicial (`HELLO`, `FEATURES_REPLY`) fija lo que el switch **declara** soportar; el controlador no puede ordenar más de lo declarado (P1, RP-11). Las verificaciones V1–V7 de [`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §4 son el acta de esa negociación contra el dispositivo real.
 
@@ -1459,7 +1461,7 @@ Un destino que despierta interés entra al conjunto caliente a partir del siguie
 
 ## 5. Canales auxiliares: el espejo del perímetro y el tiempo
 
-**El espejo** alimenta al sensor perimetral: un puerto del switch de borde replica el tráfico del segmento externo hacia la interfaz dedicada de la VM Suricata ([`F-07`](../F-Decisiones_tecnologicas/07_perimetro_r5.md) §3). El sensor está **fuera del camino de reenvío** (P8): recibe una copia, nunca interpone. Su NIC de espejo es de solo recepción — el sensor no emite por donde observa. La asignación física del puerto está en [`H-05`](../H-Despliegue/05_puertos.md).
+**El espejo** alimenta al sensor perimetral: un puerto del switch de borde replica el tráfico del segmento externo hacia la interfaz dedicada de la máquina virtual del sensor — materializada con Suricata ([`F-07`](../F-Decisiones_tecnologicas/07_perimetro_r5.md) §3). El sensor está **fuera del camino de reenvío** (P8): recibe una copia, nunca interpone. Su NIC de espejo es de solo recepción — el sensor no emite por donde observa. La asignación física del puerto está en [`H-05`](../H-Despliegue/05_puertos.md).
 
 **El tiempo** firma todo registro (RNF-09): un servidor chrony del prototipo es la fuente; todos los nodos son clientes; todo timestamp es UTC ([`F-05`](../F-Decisiones_tecnologicas/05_persistencia_auditoria_y_tiempo.md) §5). El tiempo **no** viaja por el plano de datos: la sincronización va por el segmento de gestión. Un servicio que no puede sincronizar no firma tiempo — no firma tiempo falso (P11).
 
@@ -1492,6 +1494,8 @@ La **configuración es el estado declarado del sistema**: todo lo que no es cód
 - **Comportamiento** — parámetros que este LLD fija con **valores iniciales** (los definitivos los calibra la medición, P12) y que se ajustan por la vía administrativa (I7), quedando **quién** los cambió en auditoría.
 
 Todo parámetro de este documento lleva su origen: nada se inventa aquí, se aterriza lo que F decidió.
+
+**La jerarquía de cada sección** es la de toda la fase: primero el **papel** que el sistema necesita y, entre paréntesis, el **producto** que lo materializa — el papel manda, el producto lo sirve. Las dos clases de §1 atraviesan todos los productos.
 
 ## 2. El controlador (ONOS)
 
@@ -1544,7 +1548,7 @@ Todo parámetro de este documento lleva su origen: nada se inventa aquí, se ate
 | Directorio | bind de solo lectura; árbol `ou=comunidad` con cuentas de prueba; índice `uid` | [`F-03`](../F-Decisiones_tecnologicas/03_identidad_sesiones_y_portal.md) §2 |
 | TOTP | RFC 6238, ventana ±1, secreto cifrado en `bd_iam` | [`F-03`](../F-Decisiones_tecnologicas/03_identidad_sesiones_y_portal.md) §3 |
 
-## 7. El sensor perimetral (Suricata) y su adaptador
+## 7. El sensor perimetral y su adaptador
 
 | Parámetro | Valor inicial | Origen |
 |---|---|---|
@@ -1596,6 +1600,7 @@ La **regla es la unidad de política materializada**: cada entrada del pipeline 
 ```text
 mitigación (1000)   >   sesión y elevación (200)   >   esqueleto BASE (150–100)
 >   caminos (20)    >   servicios básicos (10)     >   table-miss (aprendizaje / portal)
+(en el diseño in-band —referencia—, por encima de todo: canal de control p65000)
 ```
 
 La mitigación manda sobre todo — es la respuesta al ataque; la sesión manda sobre el esqueleto — es el privilegio otorgado; el esqueleto manda sobre los caminos — es la línea base de cualquier dispositivo. **La política se aplica en el switch de ingreso**; los tramos siguientes solo resuelven caminos (P9: mitigar cerca del origen; [`flows/05`](../../../flows/05_enrutamiento.md) §2).
@@ -1619,10 +1624,40 @@ paquete ──► ETAPA POLÍTICA (por switch de ingreso)          ──► ETA
 - Si la verificación **V1 confirma multi-tabla** ([`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §4), cada etapa es una tabla física (con `GOTO`).
 - Si **no**, el controlador compone entradas únicas: match de política + instrucción de salida — la especificación lógica no cambia, cambia la materialización. **El cómo es responsabilidad del controlador** (I2, D-07); este LLD fija el qué.
 
+### 2.1 Qué llega al controlador y qué no
+
+El `PACKET_IN` es la **excepción**, no el mecanismo de reenvío. Si cada paquete subiera al controlador, el plano de datos dependería de él y la latencia y la carga lo harían inviable (P2). La lista de causas es **cerrada** y tiene tres entradas:
+
+| Causa | Qué la dispara | Qué hace el controlador |
+|---|---|---|
+| Table-miss | Primer paquete de un flujo que ninguna entrada conoce | Aprende el par MAC/IP y decide: esqueleto, redirección al portal o descarte |
+| ARP sin resolver | Consulta ARP de un dispositivo que aún no tiene par | Responde o instala el camino; nunca inunda a ciegas |
+| LLDP | Anuncio de vecindad del switch | Construye la topología; no instala flujos |
+
+Todo lo demás se resuelve **antes** del table-miss, por una de tres vías: una entrada proactiva del pipeline, un camino estático fuera de la política, o el canal de gestión. Las familias principales:
+
+| Familia | Protocolo / puerto | Extremos | Vía |
+|---|---|---|---|
+| DHCP | UDP 67/68 | dispositivo ↔ servidor DHCP | entrada 10 + inundación de broadcast (prioridad 5) |
+| DNS | UDP/TCP 53 | dispositivo ↔ DNS `10.0.0.28` | entrada 10 |
+| Portal | TCP 443 | dispositivo ↔ portal `10.0.0.5` | entrada 150; el controlador no está en el camino |
+| Identidad | RADIUS 1812/1813 · LDAP 389/636 | IAM ↔ FreeRADIUS `.23` · directorio `.24` | camino estático en la VLAN 100 |
+| Mensajería y persistencia | AMQP 5672 · PostgreSQL 5432 | servicios ↔ RabbitMQ `.21` · PostgreSQL `.22` | camino estático en la VLAN 100 |
+| Operación | SSH 22 · SNMP 161 · syslog 514 · NTP 123 | operadores y nodos ↔ plataforma y switches | OOB (`ma1`) o VLAN 100; sesión 200 cuando va por VLAN 20 |
+| Observación | sFlow/NetFlow · métricas HTTP | switch y nodos ↔ colector | muestreo o consulta; no genera packet-in |
+| Control | OpenFlow 6653 | switches ↔ ONOS `.20/.30/.40` | OOB en el prototipo; entrada 65000 en el diseño in-band |
+| Ataque | el del escenario R4 | atacante → objetivo | camino normal; match por política y mitigación 1000 |
+| Túnel | GRE / IPsec | — | **fuera del diseño**; si se usara, regla estática que coincide con la IP externa |
+
+La identidad, la mensajería y la persistencia **no atraviesan el pipeline**: son tráfico este-oeste dentro de la VLAN 100, resuelto por los caminos estáticos del segmento. El switch no los inspecciona y el controlador no los ve; su protección es la del segmento y la de TLS ([`G-04`](04_interfaces.md) §3).
+
+**El modo de fallo del pipeline es seguro.** El switch se configura con `fail mode secure`: si el controlador deja de responder, las entradas instaladas **permanecen** y un paquete sin match se **descarta** — el switch no vuelve a conmutación normal ni inunda. La red no se abre por la caída del controlador; se degrada a la última política conocida. El clúster de tres nodos y la re-elección de maestro ([`G-04`](04_interfaces.md) §2) cubren la continuidad del plano de control; el modo seguro cubre el intervalo.
+
 ## 3. Las prioridades, entrada a entrada
 
 | Prioridad | Entrada | Match (etapa política) | Acción | Cookie | Vigencia |
 |---|---|---|---|---|---|
+| **65000** | Canal de control (solo diseño in-band) | TCP 6653 ↔ ONOS · LLDP | reenviar hacia/desde la zona de control | canal | permanente |
 | **1000** | Mitigación `RATE_LIMIT` | origen → objetivo | `meter` (banda de descarte a la tasa) → caminos | `INC-…` | `hard_timeout = ttl` (300 s inicial) |
 | **1000** | Mitigación `BLOCK_SOURCE` | origen (→ cualquier destino) | DROP | `INC-…` | `hard_timeout = ttl` |
 | **1000** | `ISOLATE_DEVICE` / `QUARANTINE` | dispositivo | DROP (todo) | `INC-…` | TTL corto (10 min) / TTL de la aprobación |
@@ -1638,6 +1673,8 @@ paquete ──► ETAPA POLÍTICA (por switch de ingreso)          ──► ETA
 
 **El esqueleto BASE** (150–10) es la línea base que todo dispositivo lleva **antes de autenticarse**: portal, par MAC/IP, anti-spoofing, denegación a gestión y DHCP/DNS — la lista cerrada de [`access/00`](../../../access/00_auth_controller.md) §3. La sesión **no reemplaza** al esqueleto: convive y lo vence por prioridad (la escalera); el DROP de un académico hacia la gestión es permanente — su sesión nunca lo abre.
 
+**La entrada 65000 existe solo en el diseño in-band** (referencia): el canal de control jamás debe caer en table-miss —o se forma el bucle `PACKET_IN` → ONOS → …—; se marca DSCP CS6 y se encola en una cola estricta para que el tráfico de usuario no lo desplace. Suma +4 reglas por switch (ida, vuelta y LLDP); el prototipo OOB no la necesita.
+
 **Las cookies**, la convención ([`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §3): los 64 bits codifican tipo y correlativo — bits altos: `0x01` sesión, `0x02` incidente, `0x03` esqueleto, `0x04` camino —; el controlador mantiene el registro string ↔ valor y el retiro es **siempre por cookie**, en todas las tablas. Nada queda pegado (P10).
 
 **Los meters**: un meter por par (origen, objetivo) limitado, con banda de descarte a la tasa del incidente; el controlador lleva el inventario de meters y los libera al retirar la mitigación. Si V2 no confirmara meters nativos, entra la **degradación documentada** de [`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §4 — el diseño no depende de ella.
@@ -1650,7 +1687,7 @@ paquete ──► ETAPA POLÍTICA (por switch de ingreso)          ──► ETA
 - **Costo por enlace fijado: 1 salto por defecto**, con penalización manual configurable por enlace saturado o de menor capacidad. La métrica era la otra cuestión abierta; el valor fino sale del experimento de rutas.
 - **Caminos alternativos — la redundancia del plano de datos.** La topología del prototipo es dual-homed ([`H-01`](../H-Despliegue/01_infraestructura_fisica.md) §3): cada destino tiene dos caminos disjuntos. La conmutación sigue la regla de V3: si el switch confirma grupos *fast-failover*, cada destino lleva su grupo con puerto de vigía — la conmutación es **local, sin controlador** (P2)—; si no, el controlador reinstala el camino alternativo al recibir `PORT_STATUS`. El tiempo de conmutación se mide en ambos casos (RA-07).
 - El cálculo se rehace cuando el grafo cambia (caída/alta de enlace por `PORT_STATUS`, alta de servicio en el inventario); un fallo elimina el enlace del grafo y los caminos afectados se reinstalan.
-- **Presupuesto de entradas** ([`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §5): esqueleto ~6 por dispositivo + sesión ~4 + una entrada de camino por destino en cada switch del camino (o un grupo fast-failover por destino) + mitigaciones simultáneas — ≈ **350–450 entradas repartidas en los ocho switches**. El llenado real se mide y se reporta (RNF-05, RA-08).
+- **Presupuesto de entradas** ([`F-02`](../F-Decisiones_tecnologicas/02_plano_de_datos_pica8.md) §5): esqueleto ~6 por dispositivo + sesión ~4 + una entrada de camino por destino en cada switch del camino (o un grupo fast-failover por destino) + mitigaciones simultáneas — ≈ **420–520 entradas repartidas en los diez switches** (nominal ≈ 440; peor caso concurrente ≈ 665; C1/C2 ≈ 44 cada uno, A3 solo esqueleto ≈ 22). El diseño in-band suma +4 por switch (canal de control y LLDP). El llenado real se mide y se reporta (RNF-05, RA-08).
 
 ## 5. Determinismo
 
@@ -1810,7 +1847,7 @@ El export es **append-only con cadena de hash** ([`03`](03_datos.md) §3): cada 
 
 ## 9. El adaptador del perímetro y la Consola
 
-**Adaptador Suricata**: consume `eve.json`, traduce cada alerta de firma a un evento `AnomalyDetected` con `origen = "perimetro"` y lo publica — la cadena de R5 entra por el mismo camino que el resto ([`F-07`](../F-Decisiones_tecnologicas/07_perimetro_r5.md) §3). **Consola**: cliente de I7 (sin credenciales propias: la sesión es el SSO), suscrita a su cola para las alertas en vivo, y la que muestra el QR de aprovisionamiento TOTP en el alta.
+**El adaptador del sensor** — materializado con Suricata: consume `eve.json`, traduce cada alerta de firma a un evento `AnomalyDetected` con `origen = "perimetro"` y lo publica — la cadena de R5 entra por el mismo camino que el resto ([`F-07`](../F-Decisiones_tecnologicas/07_perimetro_r5.md) §3). **Consola**: cliente de I7 (sin credenciales propias: la sesión es el SSO), suscrita a su cola para las alertas en vivo, y la que muestra el QR de aprovisionamiento TOTP en el alta.
 
 ## 10. Verificación
 
@@ -1822,4 +1859,3 @@ El export es **append-only con cadena de hash** ([`03`](03_datos.md) §3): cada 
 | Escenario flood completo | Detección N ventanas → orden → `APLICADA` → `Verified` | R4, D-08 §6 |
 | Reconciliación tras caída del Incident Manager | Mitigaciones expiradas cerradas contra I2 | E-04, P10 |
 | Verificador de cadena de hash sobre un export alterado | La alteración rompe la cadena y se detecta | P11 |
-

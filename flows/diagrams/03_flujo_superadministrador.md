@@ -44,7 +44,7 @@ S1 — antes del login (PC-SA en p5)
 ```text
 PC-SA ── HTTPS ──► S1 (prioridad 150) ──► portal
 Portal → IAM/AAA (paso 1: repositorio propio de identidades privilegiadas ·
-      paso 2: TOTP) → Policy Engine (rol = SUPER_ADMIN, match B3)
+      paso 2: TOTP) → Policy Engine (rol = OPERADOR_SA, match B3)
 Policy → Controlador → FLOW_MOD en S1
 ```
 

@@ -13,7 +13,7 @@
 | **Actor** | Entidad que interactúa con el sistema. Puede ser una persona, un dispositivo, un componente de infraestructura o una entidad maliciosa. |
 | **Identidad** | Quién es el actor, establecido mediante autenticación. Solo se exige para salir del perfil BASE: el login de la comunidad (perfil ACADÉMICO) o el de un operador (sesión de rol). |
 | **Rol** | Conjunto de permisos que el sistema concede a una identidad, definido por lo que puede hacer y sobre qué recursos. |
-| **Perfil de acceso** | Conjunto concreto de reglas de red asociadas a un dispositivo o sesión en un momento dado (BASE, ACADÉMICO, LABORATORIO, TI, ADMIN_RED, …). Un perfil puede ser temporal y expirar. |
+| **Perfil de acceso** | Conjunto concreto de reglas de red asociadas a un dispositivo o sesión en un momento dado (BASE, ACADÉMICO, OPERADOR_TI, OPERADOR_ADMIN, OPERADOR_SA, ELEVACIÓN). Un perfil puede ser temporal y expirar; LABORATORIO es una instancia de ELEVACIÓN. |
 | **Nivel de privilegio** | Posición del rol dentro de la jerarquía de autoridad del sistema. |
 
 **Un atacante no es un rol.** Un rol es una etiqueta autorizada que el sistema concede; un atacante es una entidad cuyo comportamiento el sistema debe detectar y controlar. Por eso los actores se separan en dos categorías: actores con roles autorizados (sección 2) y agentes sin rol autorizado (sección 3).
@@ -48,7 +48,7 @@ El rol no define por sí solo el permiso efectivo: el acceso depende también de
 - Autenticarse en el portal contra el IdP institucional y obtener el perfil ACADÉMICO (servicios académicos e Internet).
 - Acceder a los servicios académicos e institucionales permitidos con su perfil ACADÉMICO.
 - Generar tráfico normal hacia servicios permitidos.
-- Solicitar una elevación temporal de privilegios (perfil LABORATORIO, INVESTIGACIÓN o similar) con justificación; la concesión depende del Administrador de Red y siempre expira.
+- Solicitar una elevación temporal de privilegios (perfil ELEVACIÓN con alcance de laboratorio o investigación; LABORATORIO es una instancia) con justificación; la concesión depende del Administrador de Red y siempre expira.
 
 **No puede**
 
@@ -227,7 +227,7 @@ No son actores autorizados ni atacantes: son agentes del sistema que ejecutan de
 El permiso efectivo no depende solo del rol:
 
 ```text
-PERMISO EFECTIVO = ROL + RECURSO + ACCIÓN + CONTEXTO + VIGENCIA + ESTADO DE SEGURIDAD
+PERMISO EFECTIVO = SUJETO × ACCIÓN × RECURSO × CONTEXTO × ESTADO DE SEGURIDAD × VIGENCIA
 ```
 
 Combinaciones que el modelo debe admitir:
@@ -250,5 +250,5 @@ Esto conecta R1 y R2 con R3–R5: la autorización habilita el acceso, pero no s
 
 ## 5. Cuestiones abiertas
 
-- **Delegación del registro de Especialistas de TI.** Si el Administrador de Red puede registrar Especialistas de TI o esa función queda solo en el Superadministrador.
-- **Matriz Actor → Recurso.** Se deriva de este documento y de [`02_recursos_y_servicios.md`](02_recursos_y_servicios.md); corresponde a `03_permisos.md`.
+- **Delegación del registro de Especialistas de TI.** El Superadministrador puede delegar en el Administrador de Red el registro de Especialistas de TI y sus dispositivos (P30) y la gestión de sus cuentas (P24), con alcance limitado a TI, vigencia explícita y auditoría. La delegación no permite crear otros Administradores de Red ni elevar privilegios propios.
+- **Matriz Rol × Permiso.** Cerrada en [`implementation/02_matriz_rol_permiso.md`](../../../implementation/02_matriz_rol_permiso.md); su fuente de verdad es [`implementation/policy/permisos.yaml`](../../../implementation/policy/permisos.yaml).

@@ -47,7 +47,7 @@ PC-ADMIN ── HTTPS(credenciales) ──► S1 ──► portal (10.0.0.5)
 
 Portal → IAM/AAA: paso 1, usuario + contraseña contra el repositorio propio
       de identidades privilegiadas (I6) · paso 2, código TOTP (obligatorio)
-IAM → Policy Engine: identidad = admin_01, rol = ADMIN_RED,
+IAM → Policy Engine: identidad = admin_01, rol = OPERADOR_ADMIN,
       dispositivo = B2 (match con el registro), puerto = S1:p4,
       vigencia = sesión
 Policy Engine → Controlador (comando northbound con confirmación)
