@@ -1,0 +1,16 @@
+# Imágenes empaquetadas: git guarda el lock, no los binarios.
+deploy/images/bundles/
+
+# Secretos y configuración real del slice: nunca versionados.
+deploy/env/.env
+deploy/ansible/inventory/slice.yml
+deploy/ansible/vault/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Ansible
+*.retry

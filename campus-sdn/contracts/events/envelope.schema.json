@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/envelope.schema.json",
+  "title": "Envoltura común de eventos",
+  "description": "Todo evento del bus viaja con esta envoltura; el contenido va en payload. event_id es la clave de idempotencia; sequence ordena el incidente. Fuente: LLD 02_eventos.md §2 (los nombres de campos están en inglés; el LLD los describe en español).",
+  "type": "object",
+  "required": ["event_id", "type", "sender", "timestamp", "payload"],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {"type": "string", "description": "UUIDv7; único; clave de idempotencia del consumidor"},
+    "type": {
+      "type": "string",
+      "enum": [
+        "DeviceConnected", "MAC_Moved", "AnomalyDetected", "IncidentOpened",
+        "MitigationRequired", "MitigationApplied", "MitigationVerified",
+        "MitigationExpired", "ElevationRequested", "ElevationGranted",
+        "ElevationExpired", "SessionOpened", "SessionClosed",
+        "DeviceRegistered", "DeviceRevoked", "MetricSample"
+      ]
+    },
+    "sender": {"type": "string", "description": "servicio que publica el evento"},
+    "timestamp": {"type": "string", "format": "date-time", "description": "UTC; reloj común (chrony)"},
+    "sequence": {"type": "integer", "minimum": 1, "description": "monótona por incidente; ausente fuera de incidentes"},
+    "correlation": {
+      "type": "object",
+      "description": "claves de correlación entre servicios; jamás secretos",
+      "additionalProperties": false,
+      "properties": {
+        "incident": {"type": "string"},
+        "session": {"type": "string"},
+        "device": {"type": "string"}
+      }
+    },
+    "payload": {"type": "object", "description": "validado por el esquema propio del tipo (catálogo LLD 02_eventos.md §3)"}
+  }
+}

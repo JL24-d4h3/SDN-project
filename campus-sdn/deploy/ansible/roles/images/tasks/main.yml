@@ -1,0 +1,49 @@
+---
+# Rol images: copia los bundles al host, verifica la suma, carga en Docker
+# y limpia (el disco del slice es la restricción más ajustada).
+# Espera la variable de inventario `images` (nombres del lock); los hosts
+# sin imágenes (switches, h2, h3) se omiten con aviso.
+- name: Host sin imágenes declaradas
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: sin 'images'; se omite la carga"
+  when: images | default([]) | length == 0
+  tags: [images]
+
+- name: Carga de imágenes
+  when: images | default([]) | length > 0
+  block:
+    - name: Directorio temporal de bundles
+      ansible.builtin.file:
+        path: /tmp/campus-images
+        state: directory
+
+    - name: Copia de bundles
+      ansible.builtin.copy:
+        src: "../../images/bundles/{{ item }}.tar"
+        dest: "/tmp/campus-images/{{ item }}.tar"
+      loop: "{{ images }}"
+
+    - name: Copia de sumas
+      ansible.builtin.copy:
+        src: "../../images/bundles/{{ item }}.tar.sha256"
+        dest: "/tmp/campus-images/{{ item }}.tar.sha256"
+      loop: "{{ images }}"
+
+    - name: Verificación de suma
+      ansible.builtin.command: sha256sum -c "{{ item }}.tar.sha256"
+      args:
+        chdir: /tmp/campus-images
+      loop: "{{ images }}"
+
+    - name: Carga en Docker
+      ansible.builtin.command: docker load -i "{{ item }}.tar"
+      args:
+        chdir: /tmp/campus-images
+      loop: "{{ images }}"
+
+    - name: Limpieza de bundles
+      ansible.builtin.file:
+        path: "/tmp/campus-images/{{ item }}.tar"
+        state: absent
+      loop: "{{ images }}"
+  tags: [images]

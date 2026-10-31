@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/mitigation-applied.schema.json",
+  "title": "MitigationApplied",
+  "description": "El Controlador instaló las reglas de una mitigación. Productor: Controlador. Consumidores: Monitor (verifica), Incidentes, Auditoría.",
+  "type": "object",
+  "required": ["incident", "rules", "switches", "applied_at"],
+  "additionalProperties": false,
+  "properties": {
+    "incident": {"type": "string"},
+    "rules": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "identificadores de las reglas instaladas"
+    },
+    "switches": {"type": "array", "items": {"type": "string"}},
+    "applied_at": {"type": "string", "format": "date-time"}
+  }
+}

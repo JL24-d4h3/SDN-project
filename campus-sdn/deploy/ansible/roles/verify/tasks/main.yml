@@ -1,0 +1,41 @@
+---
+# Rol verify: salud consolidada del entorno, con la etiqueta `verify`.
+# Comprueba los /health de los servicios propios (health_endpoints por
+# host, en el inventario) y, desde onos1, cuántos switches ve el
+# controlador (esperado: los 4 del perfil). Los frentes que ya resumen su
+# estado (platform, onos, switches) aportan lo suyo con la misma etiqueta.
+- name: Salud de los servicios propios
+  when: health_endpoints | default([]) | length > 0
+  ansible.builtin.uri:
+    url: "{{ item }}"
+    status_code: 200
+    timeout: 5
+  loop: "{{ health_endpoints }}"
+  tags: [verify]
+
+- name: Resumen de salud
+  when: health_endpoints | default([]) | length > 0
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }}: {{ health_endpoints | length }} servicios
+      propios en verde
+  tags: [verify]
+
+- name: Dispositivos del controlador
+  when: inventory_hostname in groups['onos'] and onos_node_id == 'onos1'
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8181/onos/v1/devices
+    url_username: "{{ onos_rest_user }}"
+    url_password: "{{ onos_rest_password }}"
+    return_content: true
+  register: onos_devices
+  changed_when: false
+  tags: [verify]
+
+- name: Conteo de switches en el controlador
+  when: onos_devices is defined
+  ansible.builtin.debug:
+    msg: >-
+      ONOS ve {{ onos_devices.content | from_json | length }} dispositivos
+      (esperado: los 4 switches del perfil)
+  tags: [verify]

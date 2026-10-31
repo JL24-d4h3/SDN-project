@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/device-connected.schema.json",
+  "title": "DeviceConnected",
+  "description": "Un dispositivo aparece en un puerto del plano de datos. Productor: Controlador. Consumidores: Registro, Monitor, Auditoría.",
+  "type": "object",
+  "required": ["mac", "ip", "switch", "port", "timestamp"],
+  "additionalProperties": false,
+  "properties": {
+    "mac": {"type": "string"},
+    "ip": {"type": "string"},
+    "switch": {"type": "string"},
+    "port": {"type": "string"},
+    "timestamp": {"type": "string", "format": "date-time"}
+  }
+}

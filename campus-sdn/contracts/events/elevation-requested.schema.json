@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/elevation-requested.schema.json",
+  "title": "ElevationRequested",
+  "description": "Se solicita una sesión temporal con alcance elevado. Productor: IAM. Consumidores: Políticas, Consola, Auditoría.",
+  "type": "object",
+  "required": ["requester", "requested_profile", "scope", "duration"],
+  "additionalProperties": false,
+  "properties": {
+    "requester": {"type": "string"},
+    "requested_profile": {"type": "string"},
+    "scope": {"type": "string"},
+    "duration": {"type": "integer", "minimum": 1, "description": "segundos solicitados"}
+  }
+}

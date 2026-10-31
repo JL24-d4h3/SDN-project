@@ -1,0 +1,52 @@
+---
+# Rol onos: un contenedor ONOS por VM y la configuración del clúster.
+# Cada nodo recibe su cluster.json (su identidad y los tres miembros);
+# el quórum Atomix/Raft se forma solo entre los tres (LLD G-04 §2).
+- name: Directorio de configuración
+  ansible.builtin.file:
+    path: /opt/campus-sdn/onos/config
+    state: directory
+  tags: [onos]
+
+- name: cluster.json del nodo
+  ansible.builtin.template:
+    src: cluster.json.j2
+    dest: /opt/campus-sdn/onos/config/cluster.json
+  tags: [onos]
+
+- name: Compose de ONOS
+  ansible.builtin.copy:
+    src: "../../compose/onos.yml"
+    dest: /opt/campus-sdn/onos/onos.yml
+  tags: [onos]
+
+- name: ONOS levantado
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: /opt/campus-sdn/onos
+  tags: [onos]
+
+- name: Espera del REST de ONOS
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8181/onos/v1/cluster
+    url_username: "{{ onos_rest_user }}"
+    url_password: "{{ onos_rest_password }}"
+    status_code: 200
+    retries: 30
+    delay: 5
+  tags: [onos]
+
+- name: Resumen del clúster
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8181/onos/v1/cluster
+    url_username: "{{ onos_rest_user }}"
+    url_password: "{{ onos_rest_password }}"
+    return_content: true
+  register: onos_cluster
+  changed_when: false
+  tags: [verify]
+
+- name: Estado del clúster
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}:\n{{ onos_cluster.content }}"
+  tags: [verify]

@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/mitigation-required.schema.json",
+  "title": "MitigationRequired",
+  "description": "Políticas decide una mitigación que debe aplicarse con confirmación. Viaja como comando por I2 y publica su eco por el bus (Auditoría, Consola).",
+  "type": "object",
+  "required": ["incident", "action", "target", "origins", "parameters", "ttl"],
+  "additionalProperties": false,
+  "properties": {
+    "incident": {"type": "string"},
+    "action": {"type": "string", "description": "acción de mitigación, p. ej. RATE_LIMIT, BLOCK_SOURCE"},
+    "target": {"type": "string"},
+    "origins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["mac", "switch", "port"],
+        "additionalProperties": false,
+        "properties": {
+          "mac": {"type": "string"},
+          "switch": {"type": "string"},
+          "port": {"type": "string"}
+        }
+      }
+    },
+    "parameters": {"type": "object", "description": "parámetros de la acción según su tipo"},
+    "ttl": {"type": "integer", "minimum": 1, "description": "tiempo de vida de la mitigación en segundos"}
+  }
+}

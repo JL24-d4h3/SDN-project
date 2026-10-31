@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/mitigation-expired.schema.json",
+  "title": "MitigationExpired",
+  "description": "Una regla de mitigación caducó o fue retirada. Productor: Monitor o Controlador. Consumidores: Incidentes, Políticas, Auditoría.",
+  "type": "object",
+  "required": ["incident", "rule", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "incident": {"type": "string"},
+    "rule": {"type": "string"},
+    "reason": {"type": "string", "enum": ["timeout", "withdrawn"]}
+  }
+}

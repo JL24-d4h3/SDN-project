@@ -1,0 +1,9 @@
+---
+# Valores por defecto del rol onos; el inventario o el vault los
+# sobreescriben. karaf/karaf es el par por defecto de ONOS: se cambia al
+# desplegar (Ansible Vault), nunca se versiona otro.
+onos_node_id: "{{ inventory_hostname }}"
+onos_node_port: 9876
+atomix_port: 5679
+onos_rest_user: karaf
+onos_rest_password: karaf

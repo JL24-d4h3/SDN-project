@@ -1,0 +1,14 @@
+# campus-sdn — configuración base de chrony
+{% if ntp_server %}
+server {{ ntp_server }} iburst
+{% else %}
+pool 2.ubuntu.pool.ntp.org iburst
+{% endif %}
+{% if chrony_server %}
+# S4 sirve tiempo a la red de gestión del slice
+allow 192.168.0.0/24
+local stratum 10
+{% endif %}
+driftfile /var/lib/chrony/chrony.drift
+makestep 1.0 3
+rtcsync

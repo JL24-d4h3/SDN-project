@@ -1,0 +1,6 @@
+---
+# Valores por defecto del rol base; el inventario los sobreescribe.
+install_docker: true
+install_dns: false
+chrony_server: false
+ntp_server: ""

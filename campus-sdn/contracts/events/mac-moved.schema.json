@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/mac-moved.schema.json",
+  "title": "MAC_Moved",
+  "description": "Una MAC cambió de ubicación en el plano de datos. Productor: Monitor. Consumidores: Incidentes, Políticas, Auditoría e IAM (invalida la sesión ligada, F-03 §4).",
+  "type": "object",
+  "required": ["mac", "previous_location", "new_location"],
+  "additionalProperties": false,
+  "properties": {
+    "mac": {"type": "string"},
+    "previous_location": {
+      "type": "object",
+      "required": ["switch", "port"],
+      "additionalProperties": false,
+      "properties": {
+        "switch": {"type": "string"},
+        "port": {"type": "string"}
+      }
+    },
+    "new_location": {
+      "type": "object",
+      "required": ["switch", "port"],
+      "additionalProperties": false,
+      "properties": {
+        "switch": {"type": "string"},
+        "port": {"type": "string"}
+      }
+    }
+  }
+}

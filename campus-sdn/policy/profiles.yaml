@@ -1,0 +1,77 @@
+version: 3
+profiles:
+  base:
+    name: BASE
+    type: fixed
+    auth_required: false
+    scope:
+    - portal
+    - dhcp
+    - dns
+    priority:
+      portal: 150
+      dhcp_dns: 10
+    notes: 'Esqueleto pre-sesión. Deny by default hacia la red de gestión.
+
+      '
+  academic:
+    name: ACADEMIC
+    type: fixed
+    auth_required: true
+    scope:
+    - academic_services
+    - internet
+    priority:
+      session: 190
+    notes: 'Valor provisional de pruebas. El valor de despliegue se fija con la medición
+      de access/02 §3; debe quedar entre portal (150) y sesión privilegiada (200).
+
+      '
+  it_operator:
+    name: IT_OPERATOR
+    type: derived
+    from_role: it_specialist
+    scope:
+    - console
+    - security_api
+    priority:
+      session: 200
+  admin_operator:
+    name: ADMINISTRATOR_OPERATOR
+    type: derived
+    from_role: network_admin
+    scope:
+    - management_network
+    priority:
+      session: 200
+  sa_operator:
+    name: SUPER_ADMINISTRATOR_OPERATOR
+    type: derived
+    from_role: super_admin
+    scope:
+    - management_network
+    - remote_access
+    priority:
+      session: 200
+  elevation:
+    name: ELEVATION
+    type: parameterized
+    params:
+    - scope
+    - ttl_s
+    requires:
+    - P28
+    - P29
+    priority:
+      session: 200
+    instances:
+      laboratory:
+        scope: laboratory
+        ttl_s: 1800
+        notes: 'LABORATORIO es una instancia de ELEVACIÓN, no un perfil fijo.
+
+          '
+profile_aliases:
+  IT: it_operator
+  NETWORK_ADMIN: admin_operator
+  SUPER_ADMIN: sa_operator

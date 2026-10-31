@@ -1,0 +1,43 @@
+# S4 — Gobierno: Consola, bus de eventos y reloj del slice.
+# Base del stack: RabbitMQ (exchange `plataforma`, topic, durable — LLD
+# 02_eventos.md §4). chrony y dnsmasq se instalan como paquetes en el rol
+# base. La Consola y los servicios propios se añaden en los pasos 4–5.
+services:
+  console:
+    build:
+      context: ../..
+      dockerfile: services/console/Dockerfile
+    container_name: s4-console
+    restart: unless-stopped
+    environment:
+      BUS_URL: ${BUS_URL:-}
+      IAM_URL: ${IAM_URL:-}
+    ports:
+      - "8008:8008"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8008/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: s4-rabbitmq
+    restart: unless-stopped
+    hostname: rabbit-s4
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-plataforma}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?definir RABBITMQ_PASSWORD en .env}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  rabbitmq_data:

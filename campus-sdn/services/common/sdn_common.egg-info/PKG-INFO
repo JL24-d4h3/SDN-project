@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: sdn-common
+Version: 0.1.0
+Summary: Esqueleto compartido por los servicios de campus-sdn
+Requires-Python: >=3.12
+Requires-Dist: fastapi
+Requires-Dist: pika
+Requires-Dist: uuid6
+Requires-Dist: jsonschema

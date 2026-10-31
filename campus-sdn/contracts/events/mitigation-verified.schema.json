@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/mitigation-verified.schema.json",
+  "title": "MitigationVerified",
+  "description": "El Monitor comparó las tasas antes y después de la mitigación. Productor: Monitor. Consumidores: Incidentes, Políticas, Auditoría.",
+  "type": "object",
+  "required": ["incident", "rates_before", "rates_after", "meets_objective"],
+  "additionalProperties": false,
+  "properties": {
+    "incident": {"type": "string"},
+    "rates_before": {
+      "type": "object",
+      "required": ["pps", "bps"],
+      "additionalProperties": false,
+      "properties": {
+        "pps": {"type": "number"},
+        "bps": {"type": "number"}
+      }
+    },
+    "rates_after": {
+      "type": "object",
+      "required": ["pps", "bps"],
+      "additionalProperties": false,
+      "properties": {
+        "pps": {"type": "number"},
+        "bps": {"type": "number"}
+      }
+    },
+    "meets_objective": {"type": "boolean"}
+  }
+}

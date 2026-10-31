@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/elevation-granted.schema.json",
+  "title": "ElevationGranted",
+  "description": "La elevación fue aprobada. Viaja como comando por I2 y publica su eco por el bus (Auditoría, Consola).",
+  "type": "object",
+  "required": ["requester", "profile", "ttl"],
+  "additionalProperties": false,
+  "properties": {
+    "requester": {"type": "string"},
+    "profile": {"type": "string"},
+    "ttl": {"type": "integer", "minimum": 1, "description": "segundos de vigencia concedidos"}
+  }
+}

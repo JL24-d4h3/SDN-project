@@ -1,0 +1,35 @@
+# ONOS — un contenedor por VM; el clúster (Atomix/Raft) lo forman los tres
+# nodos sobre la red de gestión (ens3). La membresía no la orquesta
+# Compose: la define cluster.json (plan 09 §7, LLD G-04 §2).
+services:
+  controller_adapter:
+    build:
+      context: ../..
+      dockerfile: services/controller_adapter/Dockerfile
+    container_name: onos-adapter
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      ONOS_URL: http://127.0.0.1:8181
+      BUS_URL: ${BUS_URL:-}
+      SWITCH_DPIDS: '{"NC1": "of:0000000000000011", "NC2": "of:0000000000000012", "A1": "of:0000000000000021", "A2": "of:0000000000000022"}'
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8090/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  onos:
+    image: onosproject/onos:2.7.0
+    container_name: onos
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      # fwd (reenvío reactivo) da conectividad base hasta que exista la
+      # app propia del pipeline; hostprovider alimenta a fwd.
+      ONOS_APPS: drivers,openflow,fwd,hostprovider
+      JAVA_OPTS: -Xmx2g
+    volumes:
+      - /opt/campus-sdn/onos/config/cluster.json:/root/onos/config/cluster.json

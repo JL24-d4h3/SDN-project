@@ -1,0 +1,60 @@
+---
+# Rol base: paquetes comunes, Docker donde aplica, reloj (chrony) y DNS.
+# Variables en defaults/main.yml y en el inventario: install_docker
+# (falso en switches y h2/h3), install_dns y chrony_server (S4).
+- name: Repositorios actualizados
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  tags: [base]
+
+- name: Paquetes comunes
+  ansible.builtin.apt:
+    name:
+      - chrony
+      - python3
+      - rsync
+    state: present
+  tags: [base]
+
+- name: Docker y Compose (donde aplica)
+  when: install_docker | default(true) | bool
+  block:
+    - name: Paquetes de Docker
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+
+    - name: Demonio Docker activo
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+  tags: [base]
+
+- name: dnsmasq en el servidor de gobierno
+  when: install_dns | default(false) | bool
+  ansible.builtin.apt:
+    name: dnsmasq
+    state: present
+  notify: Restart dnsmasq
+  tags: [base]
+
+- name: Configuración de chrony
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart chrony
+  tags: [base]
+
+- name: Chrony activo
+  ansible.builtin.systemd:
+    name: chrony
+    state: started
+    enabled: true
+  tags: [base]

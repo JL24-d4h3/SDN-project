@@ -1,0 +1,211 @@
+openapi: 3.0.3
+info:
+  title: I3 — API del portal
+  description: |
+    La única API que hablan las poblaciones (LLD 01_apis.md §5). El
+    selector no concede nada: solo elige la ruta de verificación; la
+    sesión la decide el IAM y el portal no conecta nada por sí mismo.
+    Un intento con credenciales en la ruta equivocada falla y se audita.
+    Sin autenticación previa (es pre-sesión); las credenciales jamás se
+    registran ni se publican por el bus.
+  version: 1.0.0
+servers:
+  - url: https://{portal}:8443
+    variables:
+      portal:
+        default: portal
+        description: servidor del portal (S1, VLAN 20); en pre-sesión, vía entrada 150 del esqueleto
+paths:
+  /login:
+    get:
+      summary: Selector explícito de población
+      operationId: getLoginSelector
+      responses:
+        '200':
+          description: Poblaciones disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [populations]
+                properties:
+                  populations:
+                    type: array
+                    items:
+                      type: string
+                      enum: [university, operations, guest]
+    post:
+      summary: Credenciales (+ TOTP si operación); verifica por el IAM
+      operationId: submitLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [population, username, password]
+              properties:
+                population:
+                  type: string
+                  enum: [university, operations, guest]
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                  description: nunca se registra ni se publica
+                totp:
+                  type: string
+                  description: obligatorio para la ruta de operación
+      responses:
+        '200':
+          description: Sesión concedida por el IAM
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    type: string
+                    description: cookie de sesión emitida por el IAM
+        '401':
+          $ref: '#/components/responses/Error401'
+        '503':
+          $ref: '#/components/responses/Error503'
+  /logout:
+    post:
+      summary: Retiro por cookie y SessionClosed inmediatos
+      operationId: submitLogout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session]
+              properties:
+                session:
+                  type: string
+      responses:
+        '200':
+          description: Sesión retirada por el IAM
+        '503':
+          $ref: '#/components/responses/Error503'
+  /guest-register:
+    post:
+      summary: Autoregistro efímero de invitados (la cuenta se borra sola)
+      operationId: submitGuestRegistration
+      description: |
+        El reino de invitados es un registro efímero (componentes/04
+        §2.3): la cuenta vence con TTL corto y se borra sola. Fuera del
+        alcance del prototipo, pero el lugar queda reservado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Cuenta efímera creada; vence con TTL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, expires_at]
+                properties:
+                  status:
+                    type: string
+                    enum: [registered]
+                  expires_at:
+                    type: number
+        '503':
+          $ref: '#/components/responses/Error503'
+  /elevation:
+    get:
+      summary: Alcances elevables disponibles
+      operationId: getElevationScopes
+      responses:
+        '200':
+          description: Alcances disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scopes]
+                properties:
+                  scopes:
+                    type: array
+                    items:
+                      type: string
+    post:
+      summary: Publica ElevationRequested al bus; decide Políticas
+      operationId: submitElevationRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requester]
+              properties:
+                requester:
+                  type: string
+                requested_profile:
+                  type: string
+                  default: laboratory
+                scope:
+                  type: string
+                  default: laboratory
+                duration:
+                  type: integer
+                  minimum: 1
+                  default: 1800
+                session:
+                  type: string
+      responses:
+        '202':
+          description: Solicitud aceptada por el bus
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, event_id]
+                properties:
+                  status:
+                    type: string
+                    enum: [accepted]
+                  event_id:
+                    type: string
+        '503':
+          $ref: '#/components/responses/Error503'
+components:
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+  responses:
+    Error401:
+      description: credenciales inválidas o ruta equivocada (se audita)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error503:
+      description: identidad o bus no disponibles
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

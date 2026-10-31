@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "images": [
+    {
+      "name": "onos",
+      "ref": "onosproject/onos:2.7.0",
+      "digest": "sha256:bc844aaafd64e6b3834c7043bad83fa1eecc6afb6984e9b4887c12e1a307a7c2",
+      "used_by": [
+        "onos-1",
+        "onos-2",
+        "onos-3"
+      ]
+    },
+    {
+      "name": "rabbitmq",
+      "ref": "rabbitmq:3.13-management",
+      "digest": "sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69",
+      "used_by": [
+        "s4"
+      ]
+    },
+    {
+      "name": "postgres",
+      "ref": "postgres:16",
+      "digest": "sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c",
+      "used_by": [
+        "s3"
+      ]
+    },
+    {
+      "name": "freeradius",
+      "ref": "freeradius/freeradius-server:3.2.10",
+      "digest": "sha256:337856ea35b77472f15dad159064ce46219a54b499bef5f6a7cba38aefd39fe9",
+      "used_by": [
+        "s1"
+      ]
+    },
+    {
+      "name": "openldap",
+      "ref": "osixia/openldap:1.5.0",
+      "digest": "sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28",
+      "used_by": [
+        "s1"
+      ]
+    },
+    {
+      "name": "prometheus",
+      "ref": "prom/prometheus:v2.53.0",
+      "digest": "sha256:075b1ba2c4ebb04bc3a6ab86c06ec8d8099f8fda1c96ef6d104d9bb1def1d8bc",
+      "used_by": [
+        "s2"
+      ]
+    },
+    {
+      "name": "grafana",
+      "ref": "grafana/grafana:11.1.0",
+      "digest": "sha256:079600c9517b678c10cda6006b4487d3174512fd4c6cface37df7822756ed7a5",
+      "used_by": [
+        "s2"
+      ]
+    },
+    {
+      "name": "suricata",
+      "ref": "jasonish/suricata:7.0",
+      "digest": "sha256:6f915ca62512c9859e888648765515b73b209dfa8a03a65edf1607f17e11fa51",
+      "used_by": [
+        "s2"
+      ]
+    }
+  ]
+}

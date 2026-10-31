@@ -1,0 +1,3 @@
+---
+# Valor por defecto del rol platform; el inventario lo sobreescribe.
+compose_file: ""

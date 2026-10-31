@@ -1,0 +1,96 @@
+---
+# Rol identity: lleva el corte vertical (Portal, IAM, Registry) a S1.
+# Las imágenes propias se construyen en el nodo de control (la laptop) y
+# se empaquetan como bundles — el slice puede no tener internet, y el
+# patrón de bundles ya cubre el transporte (plan 09 §5). FreeRADIUS y
+# OpenLDAP llegan por el rol images; este rol aporta lo construido.
+- name: Directorio de bundles propios (nodo de control)
+  ansible.builtin.file:
+    path: /tmp/campus-custom
+    state: directory
+  delegate_to: localhost
+  run_once: true
+  tags: [identity]
+
+- name: Construcción de imágenes propias (nodo de control)
+  ansible.builtin.command:
+    cmd: docker compose -p campus-sdn -f deploy/compose/s1-identity.yml build portal iam registry
+    chdir: "{{ playbook_dir }}/../.."
+  environment:
+    # Solo satisfacen la interpolación de Compose al parsear el archivo
+    # completo; el build no los usa. Los valores reales llegan por .env.
+    RADIUS_SECRET: "dummy"
+    LDAP_ADMIN_PASSWORD: "dummy"
+    LDAP_READONLY_PASSWORD: "dummy"
+  delegate_to: localhost
+  run_once: true
+  changed_when: true
+  tags: [identity]
+
+- name: Empaquetado de imágenes propias (nodo de control)
+  ansible.builtin.command:
+    cmd: docker save -o /tmp/campus-custom/{{ item }}.tar campus-sdn-{{ item }}
+    creates: /tmp/campus-custom/{{ item }}.tar
+  loop: [portal, iam, registry]
+  delegate_to: localhost
+  run_once: true
+  tags: [identity]
+
+- name: Directorio temporal de bundles propios
+  ansible.builtin.file:
+    path: /tmp/campus-custom
+    state: directory
+  tags: [identity]
+
+- name: Copia de bundles propios
+  ansible.builtin.copy:
+    src: "/tmp/campus-custom/{{ item }}.tar"
+    dest: "/tmp/campus-custom/{{ item }}.tar"
+  loop: [portal, iam, registry]
+  tags: [identity]
+
+- name: Carga de imágenes propias
+  ansible.builtin.command: docker load -i /tmp/campus-custom/{{ item }}.tar
+  loop: [portal, iam, registry]
+  tags: [identity]
+
+- name: Limpieza de bundles propios
+  ansible.builtin.file:
+    path: "/tmp/campus-custom/{{ item }}.tar"
+    state: absent
+  loop: [portal, iam, registry]
+  tags: [identity]
+
+- name: Compose de S1
+  ansible.builtin.copy:
+    src: "../../compose/s1-identity.yml"
+    dest: /opt/campus-sdn/deploy/compose/s1-identity.yml
+  tags: [identity]
+
+- name: Entorno (.env)
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /opt/campus-sdn/deploy/compose/.env
+  with_first_found:
+    - "../../env/.env"
+    - "../../env/.env.example"
+  tags: [identity]
+
+- name: Corte vertical levantado
+  ansible.builtin.command:
+    cmd: docker compose up -d
+    chdir: /opt/campus-sdn/deploy/compose
+  tags: [identity]
+
+- name: Estado del corte vertical
+  ansible.builtin.command: docker compose ps
+  args:
+    chdir: /opt/campus-sdn/deploy/compose
+  register: identity_ps
+  changed_when: false
+  tags: [verify]
+
+- name: Resumen del corte vertical
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}:\n{{ identity_ps.stdout }}"
+  tags: [verify]

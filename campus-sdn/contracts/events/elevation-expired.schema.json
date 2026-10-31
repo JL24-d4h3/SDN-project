@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/elevation-expired.schema.json",
+  "title": "ElevationExpired",
+  "description": "Una elevación caducó o fue retirada. Viaja como comando por I2 y publica su eco por el bus (Auditoría, Consola).",
+  "type": "object",
+  "required": ["requester", "profile", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "requester": {"type": "string"},
+    "profile": {"type": "string"},
+    "reason": {"type": "string"}
+  }
+}

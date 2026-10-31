@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/session-opened.schema.json",
+  "title": "SessionOpened",
+  "description": "Se abrió una sesión de red. Productor: IAM. Consumidores: Políticas, Auditoría.",
+  "type": "object",
+  "required": ["identity", "profile_or_role", "device", "timestamp"],
+  "additionalProperties": false,
+  "properties": {
+    "identity": {"type": "string"},
+    "profile_or_role": {"type": "string"},
+    "device": {"type": "string"},
+    "timestamp": {"type": "string", "format": "date-time"}
+  }
+}

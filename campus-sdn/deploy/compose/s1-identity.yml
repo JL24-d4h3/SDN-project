@@ -1,0 +1,101 @@
+# S1 — Identidad: Portal, IAM, Registro y sus dependencias.
+# Los servicios propios se construyen (build) sobre el esqueleto común;
+# FreeRADIUS y OpenLDAP son imágenes del lock. El bus (S4) se referencia
+# por BUS_URL: sin él, la elevación degrada a 503 (nunca falla el login).
+services:
+  portal:
+    build:
+      context: ../..
+      dockerfile: services/portal/Dockerfile
+    container_name: s1-portal
+    restart: unless-stopped
+    environment:
+      IAM_URL: http://iam:8001
+      BUS_URL: ${BUS_URL:-}
+    ports:
+      - "8080:8080"
+    depends_on:
+      iam:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  iam:
+    build:
+      context: ../..
+      dockerfile: services/iam/Dockerfile
+    container_name: s1-iam
+    restart: unless-stopped
+    environment:
+      # Comunidad → RADIUS contra FreeRADIUS (IdP simulado, F-03 §2);
+      # operadores → repositorio propio (bcrypt + TOTP); invitados →
+      # registro efímero con TTL.
+      RADIUS_HOST: freeradius
+      RADIUS_SECRET: ${RADIUS_SECRET:-}
+      GUEST_TTL_S: "86400"
+      STUB_VERIFY: ${STUB_VERIFY:-}
+      BUS_URL: ${BUS_URL:-}
+    ports:
+      - "8001:8001"
+    depends_on:
+      openldap:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8001/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  registry:
+    build:
+      context: ../..
+      dockerfile: services/registry/Dockerfile
+    container_name: s1-registry
+    restart: unless-stopped
+    environment:
+      BUS_URL: ${BUS_URL:-}
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8002/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  freeradius:
+    image: freeradius/freeradius-server:3.2.10
+    container_name: s1-freeradius
+    restart: unless-stopped
+    environment:
+      RADIUS_CLIENT_NET: 10.0.0.0/24
+      RADIUS_CLIENT_SECRET: ${RADIUS_SECRET:?definir RADIUS_SECRET en .env}
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    healthcheck:
+      test: ["CMD-SHELL", "ps -ef | grep -v grep | grep -q freeradius"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: s1-openldap
+    restart: unless-stopped
+    environment:
+      LDAP_ORGANISATION: campus-sdn
+      LDAP_DOMAIN: campus.local
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:?definir LDAP_ADMIN_PASSWORD en .env}
+      LDAP_READONLY_USER: "true"
+      LDAP_READONLY_USER_PASSWORD: ${LDAP_READONLY_PASSWORD:?definir LDAP_READONLY_PASSWORD en .env}
+    ports:
+      - "389:389"
+      - "636:636"
+    healthcheck:
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://127.0.0.1 -s base namingContexts >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 5

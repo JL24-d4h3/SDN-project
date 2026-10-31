@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/policy/permissions.schema.json",
+  "title": "Esquema de la política de permisos",
+  "description": "Contrato estructural de policy/permissions.yaml (etapa 0). La integridad referencial entre bloques la valida policy/tools/validate.py.",
+  "type": "object",
+  "required": [
+    "version", "name", "defaults", "roles", "profiles", "profile_aliases",
+    "resources", "conditions", "security_states", "permissions",
+    "assignments", "rules", "delegations", "obligations", "priorities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"type": "integer"},
+    "name": {"type": "string"},
+    "description": {"type": "string"},
+    "defaults": {
+      "type": "object",
+      "required": ["effect", "deny_overrides", "fail_safe", "audit", "require_session", "require_security_state"],
+      "additionalProperties": false,
+      "properties": {
+        "effect": {"enum": ["deny"]},
+        "deny_overrides": {"type": "boolean"},
+        "fail_safe": {"enum": ["deny"]},
+        "audit": {"type": "boolean"},
+        "require_session": {"type": "boolean"},
+        "require_security_state": {"type": "boolean"}
+      }
+    },
+    "roles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "level", "population", "identity_source", "mfa_required", "privileged_session"],
+        "properties": {
+          "name": {"type": "string"},
+          "level": {"type": "integer"},
+          "population": {"type": "string"},
+          "identity_source": {"type": "string"},
+          "mfa_required": {"type": "boolean"},
+          "privileged_session": {"type": "boolean"}
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "type", "priority"],
+        "properties": {
+          "name": {"type": "string"},
+          "type": {"enum": ["fixed", "derived", "parameterized"]},
+          "auth_required": {"type": "boolean"},
+          "scope": {"type": "array", "items": {"type": "string"}},
+          "priority": {"type": "object", "additionalProperties": {"type": "integer"}},
+          "from_role": {"type": "string"},
+          "params": {"type": "array", "items": {"type": "string"}},
+          "requires": {"type": "array", "items": {"type": "string"}},
+          "instances": {"type": "object"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "profile_aliases": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "resources": {
+      "type": "object",
+      "required": ["catalog", "types"],
+      "additionalProperties": false,
+      "properties": {
+        "catalog": {"type": "string"},
+        "types": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["name", "on_failure"],
+        "properties": {
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "predicate": {"type": "string"},
+          "type": {"type": "string"},
+          "evaluator": {"type": "string"},
+          "on_failure": {"enum": ["deny", "step_up"]}
+        }
+      }
+    },
+    "security_states": {
+      "type": "object",
+      "required": ["subject", "environment", "hard_constraints"],
+      "additionalProperties": false,
+      "properties": {
+        "subject": {"type": "object", "additionalProperties": {"type": "object"}},
+        "environment": {"type": "object", "additionalProperties": {"type": "object"}},
+        "hard_constraints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "description", "effect"],
+            "properties": {
+              "id": {"type": "string"},
+              "description": {"type": "string"},
+              "subject_states": {"type": "array", "items": {"type": "string"}},
+              "environment_states": {"type": "array", "items": {"type": "string"}},
+              "effect": {"enum": ["deny", "step_up"]},
+              "except": {"type": "array", "items": {"type": "string"}},
+              "requires": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "patternProperties": {
+        "^P[0-9]{2}(-[A-Z]{2,3})?$": {
+          "type": "object",
+          "required": ["name", "plane", "verb", "resource_types", "description"],
+          "properties": {
+            "name": {"type": "string"},
+            "plane": {"enum": ["pre_session", "network", "services"]},
+            "verb": {"type": "string"},
+            "resource_types": {"type": "array", "items": {"type": "string"}},
+            "description": {"type": "string"}
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "assignments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "role", "permission", "effect", "resources", "conditions", "obligations"],
+        "properties": {
+          "id": {"type": "string"},
+          "role": {"type": "string"},
+          "permission": {"type": "string"},
+          "effect": {"enum": ["permit"]},
+          "resources": {"type": "array", "items": {"type": "string"}},
+          "conditions": {"type": "array", "items": {"type": "string"}},
+          "obligations": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "permissions", "condition", "effect", "description"],
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "permissions": {"type": "array", "items": {"type": "string"}},
+          "condition": {"type": "string"},
+          "effect": {"enum": ["deny"]},
+          "description": {"type": "string"}
+        }
+      }
+    },
+    "delegations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "from", "to", "permissions", "resource_scope", "valid_from", "valid_until", "obligations"],
+        "properties": {
+          "id": {"type": "string"},
+          "from": {"type": "string"},
+          "to": {"type": "string"},
+          "permissions": {"type": "array", "items": {"type": "string"}},
+          "resource_scope": {"type": "array", "items": {"type": "string"}},
+          "valid_from": {"type": "string", "format": "date"},
+          "valid_until": {"type": "string", "format": "date"},
+          "obligations": {"type": "array", "items": {"type": "string"}},
+          "description": {"type": "string"}
+        }
+      }
+    },
+    "obligations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {"description": {"type": "string"}}
+      }
+    },
+    "priorities": {
+      "type": "object",
+      "additionalProperties": {"type": ["integer", "string"]}
+    }
+  }
+}

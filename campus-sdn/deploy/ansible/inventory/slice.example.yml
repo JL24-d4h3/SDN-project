@@ -1,0 +1,48 @@
+# Plantilla de inventario del slice.
+# Copiar a slice.yml (ignorado por git) y completar con las IPs reales de
+# gestión (ens3). Las credenciales nunca van aquí: Ansible Vault o
+# variables de entorno. Los nombres de NIC y puertos se ajustan en H0.
+all:
+  hosts:
+    nc1:   {ansible_host: 192.168.0.101, install_docker: false, switch_ports: [ens4, ens5, ens6], switch_dpid: "0000000000000011"}
+    nc2:   {ansible_host: 192.168.0.102, install_docker: false, switch_ports: [ens4, ens5, ens6, ens7, ens8], switch_dpid: "0000000000000012"}
+    a1:    {ansible_host: 192.168.0.103, install_docker: false, switch_ports: [ens4, ens5, ens6, ens7, ens8], switch_dpid: "0000000000000021"}
+    a2:    {ansible_host: 192.168.0.104, install_docker: false, switch_ports: [ens4, ens5, ens6, ens7, ens8], switch_dpid: "0000000000000022"}
+    onos1: {ansible_host: 192.168.0.111, images: [onos]}
+    onos2: {ansible_host: 192.168.0.112, images: [onos]}
+    onos3: {ansible_host: 192.168.0.113, images: [onos]}
+    s1:    {ansible_host: 192.168.0.121, images: [freeradius, openldap], compose_file: s1-identity.yml, health_endpoints: ["http://127.0.0.1:8080/health", "http://127.0.0.1:8001/health", "http://127.0.0.1:8002/health"]}
+    s2:    {ansible_host: 192.168.0.122, images: [prometheus, grafana, suricata], compose_file: s2-observability.yml, compose_extra_files: [prometheus.yml], health_endpoints: ["http://127.0.0.1:8003/health", "http://127.0.0.1:8004/health", "http://127.0.0.1:8009/health"]}
+    s3:    {ansible_host: 192.168.0.123, images: [postgres], compose_file: s3-response.yml, health_endpoints: ["http://127.0.0.1:8005/health", "http://127.0.0.1:8006/health", "http://127.0.0.1:8007/health"]}
+    s4:    {ansible_host: 192.168.0.124, images: [rabbitmq], compose_file: s4-governance.yml, install_dns: true, chrony_server: true, health_endpoints: ["http://127.0.0.1:8008/health"]}
+    h1:    {ansible_host: 192.168.0.131, install_docker: true}
+    h2:    {ansible_host: 192.168.0.132, install_docker: false}
+    h3:    {ansible_host: 192.168.0.133, install_docker: false}
+  children:
+    switches:
+      hosts:
+        nc1:
+        nc2:
+        a1:
+        a2:
+      vars:
+        controller_targets:
+          - tcp:192.168.0.111:6653
+          - tcp:192.168.0.112:6653
+          - tcp:192.168.0.113:6653
+    onos:
+      hosts:
+        onos1:
+        onos2:
+        onos3:
+    platform:
+      hosts:
+        s1:
+        s2:
+        s3:
+        s4:
+    endpoints:
+      hosts:
+        h1:
+        h2:
+        h3:

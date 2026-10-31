@@ -1,0 +1,50 @@
+---
+# Sitio de despliegue de campus-sdn.
+# El primer play verifica conectividad y Python (sin etiquetas: siempre
+# corre). Los roles se incorporan por pasos del plan 09; las tareas llevan
+# etiqueta para ejecutar por frente: --tags base|images|platform|onos|
+# switches|down|verify. identity y verify se incorporan en sus pasos.
+- name: Verificación de conectividad y requisitos
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Python 3 presente
+      ansible.builtin.raw: python3 --version
+      register: py
+      changed_when: false
+      failed_when: py.rc != 0
+
+- name: Preparación base de los hosts
+  hosts: all
+  roles:
+    - base
+
+- name: Carga de imágenes por host
+  hosts: all
+  roles:
+    - images
+
+- name: Plataforma por VM
+  hosts: platform
+  roles:
+    - platform
+
+- name: Clúster ONOS
+  hosts: onos
+  roles:
+    - onos
+
+- name: Plano de datos
+  hosts: switches
+  roles:
+    - switches
+
+- name: Corte vertical de identidad
+  hosts: s1
+  roles:
+    - identity
+
+- name: Verificación del entorno
+  hosts: all
+  roles:
+    - verify

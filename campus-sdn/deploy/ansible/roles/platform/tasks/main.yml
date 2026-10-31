@@ -1,0 +1,67 @@
+---
+# Rol platform: Compose por VM y salud de los contenedores.
+# Espera la variable de inventario `compose_file` (deploy/compose/); los
+# hosts sin Compose (s1/s2 hasta sus pasos) se omiten con aviso.
+# El .env real nunca viaja por git: se copia el de deploy/env/ si existe
+# y, si no, la plantilla — que Compose rechaza hasta definir los secretos.
+- name: Host sin Compose declarado
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: sin 'compose_file'; se omite la plataforma"
+  when: compose_file | default('') | length == 0
+  tags: [platform, verify]
+
+- name: Plataforma del host
+  when: compose_file | default('') | length > 0
+  block:
+    - name: Directorio de Compose
+      ansible.builtin.file:
+        path: /opt/campus-sdn/deploy/compose
+        state: directory
+      tags: [platform]
+
+    - name: Archivo Compose
+      ansible.builtin.copy:
+        src: "../../compose/{{ compose_file }}"
+        dest: "/opt/campus-sdn/deploy/compose/{{ compose_file }}"
+      tags: [platform]
+
+    - name: Archivos extra del Compose
+      ansible.builtin.copy:
+        src: "../../compose/{{ item }}"
+        dest: "/opt/campus-sdn/deploy/compose/{{ item }}"
+      loop: "{{ compose_extra_files | default([]) }}"
+      tags: [platform]
+
+    - name: Entorno (.env)
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: /opt/campus-sdn/deploy/compose/.env
+      with_first_found:
+        - "../../env/.env"
+        - "../../env/.env.example"
+      tags: [platform]
+
+    - name: Servicios levantados
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: /opt/campus-sdn/deploy/compose
+      tags: [platform]
+
+    - name: Servicios detenidos
+      ansible.builtin.command:
+        cmd: docker compose down
+        chdir: /opt/campus-sdn/deploy/compose
+      tags: [down]
+
+    - name: Estado de los contenedores
+      ansible.builtin.command: docker compose ps
+      args:
+        chdir: /opt/campus-sdn/deploy/compose
+      register: compose_ps
+      changed_when: false
+      tags: [verify]
+
+    - name: Resumen de salud
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}:\n{{ compose_ps.stdout }}"
+      tags: [verify]

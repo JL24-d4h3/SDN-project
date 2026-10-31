@@ -1,0 +1,367 @@
+openapi: 3.0.3
+info:
+  title: I7 — APIs de administración por servicio
+  description: |
+    Cada servicio expone sus consultas y órdenes administrativas; la
+    Consola es su cliente y la sesión del operador es el SSO (F-03 §4).
+    Fuente: LLD 01_apis.md §3.
+    Convenciones comunes: HTTPS sobre la red de gestión (out-of-band),
+    JSON UTF-8, respuesta {data, error{}}; paginación por cursor
+    (?cursor=…&limit=100); 401 sin sesión, 403 con sesión sin rol. La
+    sesión llega como cookie o token derivado de vida corta, con la misma
+    vigencia y ligadura; el servicio valida sesión y rol en cada petición.
+    Rutas y campos en inglés; el LLD los describe en español (véase el
+    README de la carpeta para la correspondencia).
+  version: 1.0.0
+servers:
+  - url: https://{service}:8443
+    variables:
+      service:
+        default: iam
+        description: un servidor por servicio; la Consola agrega
+paths:
+  /sessions/{id}:
+    get:
+      tags: [iam]
+      summary: Consultar una sesión
+      operationId: getSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+    delete:
+      tags: [iam]
+      summary: Logout administrativo de una sesión
+      operationId: revokeSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /devices/{mac}/reprovision-totp:
+    post:
+      tags: [iam]
+      summary: Reaprovisionar el TOTP de un dispositivo
+      operationId: reprovisionTotp
+      parameters:
+        - name: mac
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /devices:
+    get:
+      tags: [registry]
+      summary: Listar dispositivos registrados
+      operationId: listDevices
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+    post:
+      tags: [registry]
+      summary: Registrar un dispositivo
+      operationId: registerDevice
+      responses:
+        '201':
+          $ref: '#/components/responses/Data201'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /devices/{mac}/history:
+    get:
+      tags: [registry]
+      summary: Historial de un dispositivo
+      operationId: getDeviceHistory
+      parameters:
+        - name: mac
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /incidents:
+    get:
+      tags: [incidents]
+      summary: Listar incidentes
+      operationId: listIncidents
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /incidents/{id}:
+    get:
+      tags: [incidents]
+      summary: Consultar un incidente
+      operationId: getIncident
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /incidents/{id}/approve:
+    post:
+      tags: [incidents]
+      summary: Aprobar la cuarentena de un incidente (P32)
+      operationId: approveIncident
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /incidents/{id}/close:
+    post:
+      tags: [incidents]
+      summary: Cerrar un incidente
+      operationId: closeIncident
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /profiles:
+    get:
+      tags: [policies]
+      summary: Leer los perfiles de red
+      operationId: getProfiles
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+    put:
+      tags: [policies]
+      summary: Actualizar los perfiles de red
+      description: Escribe en bd_politicas y publica el cambio en auditoría; quién lo cambió queda registrado (P12)
+      operationId: updateProfiles
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /thresholds:
+    get:
+      tags: [policies]
+      summary: Leer los umbrales de detección
+      operationId: getThresholds
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+    put:
+      tags: [policies]
+      summary: Actualizar los umbrales de detección
+      description: Escribe en bd_politicas y publica el cambio en auditoría (P12)
+      operationId: updateThresholds
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /elevations:
+    get:
+      tags: [policies]
+      summary: Listar elevaciones vigentes e históricas
+      operationId: listElevations
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /events:
+    get:
+      tags: [audit]
+      summary: Consultar eventos de auditoría (solo lectura)
+      operationId: getEvents
+      parameters:
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: actor
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /metrics:
+    get:
+      tags: [monitor]
+      summary: Consultar métricas (solo lectura)
+      operationId: getMetrics
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+  /baselines:
+    get:
+      tags: [monitor]
+      summary: Consultar líneas base de detección (solo lectura)
+      operationId: getBaselines
+      responses:
+        '200':
+          $ref: '#/components/responses/Data200'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+components:
+  securitySchemes:
+    operator-session:
+      type: apiKey
+      in: cookie
+      name: session
+      description: cookie de sesión del operador (SSO); en herramientas, token derivado de vida corta con la misma vigencia
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+      description: paginación por cursor
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        maximum: 100
+        default: 100
+  schemas:
+    Response:
+      type: object
+      properties:
+        data:
+          type: object
+        error:
+          $ref: '#/components/schemas/Error'
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: p. ej. SESION_EXPIRADA
+        message:
+          type: string
+  responses:
+    Data200:
+      description: Respuesta con datos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Response'
+    Data201:
+      description: Recurso creado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Response'
+    Error401:
+      description: sin sesión válida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error403:
+      description: sesión válida sin el rol requerido; la interfaz no concede
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+security:
+  - operator-session: []

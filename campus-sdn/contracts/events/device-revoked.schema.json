@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/device-revoked.schema.json",
+  "title": "DeviceRevoked",
+  "description": "Se revocó un dispositivo. Productor: Registro. Consumidores: Auditoría, Consola.",
+  "type": "object",
+  "required": ["mac", "owner", "role", "responsible", "validity"],
+  "additionalProperties": false,
+  "properties": {
+    "mac": {"type": "string"},
+    "owner": {"type": "string"},
+    "role": {"type": "string"},
+    "responsible": {"type": "string"},
+    "validity": {"type": "string"}
+  }
+}

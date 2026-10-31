@@ -1,0 +1,9 @@
+{
+  "name": "onos",
+  "node": {"id": "{{ onos_node_id }}", "ip": "{{ ansible_host }}", "port": {{ onos_node_port }}},
+  "storage": [
+{% for member in groups['onos'] %}
+    {"id": "atomix-{{ loop.index }}", "ip": "{{ hostvars[member]['ansible_host'] }}", "port": {{ atomix_port }}}{% if not loop.last %},{% endif %}
+{% endfor %}
+  ]
+}

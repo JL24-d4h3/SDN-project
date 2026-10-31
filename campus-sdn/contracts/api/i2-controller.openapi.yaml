@@ -1,0 +1,405 @@
+openapi: 3.0.3
+info:
+  title: I2 — API del plano de control
+  description: |
+    Órdenes de política al controlador y consultas de topología y estado.
+    La hablan los servicios (Políticas, IAM, Monitor, Incidentes), no las
+    personas. Fuente: LLD 01_apis.md §2; decisión del controlador: F-01 §4.4.
+    REST/HTTPS · JSON · TCP 8181 · red de gestión. Con el clúster
+    desplegado, cualquier nodo atiende y el cliente reintenta en el
+    siguiente ante 503 o timeout: I2 es un único extremo lógico.
+    Rutas y campos en inglés; el LLD los describe en español (véase el
+    README de la carpeta para la correspondencia).
+  version: 1.0.0
+servers:
+  - url: https://{node}:8181/api/v1
+    variables:
+      node:
+        default: controller
+        description: un único extremo lógico; cualquier nodo del clúster atiende
+paths:
+  /orders:
+    post:
+      summary: Ejecutar una orden (APPLY_PROFILE, APPLY_MITIGATION, WITHDRAW)
+      operationId: submitOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+      responses:
+        '201':
+          description: Orden aplicada (confirmación por OpenFlow barrier)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderApplied'
+        '200':
+          description: Retiro confirmado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderWithdrawn'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '503':
+          $ref: '#/components/responses/Error503'
+    get:
+      summary: Estado de una orden anterior (idempotencia y reconciliación)
+      operationId: getOrderStatus
+      parameters:
+        - name: cookie
+          in: query
+          required: true
+          schema:
+            type: string
+          description: clave de idempotencia de la orden
+      responses:
+        '200':
+          description: Estado de la orden
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [PENDING, APPLIED, WITHDRAWN]
+                  rules:
+                    type: array
+                    items:
+                      type: string
+        '404':
+          $ref: '#/components/responses/Error404'
+  /associations:
+    get:
+      summary: Asociación vigente MAC ↔ switch:puerto ↔ IP (ligadura de sesión)
+      operationId: getAssociation
+      parameters:
+        - name: ip
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Asociación vigente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mac, ip, switch, port]
+                properties:
+                  mac:
+                    type: string
+                  ip:
+                    type: string
+                  switch:
+                    type: string
+                  port:
+                    type: string
+        '404':
+          $ref: '#/components/responses/Error404'
+  /rules:
+    get:
+      summary: Reglas instaladas (reconciliación de incidentes)
+      operationId: getRules
+      parameters:
+        - name: cookie
+          in: query
+          schema:
+            type: string
+        - name: switch
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reglas que coinciden con el filtro
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      type: object
+  /topology:
+    get:
+      summary: Grafo de la red
+      operationId: getTopology
+      responses:
+        '200':
+          description: Grafo de nodos y enlaces
+          content:
+            application/json:
+              schema:
+                type: object
+  /counters:
+    get:
+      summary: Contadores por puerto y flujo (I8)
+      operationId: getCounters
+      responses:
+        '200':
+          description: Contadores por puerto y flujo
+          content:
+            application/json:
+              schema:
+                type: object
+  /services:
+    post:
+      summary: Declarar un servicio en el inventario (privilegio administrativo)
+      operationId: declareService
+      description: |
+        El grafo no ve extremos: los servicios se declaran por I2 con
+        privilegio administrativo (LLD 01_apis.md §4). Ningún servicio se
+        autodeclara.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, class, ip, switch, port, declared_by]
+              properties:
+                name:
+                  type: string
+                class:
+                  type: string
+                ip:
+                  type: string
+                switch:
+                  type: string
+                port:
+                  type: string
+                declared_by:
+                  type: string
+      responses:
+        '201':
+          description: Servicio anclado al grafo; caminos recalculados
+          content:
+            application/json:
+              schema:
+                type: object
+        '403':
+          $ref: '#/components/responses/Error403'
+    get:
+      summary: Inventario de servicios
+      operationId: listServices
+      responses:
+        '200':
+          description: Inventario declarado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  services:
+                    type: array
+                    items:
+                      type: object
+components:
+  securitySchemes:
+    service-key:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: clave de servicio por cliente sobre TLS (LLD 01_apis.md §2)
+  schemas:
+    Order:
+      oneOf:
+        - $ref: '#/components/schemas/ProfileOrder'
+        - $ref: '#/components/schemas/MitigationOrder'
+        - $ref: '#/components/schemas/WithdrawOrder'
+      discriminator:
+        propertyName: order
+        mapping:
+          APPLY_PROFILE: '#/components/schemas/ProfileOrder'
+          APPLY_MITIGATION: '#/components/schemas/MitigationOrder'
+          WITHDRAW: '#/components/schemas/WithdrawOrder'
+    Device:
+      type: object
+      required: [mac, switch, port]
+      properties:
+        mac:
+          type: string
+        switch:
+          type: string
+        port:
+          type: string
+    Origin:
+      type: object
+      required: [mac, switch, port]
+      properties:
+        mac:
+          type: string
+        switch:
+          type: string
+        port:
+          type: string
+    Context:
+      type: object
+      required: [cookie, requester]
+      properties:
+        cookie:
+          type: string
+          description: clave de idempotencia; reaplicar la misma cookie no duplica reglas
+        requester:
+          type: string
+          description: identidad del servicio que ordena; se registra y audita
+        reason:
+          type: string
+        incident:
+          type: string
+        approval:
+          type: [string, 'null']
+          description: "obligatorio para QUARANTINE: identificador de la aprobación humana"
+    ProfileOrder:
+      type: object
+      required: [order, device, validity, context, profile]
+      properties:
+        order:
+          type: string
+          enum: [APPLY_PROFILE]
+        device:
+          $ref: '#/components/schemas/Device'
+        validity:
+          type: object
+          required: [idle_timeout_s, hard_timeout_s]
+          properties:
+            idle_timeout_s:
+              type: integer
+            hard_timeout_s:
+              type: integer
+          description: el mismo valor que la sesión (F-03 §5)
+        context:
+          $ref: '#/components/schemas/Context'
+        profile:
+          type: string
+          description: identificador del perfil (academic, it_operator, admin_operator, sa_operator, elevation); el controlador traduce a reglas; el solicitante expresa el qué, no el cómo
+    MitigationOrder:
+      type: object
+      required: [order, action, target, origins, parameters, context]
+      properties:
+        order:
+          type: string
+          enum: [APPLY_MITIGATION]
+        action:
+          type: string
+          enum: [RATE_LIMIT, BLOCK_SOURCE, ISOLATE_DEVICE, QUARANTINE]
+        target:
+          type: object
+          required: [type, ip]
+          properties:
+            type:
+              type: string
+            ip:
+              type: string
+        origins:
+          type: array
+          items:
+            $ref: '#/components/schemas/Origin'
+        parameters:
+          type: object
+          properties:
+            rate_pps:
+              type: integer
+              description: solo para RATE_LIMIT
+            ttl_s:
+              type: integer
+              description: toda mitigación expira sola (P10)
+        context:
+          $ref: '#/components/schemas/Context'
+    WithdrawOrder:
+      type: object
+      required: [order, context]
+      properties:
+        order:
+          type: string
+          enum: [WITHDRAW]
+        context:
+          $ref: '#/components/schemas/Context'
+          description: el retiro es por cookie, siempre; nunca se toca una regla ajena (P10)
+    OrderApplied:
+      type: object
+      required: [status, confirmed_at]
+      properties:
+        status:
+          type: string
+          enum: [APPLIED]
+        rules:
+          type: array
+          items:
+            type: string
+        confirmed_at:
+          type: string
+          format: date-time
+        verification:
+          type: string
+          enum: [PENDING]
+          description: solo mitigación; la cierra el Monitor por el bus (MitigationVerified), nunca por esta API
+    OrderWithdrawn:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [WITHDRAWN]
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+  responses:
+    Error400:
+      description: esquema inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error401:
+      description: sin clave válida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error403:
+      description: orden fuera de la competencia del solicitante
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error404:
+      description: dispositivo o cookie desconocidos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error409:
+      description: orden duplicada con cookie distinta
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error503:
+      description: controlador no disponible; reintentar la misma orden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+security:
+  - service-key: []

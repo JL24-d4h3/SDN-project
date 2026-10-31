@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/metric-sample.schema.json",
+  "title": "MetricSample",
+  "description": "Muestra de métricas del Monitor hacia la Detección: observación en bruto, de alto volumen, consumida por un solo servicio. No es evento de auditoría (LLD 02_eventos.md §3).",
+  "type": "object",
+  "required": ["destination", "window", "pps", "bps", "new_flows", "distinct_sources"],
+  "additionalProperties": false,
+  "properties": {
+    "destination": {"type": "string"},
+    "window": {"type": "string", "description": "ventana de agregación, p. ej. 60s"},
+    "pps": {"type": "number"},
+    "bps": {"type": "number"},
+    "new_flows": {"type": "integer"},
+    "distinct_sources": {"type": "integer"}
+  }
+}

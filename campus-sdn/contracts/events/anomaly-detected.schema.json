@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://campus-sdn/contracts/events/anomaly-detected.schema.json",
+  "title": "AnomalyDetected",
+  "description": "La Detección encontró una desviación sobre la línea base. Productor: Detección. Consumidores: Incidentes, Consola, Auditoría.",
+  "type": "object",
+  "required": ["type", "target", "origins", "rates", "baseline", "deviation", "proposed_severity"],
+  "additionalProperties": false,
+  "properties": {
+    "type": {"type": "string", "description": "clase de ataque"},
+    "target": {
+      "type": "object",
+      "required": ["ip", "service"],
+      "additionalProperties": false,
+      "properties": {
+        "ip": {"type": "string"},
+        "service": {"type": "string"}
+      }
+    },
+    "origins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["mac", "switch", "port"],
+        "additionalProperties": false,
+        "properties": {
+          "mac": {"type": "string"},
+          "switch": {"type": "string"},
+          "port": {"type": "string"}
+        }
+      }
+    },
+    "rates": {
+      "type": "object",
+      "required": ["pps", "bps"],
+      "additionalProperties": false,
+      "properties": {
+        "pps": {"type": "number"},
+        "bps": {"type": "number"}
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "required": ["mean", "sigma"],
+      "additionalProperties": false,
+      "properties": {
+        "mean": {"type": "number"},
+        "sigma": {"type": "number"}
+      }
+    },
+    "deviation": {"type": "number"},
+    "proposed_severity": {"type": "string"}
+  }
+}

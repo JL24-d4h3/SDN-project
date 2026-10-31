@@ -1,0 +1,75 @@
+# S3 — Respuesta: Incidentes, Políticas, Auditoría y sus datos.
+# PostgreSQL es imagen del lock; Incidentes y Políticas se construyen.
+# El bus (S4) llega por BUS_URL.
+services:
+  incidents:
+    build:
+      context: ../..
+      dockerfile: services/incidents/Dockerfile
+    container_name: s3-incidents
+    restart: unless-stopped
+    environment:
+      BUS_URL: ${BUS_URL:-}
+    ports:
+      - "8005:8005"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8005/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  policies:
+    build:
+      context: ../..
+      dockerfile: services/policies/Dockerfile
+    container_name: s3-policies
+    restart: unless-stopped
+    environment:
+      BUS_URL: ${BUS_URL:-}
+      I2_URL: ${I2_URL:-}
+      RATE_LIMIT_PPS: "1000"
+      MITIGATION_TTL_S: "300"
+    ports:
+      - "8006:8006"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8006/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  audit:
+    build:
+      context: ../..
+      dockerfile: services/audit/Dockerfile
+    container_name: s3-audit
+    restart: unless-stopped
+    environment:
+      BUS_URL: ${BUS_URL:-}
+    ports:
+      - "8007:8007"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8007/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16
+    container_name: s3-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: bd_politicas
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d bd_politicas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

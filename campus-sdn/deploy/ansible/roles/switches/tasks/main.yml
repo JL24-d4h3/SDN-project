@@ -1,0 +1,63 @@
+---
+# Rol switches: Open vSwitch en NC1/NC2/A1/A2, listo para el controlador.
+# Configura bridge, OpenFlow 1.3, fail_mode secure, puertos, trunks de
+# VLAN y controladores. Las entradas de política (esqueleto, sesión,
+# mitigación — LLD 06_reglas §3) las instala la app del controlador de
+# forma PROACTIVA: el esqueleto al conectar el switch, la sesión y la
+# mitigación por I2 (APPLY_PROFILE / APPLY_MITIGATION). El PACKET_IN
+# queda solo para las causas cerradas de aprendizaje (table-miss, ARP,
+# LLDP — LLD 06_reglas §2.1). Ansible no dicta flujos: deja el plano
+# preparado.
+- name: Paquetes de Open vSwitch
+  ansible.builtin.apt:
+    name: openvswitch-switch
+    state: present
+  tags: [switches]
+
+- name: Servicio de Open vSwitch activo
+  ansible.builtin.systemd:
+    name: openvswitch-switch
+    state: started
+    enabled: true
+  tags: [switches]
+
+- name: Bridge br0 presente
+  ansible.builtin.command: ovs-vsctl add-br br0
+  register: bridge_result
+  failed_when: bridge_result.rc != 0 and "already exists" not in bridge_result.stderr
+  changed_when: bridge_result.rc == 0
+  tags: [switches]
+
+- name: Parámetros del bridge
+  ansible.builtin.command: >
+    ovs-vsctl set bridge br0 protocols=OpenFlow13 fail_mode=secure
+    other-config:datapath-id={{ switch_dpid }}
+  tags: [switches]
+
+- name: Puertos de datos al bridge
+  ansible.builtin.command: ovs-vsctl add-port br0 {{ item }}
+  loop: "{{ switch_ports }}"
+  register: port_result
+  failed_when: port_result.rc != 0 and "already exists" not in port_result.stderr
+  changed_when: port_result.rc == 0
+  tags: [switches]
+
+- name: Trunks de VLAN en los puertos de datos
+  ansible.builtin.command: ovs-vsctl set port {{ item }} trunks=10,20,30
+  loop: "{{ switch_ports }}"
+  tags: [switches]
+
+- name: Controladores del bridge
+  ansible.builtin.command: ovs-vsctl set-controller br0 {{ controller_targets | join(' ') }}
+  tags: [switches]
+
+- name: Estado del plano
+  ansible.builtin.command: ovs-ofctl -O OpenFlow13 show br0
+  register: switch_show
+  changed_when: false
+  tags: [verify]
+
+- name: Resumen del switch
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}:\n{{ switch_show.stdout }}"
+  tags: [verify]
