@@ -1,4 +1,0 @@
-fastapi
-pika
-uuid6
-jsonschema
