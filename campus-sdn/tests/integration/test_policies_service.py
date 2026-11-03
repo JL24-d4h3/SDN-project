@@ -94,6 +94,21 @@ def test_thresholds_put_and_get(policies_client):
     assert client.get("/thresholds").json()["thresholds"]["sigma"] == 5
 
 
+def test_thresholds_put_requires_permission(monkeypatch, policies_client):
+    client, _ = policies_client
+    monkeypatch.setenv("IAM_URL", "http://iam:8001")
+    from sdn_common import authz
+
+    monkeypatch.setattr(authz.httpx, "get", lambda url, **kw: type(
+        "Response", (), {"status_code": 200,
+                         "json": lambda self: {
+                             "profile_or_role": "academic"}})())
+    response = client.put("/thresholds",
+                          json={"thresholds": {"sigma": 5}},
+                          headers={"X-Session": "s"})
+    assert response.status_code == 403
+
+
 def test_unknown_type_is_rejected(policies_client):
     _, _ = policies_client
     assert not policies_module.handle_event({"type": "NoExiste", "payload": {}})

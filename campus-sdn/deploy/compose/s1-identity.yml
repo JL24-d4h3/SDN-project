@@ -12,6 +12,7 @@ services:
     environment:
       IAM_URL: http://iam:8001
       BUS_URL: ${BUS_URL:-}
+      I2_URL: ${I2_URL:-}
     ports:
       - "8080:8080"
     depends_on:
@@ -69,9 +70,12 @@ services:
     image: freeradius/freeradius-server:3.2.10
     container_name: s1-freeradius
     restart: unless-stopped
-    environment:
-      RADIUS_CLIENT_NET: 10.0.0.0/24
-      RADIUS_CLIENT_SECRET: ${RADIUS_SECRET:?definir RADIUS_SECRET en .env}
+    volumes:
+      # La imagen no genera clientes por entorno: el IAM entra por el
+      # clients.conf generado desde la plantilla (verificado en el slice).
+      - ./radius/clients.conf:/etc/freeradius/clients.conf:ro
+      - ./radius/mods-ldap:/etc/freeradius/mods-enabled/ldap:ro
+      - ./radius/site-default:/etc/freeradius/sites-enabled/default:ro
     ports:
       - "1812:1812/udp"
       - "1813:1813/udp"

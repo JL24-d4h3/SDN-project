@@ -1,0 +1,80 @@
+# Semilla de la comunidad universitaria (IdP simulado, F-03 §2).
+# Los académicos no se registran nunca: estas cuentas las crea el
+# directorio institucional — aquí, esta semilla hace ese papel.
+# Contraseñas de prueba (solo para el prototipo): user_000X.
+
+dn: ou=people,dc=campus,dc=local
+objectClass: organizationalUnit
+ou: people
+
+dn: uid=USR-0001,ou=people,dc=campus,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: USR-0001
+cn: USR-0001
+sn: USR-0001
+userPassword: user_0001
+uidNumber: 10001
+gidNumber: 10001
+homeDirectory: /home/USR-0001
+
+dn: uid=USR-0002,ou=people,dc=campus,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: USR-0002
+cn: USR-0002
+sn: USR-0002
+userPassword: user_0002
+uidNumber: 10002
+gidNumber: 10002
+homeDirectory: /home/USR-0002
+
+dn: uid=USR-0003,ou=people,dc=campus,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: USR-0003
+cn: USR-0003
+sn: USR-0003
+userPassword: user_0003
+uidNumber: 10003
+gidNumber: 10003
+homeDirectory: /home/USR-0003
+
+dn: uid=USR-0004,ou=people,dc=campus,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: USR-0004
+cn: USR-0004
+sn: USR-0004
+userPassword: user_0004
+uidNumber: 10004
+gidNumber: 10004
+homeDirectory: /home/USR-0004
+
+dn: uid=USR-0005,ou=people,dc=campus,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: USR-0005
+cn: USR-0005
+sn: USR-0005
+userPassword: user_0005
+uidNumber: 10005
+gidNumber: 10005
+homeDirectory: /home/USR-0005
+
+dn: uid=USR-0006,ou=people,dc=campus,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: USR-0006
+cn: USR-0006
+sn: USR-0006
+userPassword: user_0006
+uidNumber: 10006
+gidNumber: 10006
+homeDirectory: /home/USR-0006

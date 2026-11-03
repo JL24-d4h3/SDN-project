@@ -65,7 +65,16 @@ campus-sdn/
 │   │   ├── s2-observability.yml # Prometheus, Grafana y Suricata (espejo) de S2
 │   │   ├── prometheus.yml       # configuración de rastreo de Prometheus
 │   │   ├── s3-response.yml      # S3 completo: Incidentes, Políticas (build) + PostgreSQL
-│   │   └── s4-governance.yml    # RabbitMQ, el bus de eventos
+│   │   ├── s4-governance.yml    # RabbitMQ, el bus de eventos
+│   │   └── minimal-slice.yml    # corte mínimo para el slice actual (bus, IAM, portal, registro, adaptador)
+│   ├── scripts/
+│   │   └── install_skeleton.py  # esqueleto BASE por la API REST de ONOS (los flujos ajenos los purga)
+│   ├── radius/                  # el IdP simulado de la comunidad (F-03 §2): FreeRADIUS → OpenLDAP
+│   │   ├── clients.conf.tpl     # plantilla de clientes (la imagen no los genera por entorno)
+│   │   ├── mods-ldap.tpl        # plantilla del módulo LDAP (secreto del .env al desplegar)
+│   │   └── site-default         # sitio default: autenticación LDAP + accounting detail
+│   ├── ldap/
+│   │   └── seed-users.ldif      # semilla de la comunidad (USR-000X); se siembra con ldapadd
 │   ├── env/
 │   │   └── .env.example         # plantilla de secretos; el .env real se ignora
 │   └── images/                  # modelo de imágenes: descripción en git, binarios fuera
@@ -81,6 +90,12 @@ campus-sdn/
 │   ├── 02-estado.md             # avances y pendientes, actualizado en cada cierre
 │   ├── 03-formatos.md           # tutorial: leer YAML, JSON, OpenAPI y Compose
 │   ├── adr/                     # decisiones de código; se llena al decidir
+│   ├── pruebas/                 # manuales de prueba sobre el slice actual (se ejecutan en orden)
+│   │   ├── 00-inventario-del-slice-actual.md  # cada VM, interfaz, enlace, ruta y hallazgo verificado
+│   │   ├── 01-perfil-base.md                  # cómo verificar que el esqueleto BASE funciona
+│   │   ├── 02-lista-de-verificacion.md        # los 37 permisos, qué se verificó y qué falta
+│   │   ├── 03-el-controlador-sus-tareas.md    # descubrimiento, topología, rutas y adaptividad de ONOS
+│   │   └── 04-autenticacion-y-autorizacion.md # los tres reinos reales, TOTP en dos pasos, sesión y flujos
 │   └── runbooks/                # procedimientos operativos; se llenan al operar
 │
 ├── policy/                      # la política de autorización: quién puede qué
@@ -92,8 +107,14 @@ campus-sdn/
 │       └── validate.py          # valida el YAML contra el esquema y sus referencias
 │
 ├── services/                    # un directorio por servicio propio
-│   ├── common/                  # esqueleto compartido: app, salud, eventos, bus
+│   ├── common/                  # esqueleto compartido: app, salud, eventos, bus, autorización por la política
+│   │   ├── sdn_common/
+│   │   │   ├── app.py           # fábrica de FastAPI con /health
+│   │   │   ├── authz.py         # require_permission: SSO contra el IAM + decisión por permissions.yaml
+│   │   │   ├── bus.py           # publicar con confirmación; consumir con cola, DLQ e idempotencia
+│   │   │   └── events.py        # envoltura, validación contra los esquemas y reloj UTC
 │   ├── portal/                  # formularios de las poblaciones (I3): login, logout, elevación
+│   │                           #  el dispositivo lo resuelve la red (I2 /associations), nunca el usuario
 │   ├── iam/                     # tres reinos (RADIUS/bcrypt+TOTP/registro efímero), sesiones por perfil, MAC_Moved
 │   ├── registry/                # dispositivos, historial, DeviceRegistered/Revoked
 │   ├── monitor/                 # ubicaciones → MAC_Moved, MetricSample, verificación de mitigaciones
@@ -130,6 +151,7 @@ Y una tabla de respuesta rápida para ubicarse sin leer todo:
 | Cómo llega todo esto a las 14 VMs del slice | [`deploy/`](../deploy/) |
 | Dónde vivirá el código de cada servicio | [`services/`](../services/) |
 | Cómo se demuestra que algo funciona | [`tests/`](../tests/) |
+| Cómo se prueba en el slice actual (inventario, perfil base, verificación) | [`docs/pruebas/`](pruebas/) |
 | Qué está hecho y qué falta | [`docs/02-estado.md`](02-estado.md) |
 
 ## 5. Las capas, a fondo

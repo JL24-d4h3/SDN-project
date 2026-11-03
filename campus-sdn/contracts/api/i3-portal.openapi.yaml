@@ -57,6 +57,13 @@ paths:
                 totp:
                   type: string
                   description: obligatorio para la ruta de operación
+                device:
+                  type: string
+                  description: |
+                    MAC del equipo que se conecta, resuelta por el portal
+                    desde la fuente de la conexión (I2 /associations): el
+                    usuario jamás la teclea. Sin asociación, la sesión
+                    nace sin regla de red (declarado).
       responses:
         '200':
           description: Sesión concedida por el IAM
@@ -68,6 +75,38 @@ paths:
                   session:
                     type: string
                     description: cookie de sesión emitida por el IAM
+                  profile_or_role:
+                    type: string
+                    enum: [academic, it_specialist, network_admin,
+                           super_admin, guest]
+                  device:
+                    type: string
+                    nullable: true
+                    description: |
+                      MAC del dispositivo ligada a la sesión, aportada
+                      por la red (asociación del controlador). Nulo si la
+                      conexión llegó sin asociación (p. ej. túnel).
+                  network:
+                    type: object
+                    description: |
+                      Resultado de la orden APPLY_PROFILE al controlador
+                      (I2). No condiciona la sesión: el login puede nacer
+                      con la red pendiente y declararlo.
+                    required: [status]
+                    properties:
+                      status:
+                        type: string
+                        enum: [applied, skipped, rejected, unreachable]
+                      reason:
+                        type: string
+                      code:
+                        type: integer
+                      detail:
+                        type: string
+                      rules:
+                        type: array
+                        items:
+                          type: string
         '401':
           $ref: '#/components/responses/Error401'
         '503':

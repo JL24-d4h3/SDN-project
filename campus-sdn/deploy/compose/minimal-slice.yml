@@ -1,0 +1,148 @@
+# Prueba mínima en el slice actual: identidad + bus en una sola VM.
+# STUB_VERIFY=1 para el primer pase (sin FreeRADIUS); con el RADIUS de S1
+# se apaga y se prueba el reino comunidad real. Las imágenes propias son
+# las de `make build` (prefijo campus-sdn-).
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: mini-rabbitmq
+    restart: unless-stopped
+    hostname: rabbit-mini
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-plataforma}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?definir RABBITMQ_PASSWORD en .env}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  iam:
+    build:
+      context: ../..
+      dockerfile: services/iam/Dockerfile
+    image: campus-sdn-iam
+    container_name: mini-iam
+    restart: unless-stopped
+    environment:
+      BUS_URL: amqp://${RABBITMQ_USER:-plataforma}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      I2_URL: ${I2_URL:-}
+      STUB_VERIFY: ${STUB_VERIFY:-}
+      RADIUS_HOST: ${RADIUS_HOST:-}
+      RADIUS_SECRET: ${RADIUS_SECRET:-}
+      REGISTRY_URL: ${REGISTRY_URL:-http://registry:8002}
+    ports:
+      - "8001:8001"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8001/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  controller_adapter:
+    build:
+      context: ../..
+      dockerfile: services/controller_adapter/Dockerfile
+    image: campus-sdn-controller-adapter
+    container_name: mini-adapter
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      ONOS_URL: http://host.docker.internal:8181
+      BUS_URL: amqp://${RABBITMQ_USER:-plataforma}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      SWITCH_DPIDS: '${SWITCH_DPIDS:-''{"sw1": "of:0000000000000001"}''}'
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8090/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  portal:
+    build:
+      context: ../..
+      dockerfile: services/portal/Dockerfile
+    image: campus-sdn-portal
+    container_name: mini-portal
+    restart: unless-stopped
+    environment:
+      IAM_URL: http://iam:8001
+      BUS_URL: amqp://${RABBITMQ_USER:-plataforma}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      I2_URL: ${I2_URL:-}
+    ports:
+      - "8080:8080"
+    depends_on:
+      iam:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  registry:
+    build:
+      context: ../..
+      dockerfile: services/registry/Dockerfile
+    image: campus-sdn-registry
+    container_name: mini-registry
+    restart: unless-stopped
+    environment:
+      BUS_URL: amqp://${RABBITMQ_USER:-plataforma}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8002/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # El IdP simulado de la comunidad (F-03 §2): FreeRADIUS verifica
+  # contra OpenLDAP — el prototipo simula al IdP, no al protocolo.
+  freeradius:
+    image: freeradius/freeradius-server:3.2.10
+    container_name: mini-freeradius
+    restart: unless-stopped
+    volumes:
+      - ./radius/clients.conf:/etc/freeradius/clients.conf:ro
+      - ./radius/mods-ldap:/etc/freeradius/mods-enabled/ldap:ro
+      - ./radius/site-default:/etc/freeradius/sites-enabled/default:ro
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    depends_on:
+      openldap:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps -ef | grep -v grep | grep -q freeradius"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: mini-openldap
+    restart: unless-stopped
+    environment:
+      LDAP_ORGANISATION: campus-sdn
+      LDAP_DOMAIN: campus.local
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:?definir LDAP_ADMIN_PASSWORD en .env}
+      LDAP_READONLY_USER: "true"
+      LDAP_READONLY_USER_PASSWORD: ${LDAP_READONLY_PASSWORD:?definir LDAP_READONLY_PASSWORD en .env}
+    # La semilla de usuarios NO se monta: la imagen procesa y borra sus
+    # bootstraps y los bind-mounts la rompen. Se siembra con ldapadd tras
+    # el primer arranque (manual de autenticación).
+    healthcheck:
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://127.0.0.1 -b dc=campus,dc=local -D cn=admin,dc=campus,dc=local -w ${LDAP_ADMIN_PASSWORD} >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

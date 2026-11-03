@@ -4,6 +4,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 COPY contracts/events /app/contracts/events
+COPY policy /app/policy
 COPY services/common /app/services/common
 COPY services/console /app/services/console
 

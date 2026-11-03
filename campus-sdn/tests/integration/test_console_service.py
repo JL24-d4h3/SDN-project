@@ -40,5 +40,35 @@ def test_with_iam_rejects_missing_session(monkeypatch, console_client):
                               headers={"X-Session": "x"}).status_code == 503
 
 
+def test_academic_session_gets_403(monkeypatch, console_client):
+    monkeypatch.setenv("IAM_URL", "http://iam:8001")
+    from sdn_common import authz
+
+    monkeypatch.setattr(authz.httpx, "get", lambda url, **kw: type(
+        "Response", (), {"status_code": 200,
+                         "json": lambda self: {
+                             "profile_or_role": "academic"}})())
+    response = console_client.get("/alerts", headers={"X-Session": "s"})
+    assert response.status_code == 403
+
+
+def test_it_session_gets_200(monkeypatch, console_client):
+    monkeypatch.setenv("IAM_URL", "http://iam:8001")
+    from sdn_common import authz
+
+    monkeypatch.setattr(authz.httpx, "get", lambda url, **kw: type(
+        "Response", (), {"status_code": 200,
+                         "json": lambda self: {
+                             "profile_or_role": "it_specialist"}})())
+    assert console_client.get(
+        "/alerts", headers={"X-Session": "s"}).status_code == 200
+
+
+def test_ui_serves_page(console_client):
+    response = console_client.get("/")
+    assert response.status_code == 200
+    assert "Consola del operador" in response.text
+
+
 def test_health(console_client):
     assert console_client.get("/health").status_code == 200

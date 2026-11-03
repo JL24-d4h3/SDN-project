@@ -1,0 +1,64 @@
+# Sitio default de FreeRADIUS para el prototipo: autenticación por LDAP
+# (el IdP simulado) y accounting detail (el IAM reporta Start/Interim/Stop,
+# F-03 §2). Reemplaza al default de la imagen en sites-enabled/default.
+server default {
+    listen {
+        type = auth
+        ipaddr = *
+        port = 0
+        limit {
+            max_connections = 16
+            lifetime = 0
+            idle_timeout = 30
+        }
+    }
+    listen {
+        type = acct
+        ipaddr = *
+        port = 0
+        limit {
+            max_connections = 16
+            lifetime = 0
+            idle_timeout = 30
+        }
+    }
+
+    authorize {
+        preprocess
+        ldap
+        if ((ok || updated) && User-Password) {
+            update {
+                control:Auth-Type := LDAP
+            }
+        }
+        pap
+    }
+
+    authenticate {
+        Auth-Type PAP {
+            pap
+        }
+        Auth-Type LDAP {
+            ldap
+        }
+    }
+
+    preacct {
+        preprocess
+        acct_unique
+    }
+
+    accounting {
+        detail
+    }
+
+    post-auth {
+        # Cada intento queda visible en ${logdir}/linelog (aceptados y
+        # rechazados): es la forma de ver al IdP en acción.
+        linelog
+        Post-Auth-Type REJECT {
+            linelog
+            attr_filter.access_reject
+        }
+    }
+}

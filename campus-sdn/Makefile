@@ -29,19 +29,22 @@ images-save: ## Empaqueta las imágenes en deploy/images/bundles/
 images-load: ## Carga bundles en el demonio local (IMAGES=onos[,rabbitmq])
 	./deploy/images/load.sh $(IMAGES)
 
-build: ## Construye las imágenes de los servicios propios
+build: ## Construye las imágenes de los servicios propios (prefijo campus-sdn-)
 	# Los dummy solo satisfacen la interpolación de Compose al parsear el
 	# archivo completo; el build no los usa. Los valores reales llegan por
 	# .env al levantar.
 	RADIUS_SECRET=dummy LDAP_ADMIN_PASSWORD=dummy LDAP_READONLY_PASSWORD=dummy \
-	docker compose -f deploy/compose/s1-identity.yml build portal iam registry
+	docker compose -p campus-sdn -f deploy/compose/s1-identity.yml build portal iam registry
 	GRAFANA_ADMIN_PASSWORD=dummy \
-	docker compose -f deploy/compose/s2-observability.yml build monitor detection sensor_adapter
+	docker compose -p campus-sdn -f deploy/compose/s2-observability.yml build monitor detection sensor_adapter
 	POSTGRES_PASSWORD=dummy \
-	docker compose -f deploy/compose/s3-response.yml build incidents policies audit
+	docker compose -p campus-sdn -f deploy/compose/s3-response.yml build incidents policies audit
 	RABBITMQ_PASSWORD=dummy \
-	docker compose -f deploy/compose/s4-governance.yml build console
-	docker compose -f deploy/compose/onos.yml build controller_adapter
+	docker compose -p campus-sdn -f deploy/compose/s4-governance.yml build console
+	docker compose -p campus-sdn -f deploy/compose/onos.yml build controller_adapter
+	RABBITMQ_PASSWORD=dummy RADIUS_SECRET=dummy LDAP_ADMIN_PASSWORD=dummy \
+	LDAP_READONLY_PASSWORD=dummy \
+	docker compose -p campus-sdn -f deploy/compose/minimal-slice.yml build portal iam registry
 
 ping: ## Conectividad con todas las VMs del inventario
 	ansible -i deploy/ansible/inventory/slice.yml all -m ping

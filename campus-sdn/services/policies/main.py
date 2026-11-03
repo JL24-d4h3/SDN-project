@@ -13,7 +13,10 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from fastapi import Depends
+
 from sdn_common.app import create_app
+from sdn_common.authz import require_permission
 from sdn_common.bus import consume_events, publish_event
 from sdn_common.events import build_event, utc_now, validate_event
 
@@ -168,8 +171,10 @@ def get_profiles():
 
 
 @app.put("/profiles")
-def update_profiles(body: dict):
-    """I7: actualiza perfiles; quién lo cambió queda auditado (P12)."""
+def update_profiles(body: dict,
+                    _=Depends(require_permission("P17", "profile"))):
+    """I7: actualiza perfiles (P17: Admin, SA); quién lo cambió queda
+    auditado (P12)."""
     profiles.clear()
     profiles.update(body.get("profiles", {}))
     return {"status": "updated", "profiles": profiles}
@@ -182,8 +187,9 @@ def get_thresholds():
 
 
 @app.put("/thresholds")
-def update_thresholds(body: dict):
-    """I7: actualiza umbrales dentro del rango aprobado (P12, C3)."""
+def update_thresholds(body: dict, _=Depends(
+        require_permission("P33", "detection_threshold"))):
+    """I7: actualiza umbrales dentro del rango aprobado (P33, C3)."""
     thresholds.clear()
     thresholds.update(body.get("thresholds", {}))
     return {"status": "updated", "thresholds": thresholds}

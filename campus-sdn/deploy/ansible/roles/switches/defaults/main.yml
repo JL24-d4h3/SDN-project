@@ -1,9 +1,12 @@
 ---
 # Valores por defecto del rol switches; el inventario los sobreescribe.
+# switch_bridge: nombre del bridge OVS (br0 en el despliegue de 14 VMs;
+# el slice actual los trae ya creados con el nombre del switch: sw1, sw2…).
 # switch_ports: NICs de datos (ens3 queda fuera: es la gestión).
 # switch_dpid: datapath-id estable por switch, para que ONOS reconozca
 # siempre al mismo dispositivo.
 # controller_targets: los tres nodos ONOS (OOB, red de gestión).
+switch_bridge: br0
 switch_ports: []
 switch_dpid: ""
 controller_targets: []

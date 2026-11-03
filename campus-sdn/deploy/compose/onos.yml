@@ -6,6 +6,7 @@ services:
     build:
       context: ../..
       dockerfile: services/controller_adapter/Dockerfile
+    image: campus-sdn-controller-adapter
     container_name: onos-adapter
     restart: unless-stopped
     network_mode: host

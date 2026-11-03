@@ -1,6 +1,10 @@
 # Imágenes empaquetadas: git guarda el lock, no los binarios.
 deploy/images/bundles/
 
+# Los archivos generados llevan secretos del .env (plantillas en el repo)
+deploy/radius/mods-ldap
+deploy/radius/clients.conf
+
 # Secretos y configuración real del slice: nunca versionados.
 deploy/env/.env
 deploy/ansible/inventory/slice.yml
