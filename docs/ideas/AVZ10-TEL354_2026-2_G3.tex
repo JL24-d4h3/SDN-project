@@ -1,0 +1,268 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands]{babel}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+
+\definecolor{azul}{RGB}{28,56,121}
+\hypersetup{colorlinks=true,linkcolor=azul,urlcolor=azul}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small TEL354 \textperiodcentered{} Grupo 3 (H0892) \textperiodcentered{} AVZ10 \textperiodcentered{} Plan de pruebas del módulo de identidad}
+\fancyhead[R]{\small \thepage}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{1.2cm}
+{\Large\bfseries Entregable Semana 10 (AVZ10)}\\[0.6cm]
+{\LARGE\bfseries\color{azul} Diseño y estructuración del plan de pruebas\\[0.2cm] del módulo de identidad}\\[1.2cm]
+{\large Grupo 3 --- Horario H0892}\\[0.2cm]
+{\large TEL354: Redes Definidas por Software --- 2026-2}\\[0.2cm]
+{\large 31 de octubre de 2026}\\[1.6cm]
+\begin{tabbing}
+Coach \hspace{1.4cm} \= Germán Espinoza\\[2pt]
+Profesor \> Christian Isaac Quispe Ordoñez\\[2pt]
+Integrantes \> Rojas Soplin, Rodrigo Franco --- 20213686 (líder)\\[2pt]
+\> Oropeza León, Piero Jesús --- 20212733 (arquitecto)\\[2pt]
+\> Altamirano Ramírez, Camila Nicole --- 20220964 (PM / QA)\\[2pt]
+\> Tavella Rivero, Fernando Vincenzo --- 20182693 (DevOps / SRE)\\[6pt]
+Archivo Paideia \> AVZ10-TEL354\_2026-2\_G3
+\end{tabbing}
+\end{titlepage}
+
+\section*{Cómo leer este documento}
+Plan de pruebas del \textbf{módulo de identidad}: portal cautivo, servicio de identidad (tres reinos y sesiones) y registro de dispositivos. Está escrito para ejecutarse sin conocer los avances previos: la sección 2 presenta el módulo, la 3 la estrategia, las 4 y 5 los casos ---cada uno con sus datos de entrada, su resultado esperado y su criterio de aceptación---, la 6 la matriz de cobertura, la 7 la estructura de la automatización, la 8 la gestión de defectos, la 9 los riesgos del plan, la 10 los entornos y datos de prueba, la 11 un caso ejecutado de verdad, la 12 justifica la cobertura, la 13 la trazabilidad a requisitos, la 14 la ejecución y evidencia, y la 15 fija los criterios objetivos de aprobación o rechazo.
+
+\section{El módulo bajo prueba}
+
+El módulo responde una sola pregunta, de punta a punta: \emph{¿quién es, con qué rol, desde qué dispositivo, y qué puede hacer?} Tres servicios cooperan para responderla:
+
+\begin{itemize}
+\item \textbf{Portal cautivo.} La única interfaz que ven las personas. Presenta el selector de reino (comunidad universitaria, personal de operación, invitado), pide credenciales y ---para operación--- el código del segundo factor. No decide nada: reenvía al servicio de identidad y publica solicitudes al bus. Su página cautiva es la cara visible del módulo.
+\item \textbf{Servicio de identidad.} El corazón. Verifica según el reino elegido: la comunidad contra el proveedor institucional por RADIUS; los operadores contra el repositorio propio (credenciales con hash bcrypt y segundo factor TOTP obligatorio); los invitados contra el registro efímero con vida de 24 horas que se borra solo. Emite la sesión con su rol y sus dos relojes (inactividad máxima y tope absoluto), y la invalida de inmediato si el dispositivo de la sesión se mueve de lugar.
+\item \textbf{Registro de dispositivos.} Guarda qué equipos están habilitados y su historial. Su regla de fondo: registrar no concede confianza --- es un atributo que la política evalúa, nunca un privilegio.
+\end{itemize}
+
+Las interfaces bajo prueba son las del contrato del sistema: la API del portal (entrada, salida, registro de invitado, elevación), la API de administración de sesiones y dispositivos, y los eventos del bus ---sesión abierta/cerrada, dispositivo registrado/revocado, solicitud de elevación--- validados contra sus esquemas formales. Toda credencial está excluida de logs y eventos por diseño, y hay un caso que lo vigila.
+
+\section{Estrategia de validación}
+
+\begin{itemize}
+\item \textbf{Tres niveles, tres preguntas.} \emph{Contrato}: ¿cada mensaje cumple el esquema formal acordado? \emph{Integración}: ¿los servicios cooperan contra dependencias reales o simuladas? \emph{Extremo a extremo}: ¿el flujo completo cumple el requisito? Cada nivel se apoya en el anterior: si un mensaje no cumple su forma, no tiene sentido probar la cooperación.
+\item \textbf{Automatización completa.} La suite corre con un solo comando y hoy suma \textbf{186 casos en verde}. Las dependencias externas se sustituyen en las pruebas para capturar eventos sin levantar el bus, y un modo de verificación simplificada aísla el desarrollo del RADIUS real. Las condiciones adversas se prueban apagando piezas: identidad caída, bus caído, sesión vencida.
+\item \textbf{Entornos.} Laptop (dependencias simuladas) $ightarrow$ slice mínimo (bus y RADIUS reales) $ightarrow$ slice completo (campaña de la etapa 3). Los mismos casos corren en los tres; cambia la profundidad de la dependencia, no el caso.
+\item \textbf{Disciplina.} La suite incluye una prueba que vigila las convenciones del código y otra que garantiza la sincronía entre la política de autorización y su documento fuente. Ninguna credencial puede aparecer en un log o en un evento: hay un caso que lo verifica sobre la salida real.
+\end{itemize}
+
+\section{Casos de prueba funcionales}
+
+Cada caso declara: \textbf{objetivo}, \textbf{precondiciones}, \textbf{datos de entrada}, \textbf{resultado esperado} y \textbf{criterio de aceptación} (la condición objetiva que decide aprobar o rechazar el caso).
+
+\begin{longtable}{p{1.1cm}p{3.4cm}p{3.2cm}p{3.4cm}p{3.2cm}}
+\toprule
+\textbf{ID} & \textbf{Objetivo y precondiciones} & \textbf{Datos de entrada} & \textbf{Resultado esperado} & \textbf{Criterio de aceptación}\\
+\midrule
+CP-01 & El selector muestra los tres reinos. Sin sesión & Petición a la página de entrada & Lista con comunidad, operación e invitado & Los tres presentes; ninguno concede privilegio por elegirlo\\
+CP-02 & Login de comunidad (modo simulado). Identidad disponible & Población \emph{comunidad}, usuario y contraseña & Sesión con perfil académico & Sesión emitida y evento \emph{sesión abierta} publicado y válido\\
+CP-03 & Login de comunidad (modo real). Servidor RADIUS con cuenta de prueba & Credenciales válidas del directorio; luego credenciales inventadas & Primero: acceso aceptado y sesión. Después: rechazo & La cuenta válida entra; la inventada recibe 401 y el intento queda auditado\\
+CP-04 & Login de operador con segundo factor. Operador aprovisionado con secreto TOTP & Credencial correcta + código TOTP correcto & Sesión con el rol del operador & Pasa solo con el código correcto; sin código no hay sesión\\
+CP-05 & Aprovisionamiento de operador. Rol autorizado & Usuario, contraseña y rol & Código QR del secreto, mostrado una sola vez & La URI del QR se entrega una única vez en la respuesta\\
+CP-06 & Registro de invitado. Sin sesión & Usuario y contraseña nuevos & Cuenta efímera con vencimiento & Vencimiento a 24 h; login inmediato con perfil de invitado\\
+CP-07 & Cierre de sesión. Sesión activa & Identificador de la sesión & Cierre confirmado y evento \emph{sesión cerrada} & La sesión deja de existir (404 posterior) y el evento es válido\\
+CP-08 & Revocación administrativa. Operador con rol & Identificador de sesión ajena & Cierre con motivo administrativo & Mismo efecto que CP-07, con motivo registrado\\
+CP-09 & Registro de dispositivo. Sin privilegios previos & MAC, titular, rol, responsable y vigencia & Alta confirmada y evento publicado & El evento valida contra su esquema; registrar no cambia ningún privilegio\\
+CP-10 & Historial de dispositivo. Dispositivo con altas y bajas & MAC del dispositivo & Historial con las entradas en orden & Cada alta y revocación aparece con su marca de tiempo\\
+CP-11 & Solicitud de elevación. Sesión académica & Solicitante, alcance y duración & Aceptación 202 y evento \emph{solicitud de elevación} en el bus & El evento se valida contra su esquema \emph{antes} de publicarse\\
+\bottomrule
+\end{longtable}
+
+\section{Casos límite y de error}
+
+\begin{longtable}{p{1.1cm}p{3.4cm}p{3.2cm}p{3.4cm}p{3.2cm}}
+\toprule
+\textbf{ID} & \textbf{Objetivo y precondiciones} & \textbf{Datos de entrada} & \textbf{Resultado esperado} & \textbf{Criterio de aceptación}\\
+\midrule
+CE-01 & Invitado vencido. Cuenta con TTL cumplido & Usuario y contraseña de la cuenta vencida & Rechazo 401 y borrado automático & La cuenta desaparece del registro sin intervención\\
+CE-02 & Sesión inexistente. Sin sesión & Identificador inventado & 404 estructurado & Sin sesión y sin evento publicado\\
+CE-03 & Credenciales en el reino equivocado. Operador elige \emph{comunidad} & Credenciales de operador en la ruta de comunidad & Falla de verificación y registro del intento & El intento queda auditado con la población elegida\\
+CE-04 & Identidad caída. Portal sin identidad alcanzable & Login válido & 503 con mensaje claro & El portal degrada con respuesta estructurada, no con excepción\\
+CE-05 & Bus caído. Solicitud de elevación sin bus & Solicitud válida & 503 & El login no depende del bus: solo la elevación degrada\\
+CE-06 & Dispositivo movido con sesión viva. Monitor publica el movimiento & Evento de movimiento con la MAC de la sesión & Sesión invalidada y evento \emph{sesión cerrada} & La invalidación es inmediata y auditada\\
+CE-07 & Inactividad vencida. Sesión sin uso mayor que su límite & Consulta de la sesión & 404 y cierre con motivo de inactividad & El límite por perfil se aplica al consultar\\
+CE-08 & Tope absoluto vencido. Sesión mayor que su tope & Consulta de la sesión & 404 y cierre & Igual que CE-07; ninguna sesión sobrevive a su tope\\
+CE-09 & Rol insuficiente. Sesión académica consulta alertas de la consola & Petición autenticada sin el permiso & 403 & La política decide: el académico recibe 403; TI, administrador y superadministrador pasan\\
+CE-10 & Hueco de secuencia. Evento con número saltado & Evento con secuencia 3 tras la 1 & Hueco \emph{declarado} en la auditoría & El hueco queda registrado, jamás oculto\\
+\bottomrule
+\end{longtable}
+
+\section{Matriz de cobertura caso $\times$ requisito}
+
+\begin{longtable}{p{5.8cm}p{4.2cm}p{4.0cm}}
+\toprule
+\textbf{Caso} & \textbf{Requisito principal} & \textbf{Requisitos asociados}\\
+\midrule
+CP-01 Selector de reinos & R1.2 & R1.5\\
+CP-02 Login de comunidad (simulado) & R1.2 & R1.3, R1.9\\
+CP-03 Login de comunidad (real, RADIUS) & R1.2 & R1.9\\
+CP-04 Login de operador con TOTP & R1.2 & R1.8\\
+CP-05 Aprovisionamiento de operador & R1.7 & R1.8\\
+CP-06 Registro de invitado & R1.2 & R1.5\\
+CP-07 Cierre de sesión & R1.9 & ---\\
+CP-08 Revocación administrativa & R1.7 & R1.9\\
+CP-09 Registro de dispositivo & R1.7 & R1.10\\
+CP-10 Historial de dispositivo & R1.7 & R1.9\\
+CP-11 Solicitud de elevación & R1.3 & R1.9\\
+CE-01 Invitado vencido & R1.2 & R1.5\\
+CE-02 Sesión inexistente & R1.6 & ---\\
+CE-03 Credenciales en reino equivocado & R1.2 & R1.9\\
+CE-04 Identidad caída & Disponibilidad & ---\\
+CE-05 Bus caído & Disponibilidad & ---\\
+CE-06 Dispositivo movido & Seguridad de sesión & R1.9\\
+CE-07 Inactividad vencida & R1.3 & ---\\
+CE-08 Tope vencido & R1.3 & ---\\
+CE-09 Rol insuficiente & R1.6 & R2.4, R2.5\\
+CE-10 Hueco de secuencia & R1.9 & ---\\
+\bottomrule
+\end{longtable}
+
+Ningún requisito de los listados queda sin al menos un caso; la matriz es la herramienta de verificación de la cobertura.
+
+\section{Estructura de la automatización}
+
+La suite automatizada suma \textbf{186 casos} en dos capas --- contrato e integración --- más la vigilancia de convenciones. El desglose por módulo:
+
+\begin{longtable}{p{5.6cm}p{2.4cm}p{6.0cm}}
+\toprule
+\textbf{Agrupación} & \textbf{Casos} & \textbf{Qué cubre}\\
+\midrule
+Módulo de identidad (portal, identidad, registro) & 27 & Los casos CP/CE de §4 y §5\\
+Autorización por la política & 8 & La evaluación rol $\times$ permiso contra la política real\\
+Contratos del portal & 5 & Forma de la API del portal\\
+Eventos del bus & 43 & La envoltura común y los dieciséis tipos, con sus rechazos\\
+Política y su sincronía & 3 & La política valida y no diverge de su fuente\\
+Adaptador del controlador & 11 & Traducción de órdenes a reglas con un controlador simulado\\
+Observación y respuesta (monitor, detección, incidentes, políticas) & 25 & Los ciclos de detección y decisión\\
+Auditoría, consola y sensor & 15 & Registro completo, alertas y agregación del espejo\\
+Vigilancia de convenciones & 49 & La regla de idioma del código, archivo por archivo\\
+\textbf{Total} & \textbf{186} & Ejecución en verde al cierre\\
+\bottomrule
+\end{longtable}
+
+La capa de contrato valida cada mensaje contra su esquema formal; la de integración prueba los servicios cooperando con dependencias sustituidas o reales; la vigilancia de convenciones hace que la propia suite impida desviaciones del estándar acordado.
+
+\section{Gestión de defectos}
+
+\begin{longtable}{p{3.2cm}p{10.8cm}}
+\toprule
+\textbf{Severidad} & \textbf{Tratamiento}\\
+\midrule
+Crítico & Una credencial en un log o evento, o una degradación sin respuesta estructurada: bloquea la entrega hasta su corrección\\
+Alto & Un caso funcional que falla: se corrige antes de continuar; el caso queda con su prueba de regresión\\
+Medio & Un caso límite que falla solo en un entorno: se documenta la limitación y se fija la fecha de re-prueba\\
+Bajo & Cosmética o de mensaje: se registra y se corrige en el siguiente ciclo\\
+\bottomrule
+\end{longtable}
+
+Reglas de re-prueba: todo defecto corregido re-ejecuta su caso y la suite completa (regresión); un defecto reabierto sube una severidad. Los defectos de entorno (RADIUS no disponible, bus caído) no son defectos del módulo si la degradación fue estructurada --- esa es justamente la condición que CE-04 y CE-05 verifican.
+
+\section{Riesgos del plan y mitigaciones}
+
+\begin{longtable}{p{5.2cm}p{4.2cm}p{4.6cm}}
+\toprule
+\textbf{Riesgo} & \textbf{Efecto} & \textbf{Mitigación}\\
+\midrule
+El RADIUS real llega tarde & CP-03 y CE-06 sin ejecutar en el slice & CP-03 corre en modo simulado desde el inicio; la versión real se anexa al llegar\\
+El slice de 14 máquinas se retrasa & La campaña completa se pospone & El slice mínimo (bus y RADIUS en una máquina) cubre CP-03, CP-06 y CE-04/05 antes\\
+La suite crece y se vuelve lenta & Menos ciclos de regresión al día & La suite completa corre en segundos hoy; si supera el minuto, se particiona por módulo\\
+Cuentas de prueba mal gestionadas & Resultados no reproducibles & Los datos estándar de §10 viven en el plan; los del slice se generan por aprovisionamiento, no se reutilizan\\
+\bottomrule
+\end{longtable}
+
+\section{Entornos y datos de prueba}
+
+
+
+\begin{longtable}{p{3.2cm}p{5.4cm}p{5.4cm}}
+\toprule
+\textbf{Entorno} & \textbf{Dependencias reales} & \textbf{Qué casos corren}\\
+\midrule
+Laptop & Ninguna externa: RADIUS simulado por modo de verificación simplificada; bus sustituido & Toda la suite (contrato + integración)\\
+Slice mínimo & Bus real y RADIUS real (cuentas del directorio de prueba) & CP-03, CP-06, CE-04 a CE-06, y el flujo de extremo a extremo\\
+Slice completo & Todo el sistema con switches y controlador & La campaña completa de la etapa 3\\
+\bottomrule
+\end{longtable}
+
+Datos de prueba estándar (los mismos en todos los entornos):
+
+\begin{longtable}{p{3.6cm}p{4.4cm}p{6.0cm}}
+\toprule
+\textbf{Dato} & \textbf{Valor de prueba} & \textbf{Uso}\\
+\midrule
+Usuario académico & \texttt{a12345} & CP-02/03/07/08/11, CE-04/06/07/08\\
+Operador de TI & \texttt{op-1} con secreto TOTP & CP-04/05, CE-03, CE-09\\
+Invitado & \texttt{guest-1} & CP-06, CE-01\\
+Dispositivo & MAC \texttt{52:54:00:01:01} & CP-09/10, CE-06\\
+Sesión inexistente & \texttt{no-existe} & CE-02\\
+\bottomrule
+\end{longtable}
+
+Ninguna de estas credenciales es real; las del entorno de slice se generan por el procedimiento de aprovisionamiento, no se reutilizan de otros entornos.
+
+\section{Un caso ejecutado de verdad: CP-06}
+
+Para mostrar la forma de la evidencia, el caso CP-06 (registro de invitado) ejecutado contra el módulo corriendo en contenedores reales ---portal, identidad, registro y bus levantados como en el slice mínimo---:
+
+\begin{enumerate}
+\item \textbf{Entrada} (petición al portal): \texttt{\{"username": "demo", "password": "x"\}} al recurso de registro de invitado.
+\item \textbf{Respuesta}: \texttt{\{"status": "registered", "expires\textunderscore at": 1793536557.7\}} --- la cuenta nace con su vencimiento (24 h desde el registro).
+\item \textbf{Login inmediato} (petición al portal con población \emph{invitado}): la respuesta incluye la sesión con perfil \texttt{guest}.
+\item \textbf{Evidencia adicional}: los cuatro contenedores reportaron estado sano, la página cautiva respondió, y el evento \emph{dispositivo/sesión} correspondiente quedó validado contra su esquema antes de publicarse.
+\end{enumerate}
+
+El mismo formato ---entrada, salida, criterio--- se anexa para cada caso cuando corre en el slice.
+
+\section{Cobertura justificada}
+
+La cobertura se justifica contra la funcionalidad del módulo, dimensión por dimensión: \emph{cada reino tiene sus casos felices y sus errores} (CP-02/03, CP-04/05, CP-06, CE-01, CE-03); \emph{cada reloj de la sesión tiene su caso} (CE-07, CE-08); \emph{cada interfaz tiene al menos un caso por dirección} (API del portal: CP-01, CP-11; API de administración: CP-07/08/09/10; bus: CP-02/07/09/11 y CE-06/10); \emph{cada dependencia externa tiene su caso de caída} (CE-04, CE-05); y \emph{la autorización se prueba con la política real} (CE-09). Ninguna funcionalidad del módulo queda sin al menos un caso: la tabla de trazabilidad lo verifica.
+
+\section{Trazabilidad a requisitos}
+
+\begin{longtable}{p{2.6cm}p{6.0cm}p{5.4cm}}
+\toprule
+\textbf{Requisito} & \textbf{Funcionalidad cubierta} & \textbf{Casos}\\
+\midrule
+R1.1--R1.3 & Identificación, autenticación por reino y asignación de perfil & CP-01 a CP-06, CE-01, CE-03\\
+R1.6 & Denegación de accesos no autorizados & CE-09\\
+R1.9 & Trazabilidad de autenticación, autorización y elevación & CP-02, CP-07 a CP-09, CP-11, CE-10\\
+R2.4--R2.5 & Autorización verificada y denegación & CE-09\\
+Seguridad de sesión & Robo de sesión y credenciales & CE-06, CP-05, CE-03\\
+Disponibilidad & Degradación ante dependencias caídas & CE-04, CE-05\\
+Verificabilidad & Todo caso es automatizable y repetible & Suite completa\\
+\bottomrule
+\end{longtable}
+
+\section{Ejecución y evidencia}
+
+Al cierre de la semana, la suite automatizada reporta \textbf{186 casos en verde} entre contrato e integración, incluidas la vigilancia de convenciones y la sincronía de la política con su fuente. Además se ejecutó el módulo de extremo a extremo en contenedores reales: entrada por el portal contra la identidad, sesión consultable, registro de dispositivo, elevación degradada sin bus y cierre con 404 posterior. El siguiente hito es el slice mínimo, donde CP-03 y CE-06 corren contra RADIUS y bus reales; sus resultados se anexarán como evidencia de la campaña.
+
+\section{Criterios de aprobación o rechazo}
+
+\begin{itemize}
+\item \textbf{Aprueba el módulo} si: todos los casos funcionales pasan al 100\,\%; todos los casos límite y de error pasan al 100\,\% o quedan documentados con su limitación de entorno; y la trazabilidad no deja requisitos sin casos.
+\item \textbf{Se rechaza el módulo} si: un caso funcional falla; una credencial aparece en un log o en un evento; o una degradación responde sin estructura (el código de estado debe ser siempre 4xx/5xx con mensaje, jamás una excepción sin forma).
+\item \textbf{Regresión:} la suite completa debe quedar en verde tras cada cambio; un cambio que rompe un caso bloquea su integración, sin excepciones.
+\end{itemize}
+
+\section{Declaración de uso de inteligencia artificial}
+Conforme a los lineamientos del curso, el Grupo 3 declara que usó inteligencia artificial generativa (Claude, de Anthropic, a través de Claude Code) para estructurar este plan a partir de la suite de pruebas existente, extraer los casos con sus datos de entrada y redactar el documento. La selección del módulo, la interpretación de los resultados y la responsabilidad por el contenido son del equipo, que revisó cada caso contra el código y la ejecución real.
+
+\end{document}
